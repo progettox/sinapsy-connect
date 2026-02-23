@@ -1,0 +1,38 @@
+Giorno 1 – 2: Pianificazione & Wireframe
+✔ Schema database utenti (foto, nickname, canali social)
+ ✔ Flussi UX/UI: registrazione → profilo → feed annunci → proposta di collaborazione
+Output atteso: wireframe e lista funzionalità
+
+Giorno 3 – 4: Setup Flutter + Firebase
+✔ Creare progetto Flutter
+ ✔ Firebase Auth (email, social login)
+ ✔ Firestore database per profil
+i e annunci
+ ✔ Storage per immagini profilo
+
+Giorno 5: UI Profili e Registrazione
+✔ Schermate profilo utente
+ ✔ Selezione ruolo (brand/creator/fotografo/altro)
+ ✔ Salvataggio dati base
+
+Giorno 6: Pubblicazione annunci
+✔ Pannello brand per creare annuncio
+ Campi: titolo, descrizione, requisiti (follower min), compenso, luogo, tipologia di collaborazione
+
+Giorno 7: Feed annunci e cercare creator
+✔ Lista annunci navigabile
+ ✔ Filtri semplici (categoria, luogo, follower)
+
+Giorno 8: Invio / ricezione richieste
+✔ Bottone Collabora/Richiesta
+ ✔ Salvataggio proposta nel database
+ ✔ Notifiche base
+
+Giorno 9: Chat & notifiche
+✔ Chat semplice basata su Firestore
+ ✔ Push notifications (Firebase)
+
+Giorno 10: Testing + Bugfix + Refinement
+✔ Test su Android/iOS
+ ✔ Correzione bug
+ ✔ Preparazione presentazione/prototipo
