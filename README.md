@@ -115,4 +115,4 @@ transactions/{transactionId} {
   releasedAt: timestamp
 }
 Sinapsy Score = media recensioni × fattore affidabilità
-d
+
