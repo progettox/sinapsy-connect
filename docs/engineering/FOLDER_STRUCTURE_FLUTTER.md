@@ -1,0 +1,1 @@
+# Flutter folder structure (LLM-friendly)
