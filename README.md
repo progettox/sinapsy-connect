@@ -1,1 +1,1 @@
-.
+﻿# Sinapsy Connect
