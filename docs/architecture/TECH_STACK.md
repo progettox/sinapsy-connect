@@ -1,18 +1,18 @@
-# Tech Stack (suggested MVP)
+# Tech Stack (MVP)
 
 ## Frontend
 - Flutter
 - Riverpod (state management)
 - go_router (navigation)
 
-## Backend (scelta MVP)
-A) Firebase-first (consigliato per PCTO)
-- Firebase Auth
-- Cloud Firestore
-- Firebase Storage
-- Cloud Functions (opzionale)
+## Backend (scelta attuale)
+- Supabase Auth (Email, Google, Apple se configurati)
+- Supabase Postgres (database principale)
+- Supabase Storage (media delivery)
+- Supabase Realtime (chat e aggiornamenti stato)
+- Supabase Edge Functions (opzionale: webhook Stripe, logica server)
+- Row Level Security (RLS) per controllo accessi
 
-B) Custom backend (se avete tempo)
-- Node.js + Express o FastAPI
-- PostgreSQL
-- Stripe Connect
+## Note
+- Per questo progetto MVP usiamo Supabase come default.
+- Evitare mix di provider backend nello stesso codice.

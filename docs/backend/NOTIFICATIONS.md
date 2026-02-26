@@ -1,4 +1,4 @@
-# Notifications
+﻿# Notifications
 
 Trigger principali:
 - nuova candidatura
@@ -9,4 +9,5 @@ Trigger principali:
 
 MVP:
 - in-app notifications list
+- realtime updates con Supabase Realtime
 - push opzionale

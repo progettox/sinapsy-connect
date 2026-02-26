@@ -1,7 +1,8 @@
-# Auth & Social validation
+﻿# Auth & Social validation
 
 ## Auth
-- Firebase Auth (Apple/Google/Email)
+- Supabase Auth (Email, Google, Apple se configurati)
+- Sessione via JWT gestita da Supabase
 
 ## Social validation
 MVP:

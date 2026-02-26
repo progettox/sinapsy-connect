@@ -1,10 +1,17 @@
-# Architecture Overview (MVP)
+﻿# Architecture Overview (MVP)
 
 ## App Flutter
 - presentation (UI)
 - application (use-cases)
 - domain (entities)
 - data (repositories + datasources)
+
+## Backend platform
+- Supabase Auth
+- Supabase Postgres
+- Supabase Storage
+- Supabase Realtime
+- Supabase Edge Functions (opzionale)
 
 ## Services
 - Auth

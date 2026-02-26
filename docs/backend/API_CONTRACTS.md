@@ -1,8 +1,8 @@
-# API Contracts (se usi backend custom)
+﻿# API Contracts (logica applicativa)
 
-> Se usi Firebase-only, questo file serve come “contratto logico” per servizi e repository.
+> Se usi Supabase-only, questo file resta il contratto logico tra use-case e repository.
 
-## Endpoints (concept)
+## Azioni principali (concept)
 - POST /campaigns
 - GET /campaigns?role=creator&city=Milano
 - POST /applications
@@ -12,6 +12,12 @@
 - POST /projects/{id}/approve
 - POST /projects/{id}/dispute
 - POST /reviews
+
+## Nota implementativa Supabase
+- Le azioni possono essere implementate con:
+  - query dirette su Postgres via Supabase client
+  - RPC SQL
+  - Edge Functions (quando serve logica server)
 
 ## Response standard
 - success: bool

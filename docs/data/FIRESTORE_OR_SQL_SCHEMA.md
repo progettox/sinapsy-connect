@@ -1,15 +1,20 @@
-# Firestore o SQL?
+﻿# Decisione Backend e Schema (MVP)
 
-## Consiglio MVP PCTO
-- Se vuoi velocità in Flutter: **Firebase (Auth + Firestore + Storage)**.
-- Se vuoi architettura “startup”: API + PostgreSQL.
+## Decisione presa
+- Usiamo **Supabase** come backend unico per MVP.
+- Database: **PostgreSQL**.
+- Autenticazione: Supabase Auth.
+- Media: Supabase Storage.
 
-Per Codex, scegli 1 approccio e non mischiare.
+## Regola di progetto
+- Non mischiare provider diversi nel runtime.
 
 ## Scelta default suggerita (MVP)
-- Firebase Auth
-- Cloud Firestore
-- Firebase Storage
-- Cloud Functions (solo se serve)
+- Supabase Auth
+- Supabase Postgres
+- Supabase Storage
+- Supabase Realtime (chat/stati)
+- Supabase Edge Functions (solo se serve)
 
-Motivo: riduce backend custom.
+## Motivo
+- Stack coerente, SQL nativo, RLS integrata, meno complessita operativa.

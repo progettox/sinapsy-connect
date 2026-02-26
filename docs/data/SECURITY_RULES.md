@@ -1,13 +1,18 @@
-# Security Rules (MVP concepts)
+﻿# Security Rules (MVP concepts)
 
 ## Principi
-- Un user può leggere/modificare solo il proprio profilo.
-- Un brand può leggere applications solo delle proprie campaigns.
-- Una chat è visibile solo a brandId e creatorId.
-- Se project è `disputed`, invio messaggi bloccato (read-only).
+- Un user puo leggere/modificare solo il proprio profilo.
+- Un brand puo leggere applications solo delle proprie campaigns.
+- Una chat e visibile solo a brandId e creatorId.
+- Se project e `disputed`, invio messaggi bloccato (read-only).
+
+## Supabase policy model
+- Applicare Row Level Security (RLS) su tutte le tabelle sensibili.
+- Policy per `select/insert/update` basate su `auth.uid()`.
+- Bloccare `insert` su `messages` quando project = `disputed`.
 
 ## Storage media
-- Upload consentito solo a membri della chat
-- Accesso ai file tramite URL signed o regole per path.
+- Upload consentito solo a membri della chat.
+- Accesso ai file tramite URL signed o policy Storage per path.
 
-> Implementazione concreta dipende da Firebase/Backend.
+> Implementazione concreta: policy SQL + Storage policies in Supabase.
