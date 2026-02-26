@@ -19,28 +19,18 @@ class AuthRepository {
 
   Stream<AuthUserModel?> authChanges() => _service.authChanges();
 
-  Future<void> signInWithGoogle() => _service.signInWithGoogle();
-
-  Future<void> signInWithApple() => _service.signInWithApple();
-
   Future<void> signInWithEmail({
     required String email,
     required String password,
   }) {
-    return _service.signInWithEmail(
-      email: email,
-      password: password,
-    );
+    return _service.signInWithEmail(email: email, password: password);
   }
 
   Future<void> signUpWithEmail({
     required String email,
     required String password,
   }) {
-    return _service.signUpWithEmail(
-      email: email,
-      password: password,
-    );
+    return _service.signUpWithEmail(email: email, password: password);
   }
 
   Future<void> signOut() => _service.signOut();

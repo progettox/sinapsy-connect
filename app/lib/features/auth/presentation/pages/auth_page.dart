@@ -51,7 +51,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   Future<void> _signInWithEmail() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final ok = await ref.read(authControllerProvider.notifier).signInWithEmail(
+    final ok = await ref
+        .read(authControllerProvider.notifier)
+        .signInWithEmail(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
@@ -62,12 +64,16 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   Future<void> _signUpWithEmail() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final ok = await ref.read(authControllerProvider.notifier).signUpWithEmail(
+    final ok = await ref
+        .read(authControllerProvider.notifier)
+        .signUpWithEmail(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
     if (!mounted || !ok) return;
-    _showSnack('Registrazione completata. Controlla la tua email se richiesto.');
+    _showSnack(
+      'Registrazione completata. Controlla la tua email se richiesto.',
+    );
   }
 
   @override
@@ -75,13 +81,17 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     final state = ref.watch(authControllerProvider);
 
     ref.listen<AuthUiState>(authControllerProvider, (previous, next) {
-      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+      if (next.errorMessage != null &&
+          next.errorMessage != previous?.errorMessage) {
         _showSnack(next.errorMessage!);
         ref.read(authControllerProvider.notifier).clearError();
       }
     });
 
-    ref.listen<AsyncValue<AuthUserModel?>>(authChangesProvider, (previous, next) {
+    ref.listen<AsyncValue<AuthUserModel?>>(authChangesProvider, (
+      previous,
+      next,
+    ) {
       next.whenData((user) {
         if (user == null || !mounted) return;
         context.go(AppRouter.splashPath);
@@ -110,31 +120,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: state.isLoading
-                          ? null
-                          : () => ref.read(authControllerProvider.notifier).signInWithGoogle(),
-                      icon: const Icon(Icons.g_mobiledata),
-                      label: const Text('Google'),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: state.isLoading
-                          ? null
-                          : () => ref.read(authControllerProvider.notifier).signInWithApple(),
-                      icon: const Icon(Icons.apple),
-                      label: const Text('Apple'),
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: state.isLoading
-                          ? null
-                          : () => _emailFocusNode.requestFocus(),
-                      icon: const Icon(Icons.email_outlined),
-                      label: const Text('Email'),
-                    ),
-                    const SizedBox(height: 24),
-                    const Divider(),
+                    const Text('Accedi con email', textAlign: TextAlign.center),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _emailController,

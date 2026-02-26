@@ -1,7 +1,7 @@
 ﻿# Auth & Social validation
 
 ## Auth
-- Supabase Auth (Email, Google, Apple se configurati)
+- Supabase Auth (solo Email)
 - Sessione via JWT gestita da Supabase
 
 ## Social validation

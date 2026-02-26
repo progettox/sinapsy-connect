@@ -37,10 +37,6 @@ class AuthController extends StateNotifier<AuthUiState> {
 
   final AuthRepository _repository;
 
-  Future<bool> signInWithGoogle() => _run(_repository.signInWithGoogle);
-
-  Future<bool> signInWithApple() => _run(_repository.signInWithApple);
-
   Future<bool> signInWithEmail({
     required String email,
     required String password,

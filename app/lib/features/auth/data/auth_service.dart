@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -30,54 +29,21 @@ class AuthService {
     });
   }
 
-  Future<void> signInWithGoogle() {
-    return _client.auth.signInWithOAuth(
-      OAuthProvider.google,
-      redirectTo: _oauthRedirectTo(),
-    );
-  }
-
-  Future<void> signInWithApple() {
-    return _client.auth.signInWithOAuth(
-      OAuthProvider.apple,
-      redirectTo: _oauthRedirectTo(),
-    );
-  }
-
   Future<void> signInWithEmail({
     required String email,
     required String password,
   }) {
-    return _client.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
+    return _client.auth.signInWithPassword(email: email, password: password);
   }
 
   Future<void> signUpWithEmail({
     required String email,
     required String password,
   }) {
-    return _client.auth.signUp(
-      email: email,
-      password: password,
-    );
+    return _client.auth.signUp(email: email, password: password);
   }
 
   Future<void> signOut() {
     return _client.auth.signOut();
-  }
-
-  String? _oauthRedirectTo() {
-    if (kIsWeb) return null;
-
-    final isMobile = defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS;
-    if (isMobile) {
-      // TODO: Configurare deep link mobile per io.supabase.flutter://login-callback.
-      return 'io.supabase.flutter://login-callback';
-    }
-
-    return null;
   }
 }

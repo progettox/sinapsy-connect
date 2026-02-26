@@ -1,4 +1,4 @@
 class SupabaseConfig {
-  static const url = 'https://uudfijazmrqrudylkgpp.supabase.co';
-  static const anonKey = 'sb_publishable_YLd3UpuVKYD4HldG0BkOyA_5QzFhWY4';
+  static const url = 'https://irevgcidgpqhyrjjtgmf.supabase.co';
+  static const anonKey = 'sb_publishable_s1_2WpZcISRu7gHPz0a_6A_8bE4UUIa';
 }

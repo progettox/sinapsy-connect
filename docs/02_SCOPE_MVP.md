@@ -2,7 +2,7 @@
 
 ## In scope (MVP)
 1. Auth + onboarding
-   - Login: Google / Apple / Email (per demo puoi simulare)
+   - Login: solo Email
    - scelta ruolo: Brand vs Creator
    - setup profilo base
 

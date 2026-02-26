@@ -6,7 +6,7 @@
 - go_router (navigation)
 
 ## Backend (scelta attuale)
-- Supabase Auth (Email, Google, Apple se configurati)
+- Supabase Auth (Email)
 - Supabase Postgres (database principale)
 - Supabase Storage (media delivery)
 - Supabase Realtime (chat e aggiornamenti stato)

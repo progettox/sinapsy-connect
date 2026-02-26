@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -62,37 +61,6 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  String? _oauthRedirectTo() {
-    if (kIsWeb) return null;
-
-    final isMobile = defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS;
-    if (isMobile) {
-      // TODO: Configurare deep link/app link Android+iOS per io.supabase.flutter://login-callback.
-      return 'io.supabase.flutter://login-callback';
-    }
-
-    return null;
-  }
-
-  Future<void> _signInWithGoogle() async {
-    await _runAuth(() async {
-      await _supabase.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: _oauthRedirectTo(),
-      );
-    });
-  }
-
-  Future<void> _signInWithApple() async {
-    await _runAuth(() async {
-      await _supabase.auth.signInWithOAuth(
-        OAuthProvider.apple,
-        redirectTo: _oauthRedirectTo(),
-      );
-    });
-  }
-
   Future<void> _signInWithEmail() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -100,10 +68,7 @@ class _AuthScreenState extends State<AuthScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      await _supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
+      await _supabase.auth.signInWithPassword(email: email, password: password);
     });
   }
 
@@ -114,10 +79,7 @@ class _AuthScreenState extends State<AuthScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      await _supabase.auth.signUp(
-        email: email,
-        password: password,
-      );
+      await _supabase.auth.signUp(email: email, password: password);
       _showSnack('Sign up completato. Controlla la tua email se richiesta.');
     });
   }
@@ -146,18 +108,6 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _signInWithGoogle,
-                      icon: const Icon(Icons.g_mobiledata),
-                      label: const Text('Google'),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _signInWithApple,
-                      icon: const Icon(Icons.apple),
-                      label: const Text('Apple'),
-                    ),
-                    const SizedBox(height: 12),
                     OutlinedButton.icon(
                       onPressed: _isLoading
                           ? null
@@ -165,8 +115,6 @@ class _AuthScreenState extends State<AuthScreen> {
                       icon: const Icon(Icons.email_outlined),
                       label: const Text('Email'),
                     ),
-                    const SizedBox(height: 28),
-                    const Divider(),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _emailController,
