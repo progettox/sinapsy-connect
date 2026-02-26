@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/app_router.dart';
 import '../../../applications/presentation/pages/brand_applications_page.dart';
+import '../../../home/presentation/controllers/home_controller.dart';
 import '../../data/campaign_model.dart';
 import '../controllers/create_campaign_controller.dart';
 import 'create_campaign_page.dart';
@@ -38,9 +41,16 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
     await ref.read(brandCampaignsControllerProvider.notifier).loadMyCampaigns();
   }
 
+  Future<void> _logout() async {
+    final ok = await ref.read(homeControllerProvider.notifier).logout();
+    if (!mounted || !ok) return;
+    context.go(AppRouter.authPath);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(brandCampaignsControllerProvider);
+    final homeState = ref.watch(homeControllerProvider);
 
     ref.listen<BrandCampaignsState>(brandCampaignsControllerProvider, (
       previous,
@@ -52,15 +62,29 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
         ref.read(brandCampaignsControllerProvider.notifier).clearError();
       }
     });
+    ref.listen<HomeUiState>(homeControllerProvider, (previous, next) {
+      if (next.errorMessage != null &&
+          next.errorMessage != previous?.errorMessage) {
+        _showSnack(next.errorMessage!);
+        ref.read(homeControllerProvider.notifier).clearError();
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Brand Dashboard'),
         actions: [
           IconButton(
-            onPressed: state.isLoading ? null : _openCreateCampaign,
+            onPressed: state.isLoading || homeState.isLoading
+                ? null
+                : _openCreateCampaign,
             icon: const Icon(Icons.add),
             tooltip: 'Nuova campagna',
+          ),
+          IconButton(
+            onPressed: homeState.isLoading ? null : _logout,
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
           ),
         ],
       ),
