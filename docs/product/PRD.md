@@ -1,12 +1,11 @@
 ﻿# PRD - Sinapsy Connect (MVP)
 
 ## Goal
-Creare un marketplace mobile stile Tinder-match per Brand e Creator/Service Provider con workflow chiaro di matching, delivery e dispute.
+Creare un marketplace mobile stile Tinder-match per Brand e Creator con workflow chiaro di matching, delivery e dispute.
 
 ## Personas
 - Brand: crea campagne, gestisce candidature, approva consegna.
 - Creator: collega social (o mock), vede feed, si candida, consegna.
-- Service Provider: come Creator ma focus portfolio.
 
 ## Core epics
 1) Onboarding + validazione

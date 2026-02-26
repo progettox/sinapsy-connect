@@ -17,6 +17,3 @@
 ## Roles
 - Brand
 - Creator (influencer)
-- Service Provider (fotografo/videomaker)
-
-Nel codice MVP puoi unificare Creator + Service Provider come `role = creator` e usare `category` per distinguere.

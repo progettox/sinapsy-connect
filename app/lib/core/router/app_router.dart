@@ -21,7 +21,6 @@ class AppRouter {
       case ProfileRole.brand:
         return brandHomePath;
       case ProfileRole.creator:
-      case ProfileRole.service:
         return creatorHomePath;
     }
   }

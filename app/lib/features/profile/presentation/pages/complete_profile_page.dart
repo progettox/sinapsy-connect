@@ -25,7 +25,9 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     super.initState();
     Future<void>.microtask(() async {
       ref.read(profileControllerProvider.notifier).watchMyProfile();
-      final profile = await ref.read(profileControllerProvider.notifier).loadMyProfile();
+      final profile = await ref
+          .read(profileControllerProvider.notifier)
+          .loadMyProfile();
       if (!mounted || profile == null) return;
       setState(() {
         _selectedRole = profile.role;
@@ -60,7 +62,9 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     }
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final profile = await ref.read(profileControllerProvider.notifier).upsertMyProfile(
+    final profile = await ref
+        .read(profileControllerProvider.notifier)
+        .upsertMyProfile(
           role: _selectedRole!,
           username: _usernameController.text,
           location: _locationController.text,
@@ -82,7 +86,8 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     final state = ref.watch(profileControllerProvider);
 
     ref.listen<ProfileUiState>(profileControllerProvider, (previous, next) {
-      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+      if (next.errorMessage != null &&
+          next.errorMessage != previous?.errorMessage) {
         _showSnack(next.errorMessage!);
         ref.read(profileControllerProvider.notifier).clearError();
       }
@@ -111,6 +116,7 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                     ),
                     const SizedBox(height: 16),
                     Wrap(
+                      alignment: WrapAlignment.center,
                       spacing: 12,
                       runSpacing: 12,
                       children: ProfileRole.values
@@ -132,7 +138,8 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                         labelText: 'Username',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (value) => _validateRequired(value, 'Username'),
+                      validator: (value) =>
+                          _validateRequired(value, 'Username'),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -141,7 +148,8 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                         labelText: 'Location',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (value) => _validateRequired(value, 'Location'),
+                      validator: (value) =>
+                          _validateRequired(value, 'Location'),
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton(
@@ -220,8 +228,6 @@ class _RoleCard extends StatelessWidget {
         return Icons.storefront_outlined;
       case ProfileRole.creator:
         return Icons.camera_alt_outlined;
-      case ProfileRole.service:
-        return Icons.design_services_outlined;
     }
   }
 }

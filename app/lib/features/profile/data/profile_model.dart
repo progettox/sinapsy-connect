@@ -1,4 +1,4 @@
-enum ProfileRole { brand, creator, service }
+enum ProfileRole { brand, creator }
 
 extension ProfileRoleX on ProfileRole {
   String get value {
@@ -7,8 +7,6 @@ extension ProfileRoleX on ProfileRole {
         return 'brand';
       case ProfileRole.creator:
         return 'creator';
-      case ProfileRole.service:
-        return 'service';
     }
   }
 
@@ -18,8 +16,6 @@ extension ProfileRoleX on ProfileRole {
         return 'Brand';
       case ProfileRole.creator:
         return 'Creator';
-      case ProfileRole.service:
-        return 'Service';
     }
   }
 }
@@ -31,7 +27,7 @@ ProfileRole? profileRoleFromString(String? value) {
     case 'creator':
       return ProfileRole.creator;
     case 'service':
-      return ProfileRole.service;
+      return ProfileRole.creator;
     default:
       return null;
   }

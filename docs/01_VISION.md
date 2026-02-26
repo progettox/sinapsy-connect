@@ -19,7 +19,7 @@ Sinapsy Connect e un marketplace verticale con:
 - creator verificati
 - processo operativo tracciato
 
-### Per i Creator/Service Provider
+### Per i Creator
 - meno ghosting
 - consegna in-app (file/link)
 - reputazione (review) e ranking
