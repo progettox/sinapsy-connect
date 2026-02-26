@@ -1,4 +1,4 @@
-# Tech Stack (MVP)
+﻿# Tech Stack (MVP)
 
 ## Frontend
 - Flutter
@@ -10,7 +10,7 @@
 - Supabase Postgres (database principale)
 - Supabase Storage (media delivery)
 - Supabase Realtime (chat e aggiornamenti stato)
-- Supabase Edge Functions (opzionale: webhook Stripe, logica server)
+- Supabase Edge Functions (opzionale: logica server)
 - Row Level Security (RLS) per controllo accessi
 
 ## Note

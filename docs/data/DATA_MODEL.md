@@ -1,9 +1,24 @@
-# Data Model (MVP)
+﻿# Data Model (MVP)
+
+## users
+- id: string
+- role: `brand` | `creator`
+- username: string
+- category: string
+- city: string
+- instagramConnected: bool
+- followers: number?
+- verified: bool
+- createdAt: timestamp
+
+## campaigns
+- id: string
+- brandId: string
+- title: string
 - description: string
 - category: string
 - minFollowers: number
 - locationRequiredCity: string
-- cashOffer: number
 - productBenefit: string?
 - coverImageUrl: string?
 - status: `active` | `matched` | `completed` | `cancelled`
@@ -42,8 +57,7 @@
 - id: string (same as chatId or campaignId)
 - campaignId: string
 - chatId: string
-- status: `matched` | `escrow_locked` | `in_progress` | `delivered` | `completed` | `disputed`
-- escrowStatus: `not_started` | `locked` | `released` | `refunded`
+- status: `matched` | `in_progress` | `delivered` | `completed` | `disputed`
 - deliveryItems: array
 - disputeTicketId: string?
 - updatedAt: timestamp
@@ -55,13 +69,4 @@
 - toUserId: string
 - rating: 1..5
 - text: string?
-- createdAt: timestamp
-
-## transactions (optional MVP)
-- id: string
-- campaignId: string
-- amount: number
-- fee: number
-- provider: `mock` | `stripe`
-- status: `pending` | `locked` | `released` | `refunded`
 - createdAt: timestamp

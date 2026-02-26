@@ -1,4 +1,4 @@
-# Privacy & GDPR (brief)
+﻿# Privacy & GDPR (brief)
 - spiega uso dati social (lettura metriche)
 - consenso geolocalizzazione (solo raggio)
-- diritto all’oblio + retention fiscale (10 anni per pagamenti)
+- diritto all oblio + retention dati secondo obblighi legali applicabili

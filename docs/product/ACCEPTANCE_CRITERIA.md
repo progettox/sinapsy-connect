@@ -1,4 +1,4 @@
-# Acceptance Criteria (MVP)
+﻿# Acceptance Criteria (MVP)
 
 ## Swipe feed
 - Dato un creator loggato
@@ -10,16 +10,16 @@
 ## Match
 - Dato che un brand accetta una application
 - Allora viene creata una chat/workspace
-- Entrambi vedono lo stato “matched”
+- Entrambi vedono lo stato "matched"
 
-## Escrow status
+## Project status
 - Dato un match
-- Quando il brand preme “Firma e Paga”
-- Allora lo stato diventa `in_progress` e banner escrow in chat diventa “locked”
+- Quando il creator invia la prima consegna e preme "Lavoro concluso"
+- Allora lo stato diventa `delivered`
 
 ## Delivery
-- Creator può inviare almeno 1 consegna (file o link)
-- Brand può Approva o Richiedi revisione
+- Creator puo inviare almeno 1 consegna (file o link)
+- Brand puo Approva o Richiedi revisione
 
 ## Dispute
 - Se uno apre contestazione

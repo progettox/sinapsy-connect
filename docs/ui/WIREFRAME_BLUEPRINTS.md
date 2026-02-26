@@ -1,10 +1,10 @@
-# Wireframe Blueprints (top-to-bottom)
+﻿# Wireframe Blueprints (top-to-bottom)
 
 ## A) Creator Feed (Swipe)
 - Top bar: left profile icon, center logo, right notifications/chat
 - Body: big campaign card (80% height)
   - background image
-  - overlay bottom: title, budget, requisiti
+  - overlay bottom: title, requisiti principali
 - Bottom: actions
   - X (skip)
   - Sinapsi (apply)
@@ -18,8 +18,8 @@
 
 ## C) Workspace
 - Header: counterpart name + avatar
-- Banner escrow (locked/...) sticky
+- Banner stato progetto sticky
 - Chat list
 - Input row + attachment
-- CTA delivery “Consegna Lavoro”
+- CTA delivery "Consegna Lavoro"
 - Brand view: Approva / Richiedi revisione

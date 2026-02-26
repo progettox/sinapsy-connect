@@ -1,4 +1,4 @@
-# ToS requirements (brief)
+﻿# ToS requirements (brief)
 - 18+
-- no-circumvention (vietato scambiarsi contatti per pagare fuori)
-- limitazione responsabilità
+- no scam / no spam / no harassment
+- limitazione responsabilita
