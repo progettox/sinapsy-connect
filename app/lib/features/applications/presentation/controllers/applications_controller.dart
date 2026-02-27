@@ -206,7 +206,8 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
           .where((item) => item.isCancelledAfterMatch)
           .map((item) => item.campaignId)
           .toSet();
-      final retainedDismissedWarnings = state.dismissedCancelledWarningCampaignIds
+      final retainedDismissedWarnings = state
+          .dismissedCancelledWarningCampaignIds
           .where(cancelledWarningCampaignIds.contains)
           .toSet();
 
