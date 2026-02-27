@@ -26,6 +26,7 @@ class ApplicationsState {
     this.errorMessage,
     this.brandApplications = const <ApplicationItem>[],
     this.myApplications = const <ApplicationItem>[],
+    this.dismissedCancelledWarningCampaignIds = const <String>{},
   });
 
   final bool isLoadingBrand;
@@ -35,6 +36,7 @@ class ApplicationsState {
   final String? errorMessage;
   final List<ApplicationItem> brandApplications;
   final List<ApplicationItem> myApplications;
+  final Set<String> dismissedCancelledWarningCampaignIds;
 
   ApplicationsState copyWith({
     bool? isLoadingBrand,
@@ -46,6 +48,8 @@ class ApplicationsState {
     bool clearError = false,
     List<ApplicationItem>? brandApplications,
     List<ApplicationItem>? myApplications,
+    Set<String>? dismissedCancelledWarningCampaignIds,
+    bool clearDismissedCancelledWarnings = false,
   }) {
     return ApplicationsState(
       isLoadingBrand: isLoadingBrand ?? this.isLoadingBrand,
@@ -57,6 +61,12 @@ class ApplicationsState {
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       brandApplications: brandApplications ?? this.brandApplications,
       myApplications: myApplications ?? this.myApplications,
+      dismissedCancelledWarningCampaignIds: clearDismissedCancelledWarnings
+          ? <String>{}
+          : Set<String>.from(
+              dismissedCancelledWarningCampaignIds ??
+                  this.dismissedCancelledWarningCampaignIds,
+            ),
     );
   }
 }
@@ -71,6 +81,7 @@ class ApplicationItem {
     this.createdAt,
     this.creatorUsername,
     this.campaignTitle,
+    this.campaignStatus,
     this.chatId,
   });
 
@@ -82,15 +93,20 @@ class ApplicationItem {
   final DateTime? createdAt;
   final String? creatorUsername;
   final String? campaignTitle;
+  final String? campaignStatus;
   final String? chatId;
 
   bool get isPending => status.toLowerCase() == 'pending';
+  bool get isCancelledAfterMatch =>
+      status.toLowerCase() == 'accepted' &&
+      (campaignStatus ?? '').toLowerCase() == 'cancelled';
 
   ApplicationItem copyWith({
     String? brandId,
     String? status,
     String? creatorUsername,
     String? campaignTitle,
+    String? campaignStatus,
     String? chatId,
     bool clearChatId = false,
   }) {
@@ -103,6 +119,7 @@ class ApplicationItem {
       createdAt: createdAt,
       creatorUsername: creatorUsername ?? this.creatorUsername,
       campaignTitle: campaignTitle ?? this.campaignTitle,
+      campaignStatus: campaignStatus ?? this.campaignStatus,
       chatId: clearChatId ? null : (chatId ?? this.chatId),
     );
   }
@@ -185,10 +202,18 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
         }
         return false;
       }).toList();
+      final cancelledWarningCampaignIds = visibleMine
+          .where((item) => item.isCancelledAfterMatch)
+          .map((item) => item.campaignId)
+          .toSet();
+      final retainedDismissedWarnings = state.dismissedCancelledWarningCampaignIds
+          .where(cancelledWarningCampaignIds.contains)
+          .toSet();
 
       state = state.copyWith(
         isLoadingMine: false,
         myApplications: visibleMine,
+        dismissedCancelledWarningCampaignIds: retainedDismissedWarnings,
         clearError: true,
       );
       _log(
@@ -398,6 +423,17 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     state = state.copyWith(clearError: true);
   }
 
+  void dismissCancelledMatchWarning(String campaignId) {
+    final id = campaignId.trim();
+    if (id.isEmpty) return;
+    final next = Set<String>.from(state.dismissedCancelledWarningCampaignIds)
+      ..add(id);
+    state = state.copyWith(
+      dismissedCancelledWarningCampaignIds: next,
+      clearError: true,
+    );
+  }
+
   Future<List<Map<String, dynamic>>> _queryBrandApplications({
     required String campaignId,
   }) async {
@@ -456,6 +492,7 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
       brandId: _string(map['brand_id'] ?? map['brandId']) ?? '',
       status: _string(map['status']) ?? 'pending',
       createdAt: _dateTime(map['created_at'] ?? map['createdAt']),
+      campaignStatus: _string(map['campaign_status'] ?? map['campaignStatus']),
     );
   }
 
@@ -476,6 +513,7 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     final usernames = await _loadCreatorUsernames(creatorIds);
     final campaignTitles = await _loadCampaignTitles(campaignIds);
     final campaignOwners = await _loadCampaignOwners(campaignIds);
+    final campaignStatuses = await _loadCampaignStatuses(campaignIds);
 
     return items
         .map(
@@ -483,6 +521,7 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
             brandId: campaignOwners[item.campaignId],
             creatorUsername: usernames[item.creatorId],
             campaignTitle: campaignTitles[item.campaignId],
+            campaignStatus: campaignStatuses[item.campaignId],
           ),
         )
         .toList();
@@ -609,6 +648,48 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
         final brandId = _string(row['brandId']);
         if (id != null && brandId != null) {
           acc[id] = brandId;
+        }
+        return acc;
+      });
+    }
+  }
+
+  Future<Map<String, String>> _loadCampaignStatuses(
+    Set<String> campaignIds,
+  ) async {
+    if (campaignIds.isEmpty) return const <String, String>{};
+
+    try {
+      final rows = await _client
+          .from('campaigns')
+          .select('id,status')
+          .inFilter('id', campaignIds.toList());
+      return _rowsToMaps(rows).fold<Map<String, String>>(<String, String>{}, (
+        acc,
+        row,
+      ) {
+        final id = _string(row['id']);
+        final status = _string(row['status']);
+        if (id != null && status != null) {
+          acc[id] = status;
+        }
+        return acc;
+      });
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+
+      final rows = await _client
+          .from('campaigns')
+          .select('campaignId,status')
+          .inFilter('campaignId', campaignIds.toList());
+      return _rowsToMaps(rows).fold<Map<String, String>>(<String, String>{}, (
+        acc,
+        row,
+      ) {
+        final id = _string(row['campaignId']);
+        final status = _string(row['status']);
+        if (id != null && status != null) {
+          acc[id] = status;
         }
         return acc;
       });
