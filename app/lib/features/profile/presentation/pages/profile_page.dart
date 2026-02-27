@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../data/profile_model.dart';
 import '../controllers/profile_controller.dart';
@@ -43,6 +45,31 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(profileControllerProvider);
+    final theme = Theme.of(context);
+    final pageTheme = theme.copyWith(
+      textTheme: GoogleFonts.plusJakartaSansTextTheme(theme.textTheme),
+      primaryTextTheme: GoogleFonts.plusJakartaSansTextTheme(
+        theme.primaryTextTheme,
+      ),
+      scaffoldBackgroundColor: Colors.transparent,
+      appBarTheme: theme.appBarTheme.copyWith(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: const Color(0xFFEAF3FF),
+      ),
+      cardTheme: CardThemeData(
+        color: const Color(0xC0162030),
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: const Color(0xFF9FC8F8).withValues(alpha: 0.16),
+          ),
+        ),
+      ),
+    );
 
     ref.listen<ProfileUiState>(profileControllerProvider, (previous, next) {
       if (next.errorMessage != null &&
@@ -54,85 +81,108 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
     final profile = state.profile;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Profilo')),
-      body: SafeArea(
-        child: Builder(
-          builder: (context) {
-            if (state.isLoading && profile == null) {
-              return const Center(child: SinapsyLogoLoader());
-            }
+    return Theme(
+      data: pageTheme,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Profilo',
+            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+          ),
+        ),
+        body: Stack(
+          children: [
+            const Positioned.fill(child: LuxuryNeonBackdrop()),
+            SafeArea(
+              child: Builder(
+                builder: (context) {
+                  if (state.isLoading && profile == null) {
+                    return const Center(child: SinapsyLogoLoader());
+                  }
 
-            if (profile == null) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Profilo non trovato.'),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: () => ref
-                            .read(profileControllerProvider.notifier)
-                            .loadMyProfile(),
-                        child: const Text('Ricarica'),
+                  if (profile == null) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('Profilo non trovato.'),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: () => ref
+                                  .read(profileControllerProvider.notifier)
+                                  .loadMyProfile(),
+                              child: const Text('Ricarica'),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-              );
-            }
+                    );
+                  }
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  CircleAvatar(
-                    radius: 44,
-                    backgroundImage: profile.avatarUrl != null
-                        ? NetworkImage(profile.avatarUrl!)
-                        : null,
-                    child: profile.avatarUrl == null
-                        ? const Icon(Icons.person, size: 36)
-                        : null,
-                  ),
-                  const SizedBox(height: 20),
-                  _ProfileRow(label: 'ID', value: profile.id),
-                  _ProfileRow(label: 'Username', value: profile.username),
-                  _ProfileRow(
-                    label: 'Ruolo',
-                    value: profile.role?.label ?? '-',
-                  ),
-                  _ProfileRow(
-                    label: 'Bio',
-                    value: profile.bio.trim().isEmpty ? '-' : profile.bio,
-                  ),
-                  _ProfileRow(label: 'Sede', value: profile.location),
-                  _ProfileRow(
-                    label: 'Avatar URL',
-                    value: profile.avatarUrl ?? '-',
-                  ),
-                  _ProfileRow(
-                    label: 'Creato il',
-                    value: _formatDate(profile.createdAt),
-                  ),
-                  _ProfileRow(
-                    label: 'Aggiornato il',
-                    value: _formatDate(profile.updatedAt),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: state.isLoading
-                        ? null
-                        : () => _openEdit(profile),
-                    child: const Text('Edit'),
-                  ),
-                ],
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            CircleAvatar(
+                              radius: 44,
+                              backgroundImage: profile.avatarUrl != null
+                                  ? NetworkImage(profile.avatarUrl!)
+                                  : null,
+                              child: profile.avatarUrl == null
+                                  ? const Icon(Icons.person, size: 36)
+                                  : null,
+                            ),
+                            const SizedBox(height: 20),
+                            _ProfileRow(label: 'ID', value: profile.id),
+                            _ProfileRow(
+                              label: 'Username',
+                              value: profile.username,
+                            ),
+                            _ProfileRow(
+                              label: 'Ruolo',
+                              value: profile.role?.label ?? '-',
+                            ),
+                            _ProfileRow(
+                              label: 'Bio',
+                              value: profile.bio.trim().isEmpty
+                                  ? '-'
+                                  : profile.bio,
+                            ),
+                            _ProfileRow(label: 'Sede', value: profile.location),
+                            _ProfileRow(
+                              label: 'Avatar URL',
+                              value: profile.avatarUrl ?? '-',
+                            ),
+                            _ProfileRow(
+                              label: 'Creato il',
+                              value: _formatDate(profile.createdAt),
+                            ),
+                            _ProfileRow(
+                              label: 'Aggiornato il',
+                              value: _formatDate(profile.updatedAt),
+                            ),
+                            const SizedBox(height: 20),
+                            ElevatedButton(
+                              onPressed: state.isLoading
+                                  ? null
+                                  : () => _openEdit(profile),
+                              child: const Text('Edit'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );

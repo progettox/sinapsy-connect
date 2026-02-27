@@ -1,6 +1,10 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../chats/presentation/pages/chat_page.dart';
 import '../controllers/applications_controller.dart';
@@ -87,6 +91,20 @@ class _BrandApplicationsPageState extends ConsumerState<BrandApplicationsPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(applicationsControllerProvider);
+    final theme = Theme.of(context);
+    final pageTheme = theme.copyWith(
+      textTheme: GoogleFonts.plusJakartaSansTextTheme(theme.textTheme),
+      primaryTextTheme: GoogleFonts.plusJakartaSansTextTheme(
+        theme.primaryTextTheme,
+      ),
+      scaffoldBackgroundColor: Colors.transparent,
+      appBarTheme: theme.appBarTheme.copyWith(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: const Color(0xFFEAF3FF),
+      ),
+    );
 
     ref.listen<ApplicationsState>(applicationsControllerProvider, (
       previous,
@@ -103,76 +121,87 @@ class _BrandApplicationsPageState extends ConsumerState<BrandApplicationsPage> {
         ? widget.campaignTitle!
         : 'Campaign applications';
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        actions: [
-          IconButton(
-            onPressed: state.isLoadingBrand ? null : _load,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Builder(
-          builder: (context) {
-            if (state.isLoadingBrand && state.brandApplications.isEmpty) {
-              return const Center(child: SinapsyLogoLoader());
-            }
+    return Theme(
+      data: pageTheme,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(title),
+          actions: [
+            IconButton(
+              onPressed: state.isLoadingBrand ? null : _load,
+              icon: const Icon(Icons.refresh),
+            ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            const Positioned.fill(child: LuxuryNeonBackdrop()),
+            SafeArea(
+              child: Builder(
+                builder: (context) {
+                  if (state.isLoadingBrand && state.brandApplications.isEmpty) {
+                    return const Center(child: SinapsyLogoLoader());
+                  }
 
-            if (state.brandApplications.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Nessuna candidatura per questa campagna.',
-                        textAlign: TextAlign.center,
+                  if (state.brandApplications.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Nessuna candidatura per questa campagna.',
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: _load,
+                              child: const Text('Ricarica'),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: _load,
-                        child: const Text('Ricarica'),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
+                    );
+                  }
 
-            return RefreshIndicator(
-              onRefresh: _load,
-              child: ListView.separated(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                itemCount: state.brandApplications.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final hasAcceptedCreator = state.brandApplications.any(
-                    (candidate) => candidate.status.toLowerCase() == 'accepted',
-                  );
-                  final item = state.brandApplications[index];
-                  final isMutating =
-                      state.isMutating && state.activeMutationId == item.id;
-                  final canAccept = item.isPending && !hasAcceptedCreator;
-                  return _BrandApplicationCard(
-                    item: item,
-                    isMutating: isMutating,
-                    onAccept: canAccept ? () => _accept(item) : null,
-                    onReject: item.isPending ? () => _reject(item) : null,
-                    onDismissRejected: item.status.toLowerCase() == 'rejected'
-                        ? () => _dismissRejected(item)
-                        : null,
-                    onOpenChat: item.chatId?.trim().isNotEmpty == true
-                        ? () => _openChat(item)
-                        : null,
+                  return RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      itemCount: state.brandApplications.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final hasAcceptedCreator = state.brandApplications.any(
+                          (candidate) =>
+                              candidate.status.toLowerCase() == 'accepted',
+                        );
+                        final item = state.brandApplications[index];
+                        final isMutating =
+                            state.isMutating &&
+                            state.activeMutationId == item.id;
+                        final canAccept = item.isPending && !hasAcceptedCreator;
+                        return _BrandApplicationCard(
+                          item: item,
+                          isMutating: isMutating,
+                          onAccept: canAccept ? () => _accept(item) : null,
+                          onReject: item.isPending ? () => _reject(item) : null,
+                          onDismissRejected:
+                              item.status.toLowerCase() == 'rejected'
+                              ? () => _dismissRejected(item)
+                              : null,
+                          onOpenChat: item.chatId?.trim().isNotEmpty == true
+                              ? () => _openChat(item)
+                              : null,
+                        );
+                      },
+                    ),
                   );
                 },
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
@@ -198,7 +227,7 @@ class _BrandApplicationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return _GlassCard(
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -249,6 +278,12 @@ class _BrandApplicationCard extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: isMutating ? null : onAccept,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(
+                        0xFF8EC8FF,
+                      ).withValues(alpha: 0.23),
+                      foregroundColor: const Color(0xFFEAF3FF),
+                    ),
                     child: isMutating
                         ? const SizedBox(
                             height: 18,
@@ -282,6 +317,43 @@ class _BrandApplicationCard extends StatelessWidget {
     final mm = local.month.toString().padLeft(2, '0');
     final dd = local.day.toString().padLeft(2, '0');
     return '${local.year}-$mm-$dd';
+  }
+}
+
+class _GlassCard extends StatelessWidget {
+  const _GlassCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFF9FC8F8).withValues(alpha: 0.18),
+            ),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0x8A1B2638), Color(0x7A111A2A), Color(0x63202A3A)],
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x88040A14),
+                blurRadius: 22,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
   }
 }
 

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -396,7 +397,8 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
                               campaign: campaigns[index],
                               isRemoving:
                                   state.isRemoving &&
-                                  state.removingCampaignId == campaigns[index].id,
+                                  state.removingCampaignId ==
+                                      campaigns[index].id,
                               onRemove: () =>
                                   _confirmRemoveCampaign(campaigns[index]),
                             ),
@@ -441,46 +443,43 @@ class _QuickStatsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 260,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            flex: 5,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _StatCard(
-                    title: 'Campagne attive',
-                    value: '$activeCampaigns',
-                    icon: Icons.campaign_rounded,
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 124,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _StatCard(
+                  title: 'Campagne attive',
+                  value: '$activeCampaigns',
+                  icon: Icons.campaign_rounded,
                 ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: _StatCard(
-                    title: 'Budget speso',
-                    value: _formatBudget(spentBudget),
-                    icon: Icons.euro_rounded,
-                  ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _StatCard(
+                  title: 'Budget speso',
+                  value: _formatBudget(spentBudget),
+                  icon: Icons.euro_rounded,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            flex: 6,
-            child: _MatchingCard(
-              matchedCampaigns: matchedCampaigns,
-              trendPoints: matchingTrend,
-              selectedTimeline: selectedTimeline,
-              onTimelineChanged: onTimelineChanged,
-            ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 260,
+          child: _MatchingCard(
+            matchedCampaigns: matchedCampaigns,
+            trendPoints: matchingTrend,
+            selectedTimeline: selectedTimeline,
+            onTimelineChanged: onTimelineChanged,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -506,8 +505,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      margin: EdgeInsets.zero,
+    return _GlassPanel(
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -568,8 +566,7 @@ class _MatchingCard extends StatelessWidget {
         ? 'stabile vs ${selectedTimeline.comparisonLabel}'
         : '${delta > 0 ? '+' : ''}$delta vs ${selectedTimeline.comparisonLabel}';
 
-    return Card(
-      margin: EdgeInsets.zero,
+    return _GlassPanel(
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -610,17 +607,12 @@ class _MatchingCard extends StatelessWidget {
             const SizedBox(height: 12),
             Expanded(child: _MatchingChart(points: trendPoints)),
             const SizedBox(height: 8),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 10,
-              runSpacing: 6,
-              children: [
-                _LegendChip(
-                  color: theme.colorScheme.primary,
-                  label:
-                      'Trend match/completed (${selectedTimeline.label.toLowerCase()})',
-                ),
-              ],
+            SizedBox(
+              width: double.infinity,
+              child: _LegendChip(
+                color: theme.colorScheme.primary,
+                label: 'Trend match/completed',
+              ),
             ),
           ],
         ),
@@ -663,6 +655,9 @@ class _MatchingChart extends StatelessWidget {
                 child: Text(
                   _labelForIndex(i),
                   textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.fade,
+                  softWrap: false,
                   style: theme.textTheme.labelSmall,
                 ),
               ),
@@ -684,6 +679,43 @@ class _TrendPoint {
 
   final String label;
   final double value;
+}
+
+class _GlassPanel extends StatelessWidget {
+  const _GlassPanel({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFF9FC8F8).withValues(alpha: 0.18),
+            ),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0x8A1B2638), Color(0x7A111A2A), Color(0x63202A3A)],
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x88040A14),
+                blurRadius: 22,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
 }
 
 class _TimelineMenuButton extends StatelessWidget {
@@ -749,7 +781,7 @@ class _LegendChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
           width: 8,
@@ -757,7 +789,15 @@ class _LegendChip extends StatelessWidget {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
-        Text(label, style: Theme.of(context).textTheme.labelSmall),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ),
       ],
     );
   }
@@ -901,8 +941,7 @@ class _EmptyCampaignState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
+    return _GlassPanel(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -941,7 +980,7 @@ class _CampaignTile extends StatelessWidget {
     final theme = Theme.of(context);
     final statusColor = _statusColor(campaign.status, theme.colorScheme);
 
-    return Card(
+    return _GlassPanel(
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -986,7 +1025,7 @@ class _CampaignTile extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: ElevatedButton.icon(
                     onPressed: isRemoving
                         ? null
                         : () {
@@ -1001,6 +1040,12 @@ class _CampaignTile extends StatelessWidget {
                           },
                     icon: const Icon(Icons.people_outline),
                     label: const Text('Applications'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(
+                        0xFF8EC8FF,
+                      ).withValues(alpha: 0.22),
+                      foregroundColor: const Color(0xFFEAF3FF),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),

@@ -185,7 +185,8 @@ class _BrandSearchPageState extends ConsumerState<BrandSearchPage> {
 
                           return ListView.separated(
                             itemCount: _results.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 10),
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 10),
                             itemBuilder: (context, index) {
                               final item = _results[index];
                               return _UserResultTile(item: item);
