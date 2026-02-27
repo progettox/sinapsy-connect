@@ -521,18 +521,54 @@ class _DashboardHeaderPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return _GlassPanel(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         child: Row(
           children: [
             Expanded(
-              child: Text(
-                'Brand Dashboard',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+              child: Row(
+                children: [
+                  const SinapsyLogoLoader(size: 34),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 40,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sinapsy',
+                            maxLines: 1,
+                            style: GoogleFonts.sora(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFEAF3FF),
+                              letterSpacing: -0.2,
+                              height: 1,
+                            ),
+                          ),
+                          Transform.translate(
+                            offset: const Offset(46, -0.4),
+                            child: Text(
+                              'Connect',
+                              maxLines: 1,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFFC9E0FF),
+                                letterSpacing: 0.84,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             _HeaderActionButton(
