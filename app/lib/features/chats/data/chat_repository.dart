@@ -282,8 +282,22 @@ class ChatRepository {
       return _readId(result);
     } on PostgrestException catch (error) {
       if (!_isColumnError(error) && !_isMissingTable(error)) rethrow;
-      return null;
     }
+
+    try {
+      final result = await _client
+          .from('chats')
+          .select('id')
+          .eq('campaignId', campaignId)
+          .eq('brandId', brandId)
+          .eq('creatorId', creatorId)
+          .maybeSingle();
+      return _readId(result);
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error) && !_isMissingTable(error)) rethrow;
+    }
+
+    return null;
   }
 
   Future<String> _createLegacyChat({
@@ -308,6 +322,7 @@ class ChatRepository {
         'creatorId': creatorId,
         'updatedAt': now,
       },
+      {'campaignId': campaignId, 'brandId': brandId, 'creatorId': creatorId},
     ];
 
     PostgrestException? lastColumnError;
@@ -387,11 +402,25 @@ class ChatRepository {
   }
 
   bool _isColumnError(PostgrestException error) {
-    return error.code == '42703' || error.code == 'PGRST204';
+    return error.code == '42703' ||
+        error.code == 'PGRST204' ||
+        _messageContainsSqlState(error, '42703') ||
+        error.message.toLowerCase().contains('does not exist') ||
+        error.message.toLowerCase().contains('column');
   }
 
   bool _isMissingTable(PostgrestException error) {
-    return error.code == '42P01' || error.code == 'PGRST205';
+    return error.code == '42P01' ||
+        error.code == 'PGRST205' ||
+        _messageContainsSqlState(error, '42P01') ||
+        error.message.toLowerCase().contains('relation') &&
+            error.message.toLowerCase().contains('does not exist');
+  }
+
+  bool _messageContainsSqlState(PostgrestException error, String sqlState) {
+    final message = error.message;
+    return message.contains('"code":"$sqlState"') ||
+        message.contains('"code": "$sqlState"');
   }
 
   void _log(String message) {

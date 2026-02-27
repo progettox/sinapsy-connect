@@ -214,6 +214,19 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     );
 
     try {
+      final alreadyMatched = await _hasAcceptedApplicationForCampaign(
+        campaignId: item.campaignId,
+        excludeApplicationId: item.id,
+      );
+      if (alreadyMatched) {
+        state = state.copyWith(
+          isMutating: false,
+          clearActiveMutation: true,
+          errorMessage: 'Questa campagna ha gia un creator accettato.',
+        );
+        return false;
+      }
+
       final brandId = item.brandId.isNotEmpty
           ? item.brandId
           : (await _resolveBrandIdForCampaign(item.campaignId));
@@ -231,15 +244,27 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
         campaignId: item.campaignId,
         status: 'matched',
       );
-      final chatId = await _chatRepository.createChatForMatch(
+      await _rejectOtherPendingApplications(
         campaignId: item.campaignId,
-        brandId: brandId,
-        creatorId: item.creatorId,
+        acceptedApplicationId: item.id,
       );
+      String? chatId;
+      try {
+        chatId = await _chatRepository.createChatForMatch(
+          campaignId: item.campaignId,
+          brandId: brandId,
+          creatorId: item.creatorId,
+        );
+      } on PostgrestException catch (error) {
+        if (!_isPermissionDenied(error)) rethrow;
+        _log(
+          'application.accept.chat_permission_denied campaignId=${item.campaignId} applicationId=${item.id} code=${error.code}',
+        );
+      }
 
-      _replaceApplicationLocally(
-        item.id,
-        status: 'accepted',
+      _applySingleMatchLocally(
+        campaignId: item.campaignId,
+        acceptedApplicationId: item.id,
         chatId: chatId,
         brandId: brandId,
       );
@@ -628,6 +653,57 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     }
   }
 
+  Future<bool> _hasAcceptedApplicationForCampaign({
+    required String campaignId,
+    required String excludeApplicationId,
+  }) async {
+    try {
+      final rows = await _client
+          .from('applications')
+          .select('id')
+          .eq('campaign_id', campaignId)
+          .eq('status', 'accepted')
+          .neq('id', excludeApplicationId)
+          .limit(1);
+      return _rowsToMaps(rows).isNotEmpty;
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    final rows = await _client
+        .from('applications')
+        .select('id')
+        .eq('campaignId', campaignId)
+        .eq('status', 'accepted')
+        .neq('id', excludeApplicationId)
+        .limit(1);
+    return _rowsToMaps(rows).isNotEmpty;
+  }
+
+  Future<void> _rejectOtherPendingApplications({
+    required String campaignId,
+    required String acceptedApplicationId,
+  }) async {
+    try {
+      await _client
+          .from('applications')
+          .update({'status': 'rejected'})
+          .eq('campaign_id', campaignId)
+          .eq('status', 'pending')
+          .neq('id', acceptedApplicationId);
+      return;
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    await _client
+        .from('applications')
+        .update({'status': 'rejected'})
+        .eq('campaignId', campaignId)
+        .eq('status', 'pending')
+        .neq('id', acceptedApplicationId);
+  }
+
   Future<void> _deleteMyApplication({
     required String applicationId,
     required String creatorId,
@@ -772,6 +848,43 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     );
   }
 
+  void _applySingleMatchLocally({
+    required String campaignId,
+    required String acceptedApplicationId,
+    String? chatId,
+    required String brandId,
+  }) {
+    List<ApplicationItem> patch(List<ApplicationItem> list) {
+      return list.map((item) {
+        if (item.campaignId != campaignId) return item;
+        if (item.id == acceptedApplicationId) {
+          final nextChatId = chatId?.trim();
+          if (nextChatId != null && nextChatId.isNotEmpty) {
+            return item.copyWith(
+              status: 'accepted',
+              chatId: nextChatId,
+              brandId: brandId,
+            );
+          }
+          return item.copyWith(
+            status: 'accepted',
+            clearChatId: true,
+            brandId: brandId,
+          );
+        }
+        if (item.isPending) {
+          return item.copyWith(status: 'rejected', clearChatId: true);
+        }
+        return item;
+      }).toList();
+    }
+
+    state = state.copyWith(
+      brandApplications: patch(state.brandApplications),
+      myApplications: patch(state.myApplications),
+    );
+  }
+
   void _removeApplicationLocally(String applicationId) {
     List<ApplicationItem> remove(List<ApplicationItem> list) {
       return list.where((item) => item.id != applicationId).toList();
@@ -871,13 +984,32 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
   }
 
   bool _isColumnError(PostgrestException error) {
-    return error.code == '42703' || error.code == 'PGRST204';
+    return error.code == '42703' ||
+        error.code == 'PGRST204' ||
+        _messageContainsSqlState(error, '42703') ||
+        error.message.toLowerCase().contains('does not exist') ||
+        error.message.toLowerCase().contains('column');
   }
 
   bool _isMissingRpc(PostgrestException error) {
     return error.code == '42883' ||
         error.message.toLowerCase().contains('function') ||
         error.message.toLowerCase().contains('rpc');
+  }
+
+  bool _isPermissionDenied(PostgrestException error) {
+    final message = error.message.toLowerCase();
+    return error.code == '42501' ||
+        _messageContainsSqlState(error, '42501') ||
+        message.contains('row-level security') ||
+        message.contains('forbidden') ||
+        message.contains('permission denied');
+  }
+
+  bool _messageContainsSqlState(PostgrestException error, String sqlState) {
+    final message = error.message;
+    return message.contains('"code":"$sqlState"') ||
+        message.contains('"code": "$sqlState"');
   }
 
   void _log(String message) {

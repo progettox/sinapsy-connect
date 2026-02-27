@@ -44,9 +44,9 @@ class _BrandApplicationsPageState extends ConsumerState<BrandApplicationsPage> {
         .read(applicationsControllerProvider.notifier)
         .acceptApplication(item);
     if (!mounted) return;
-    _showSnack(
-      ok ? 'Application accepted. Match created.' : 'Operazione fallita.',
-    );
+    if (ok) {
+      _showSnack('Application accepted. Match created.');
+    }
   }
 
   Future<void> _reject(ApplicationItem item) async {
@@ -54,7 +54,9 @@ class _BrandApplicationsPageState extends ConsumerState<BrandApplicationsPage> {
         .read(applicationsControllerProvider.notifier)
         .rejectApplication(item);
     if (!mounted) return;
-    _showSnack(ok ? 'Application rejected.' : 'Operazione fallita.');
+    if (ok) {
+      _showSnack('Application rejected.');
+    }
   }
 
   Future<void> _openChat(ApplicationItem item) async {
@@ -141,13 +143,17 @@ class _BrandApplicationsPageState extends ConsumerState<BrandApplicationsPage> {
                 itemCount: state.brandApplications.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
+                  final hasAcceptedCreator = state.brandApplications.any(
+                    (candidate) => candidate.status.toLowerCase() == 'accepted',
+                  );
                   final item = state.brandApplications[index];
                   final isMutating =
                       state.isMutating && state.activeMutationId == item.id;
+                  final canAccept = item.isPending && !hasAcceptedCreator;
                   return _BrandApplicationCard(
                     item: item,
                     isMutating: isMutating,
-                    onAccept: item.isPending ? () => _accept(item) : null,
+                    onAccept: canAccept ? () => _accept(item) : null,
                     onReject: item.isPending ? () => _reject(item) : null,
                     onOpenChat: item.chatId?.trim().isNotEmpty == true
                         ? () => _openChat(item)
