@@ -1725,6 +1725,33 @@ class _PremiumLineChartPainter extends CustomPainter {
   }
 }
 
+class _SubPageTopBarBackground extends StatelessWidget {
+  const _SubPageTopBarBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xF20B1322), Color(0xC40A1321), Color(0x9E0A1220)],
+        ),
+        border: Border(
+          bottom: BorderSide(color: Color(0x309FC8F8), width: 1),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x66040A14),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ActiveCampaignsPage extends ConsumerStatefulWidget {
   const _ActiveCampaignsPage();
 
@@ -1780,24 +1807,30 @@ class _ActiveCampaignsPageState extends ConsumerState<_ActiveCampaignsPage> {
         .where((campaign) => campaign.status.toLowerCase() == 'active')
         .toList(growable: false);
     final theme = Theme.of(context);
+    final topContentPadding =
+        MediaQuery.paddingOf(context).top + kToolbarHeight + 14;
 
     return Theme(
       data: theme.copyWith(
-        scaffoldBackgroundColor: const Color(0xFF070D18),
+        scaffoldBackgroundColor: Colors.transparent,
         appBarTheme: theme.appBarTheme.copyWith(
-          backgroundColor: const Color(0xFF070D18),
+          backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
+          shadowColor: Colors.transparent,
+          scrolledUnderElevation: 0,
           foregroundColor: const Color(0xFFEAF3FF),
           systemOverlayStyle: SystemUiOverlayStyle.light.copyWith(
-            statusBarColor: const Color(0xFF070D18),
+            statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.light,
             statusBarBrightness: Brightness.dark,
           ),
         ),
       ),
       child: Scaffold(
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
+          flexibleSpace: const _SubPageTopBarBackground(),
           title: Text(
             'Campagne attive',
             style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
@@ -1807,6 +1840,7 @@ class _ActiveCampaignsPageState extends ConsumerState<_ActiveCampaignsPage> {
           children: [
             const Positioned.fill(child: LuxuryNeonBackdrop()),
             SafeArea(
+              top: false,
               child: Builder(
                 builder: (context) {
                   if (state.isLoading && state.campaigns.isEmpty) {
@@ -1820,12 +1854,22 @@ class _ActiveCampaignsPageState extends ConsumerState<_ActiveCampaignsPage> {
                     child: activeCampaigns.isEmpty
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(16),
+                            padding: EdgeInsets.fromLTRB(
+                              16,
+                              topContentPadding,
+                              16,
+                              16,
+                            ),
                             children: const [_ActiveCampaignsEmptyState()],
                           )
                         : ListView.separated(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(16),
+                            padding: EdgeInsets.fromLTRB(
+                              16,
+                              topContentPadding,
+                              16,
+                              16,
+                            ),
                             itemCount: activeCampaigns.length,
                             separatorBuilder: (_, index) =>
                                 const SizedBox(height: 10),
@@ -2046,24 +2090,30 @@ class _MatchedCampaignsPageState extends ConsumerState<_MatchedCampaignsPage> {
         .where((campaign) => campaign.status.toLowerCase() == 'matched')
         .toList(growable: false);
     final theme = Theme.of(context);
+    final topContentPadding =
+        MediaQuery.paddingOf(context).top + kToolbarHeight + 14;
 
     return Theme(
       data: theme.copyWith(
-        scaffoldBackgroundColor: const Color(0xFF070D18),
+        scaffoldBackgroundColor: Colors.transparent,
         appBarTheme: theme.appBarTheme.copyWith(
-          backgroundColor: const Color(0xFF070D18),
+          backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
+          shadowColor: Colors.transparent,
+          scrolledUnderElevation: 0,
           foregroundColor: const Color(0xFFEAF3FF),
           systemOverlayStyle: SystemUiOverlayStyle.light.copyWith(
-            statusBarColor: const Color(0xFF070D18),
+            statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.light,
             statusBarBrightness: Brightness.dark,
           ),
         ),
       ),
       child: Scaffold(
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
+          flexibleSpace: const _SubPageTopBarBackground(),
           title: Text(
             'Campagne matched',
             style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
@@ -2073,6 +2123,7 @@ class _MatchedCampaignsPageState extends ConsumerState<_MatchedCampaignsPage> {
           children: [
             const Positioned.fill(child: LuxuryNeonBackdrop()),
             SafeArea(
+              top: false,
               child: Builder(
                 builder: (context) {
                   if (state.isLoading && state.campaigns.isEmpty) {
@@ -2086,12 +2137,22 @@ class _MatchedCampaignsPageState extends ConsumerState<_MatchedCampaignsPage> {
                     child: matchedCampaigns.isEmpty
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(16),
+                            padding: EdgeInsets.fromLTRB(
+                              16,
+                              topContentPadding,
+                              16,
+                              16,
+                            ),
                             children: const [_MatchedCampaignsEmptyState()],
                           )
                         : ListView.separated(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(16),
+                            padding: EdgeInsets.fromLTRB(
+                              16,
+                              topContentPadding,
+                              16,
+                              16,
+                            ),
                             itemCount: matchedCampaigns.length,
                             separatorBuilder: (_, index) =>
                                 const SizedBox(height: 10),
