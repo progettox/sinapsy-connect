@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -97,12 +98,17 @@ class _BrandApplicationsPageState extends ConsumerState<BrandApplicationsPage> {
       primaryTextTheme: GoogleFonts.plusJakartaSansTextTheme(
         theme.primaryTextTheme,
       ),
-      scaffoldBackgroundColor: Colors.transparent,
+      scaffoldBackgroundColor: const Color(0xFF070D18),
       appBarTheme: theme.appBarTheme.copyWith(
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFF070D18),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         foregroundColor: const Color(0xFFEAF3FF),
+        systemOverlayStyle: SystemUiOverlayStyle.light.copyWith(
+          statusBarColor: const Color(0xFF070D18),
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
       ),
     );
 

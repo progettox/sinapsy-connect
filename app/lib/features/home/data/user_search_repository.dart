@@ -40,6 +40,35 @@ class UserSearchRepository {
     }
     return results;
   }
+
+  Future<List<UserSearchResult>> listUsers({
+    String? excludeUserId,
+    String? role,
+    int limit = 20,
+  }) async {
+    final cleanRole = role?.trim().toLowerCase();
+    dynamic queryBuilder = _client
+        .from('profiles')
+        .select('id, username, role, avatar_url, location')
+        .order('username')
+        .limit(limit);
+
+    if (cleanRole != null && cleanRole.isNotEmpty) {
+      queryBuilder = queryBuilder.eq('role', cleanRole);
+    }
+
+    final raw = await queryBuilder;
+    final rows = List<Map<String, dynamic>>.from(raw);
+
+    final results = <UserSearchResult>[];
+    for (final row in rows) {
+      final user = UserSearchResult.fromMap(row);
+      if (user.username.isEmpty) continue;
+      if (excludeUserId != null && excludeUserId == user.id) continue;
+      results.add(user);
+    }
+    return results;
+  }
 }
 
 class UserSearchResult {
