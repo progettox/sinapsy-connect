@@ -308,21 +308,29 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     );
 
     try {
-      final deleted = await _deleteMyApplication(
-        applicationId: item.id,
-        creatorId: creatorId,
-      );
-      var changed = deleted;
-      if (!changed) {
-        changed = await _markMyApplicationRejected(
+      Object? deleteError;
+      Object? updateError;
+
+      try {
+        await _deleteMyApplication(
           applicationId: item.id,
           creatorId: creatorId,
         );
+      } catch (error) {
+        deleteError = error;
       }
-      if (!changed) {
-        throw StateError(
-          'Operazione non consentita: verifica le policy RLS su applications (delete/update pending).',
+
+      try {
+        await _markMyApplicationRejected(
+          applicationId: item.id,
+          creatorId: creatorId,
         );
+      } catch (error) {
+        updateError = error;
+      }
+
+      if (deleteError != null && updateError != null) {
+        throw StateError('Annullamento non riuscito: $updateError');
       }
       await _decrementCampaignApplicantsCount(campaignId: item.campaignId);
       _removeApplicationLocally(item.id);
@@ -604,70 +612,58 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     }
   }
 
-  Future<bool> _deleteMyApplication({
+  Future<void> _deleteMyApplication({
     required String applicationId,
     required String creatorId,
   }) async {
     try {
-      final rows = await _client
+      await _client
           .from('applications')
           .delete()
           .eq('id', applicationId)
           .eq('applicant_id', creatorId)
-          .eq('status', 'pending')
-          .select('id');
-      if (_rowsToMaps(rows).isNotEmpty) return true;
+          .eq('status', 'pending');
     } on PostgrestException catch (error) {
       if (!_isColumnError(error)) rethrow;
     }
 
     try {
-      final rows = await _client
+      await _client
           .from('applications')
           .delete()
           .eq('id', applicationId)
           .eq('creator_id', creatorId)
-          .eq('status', 'pending')
-          .select('id');
-      if (_rowsToMaps(rows).isNotEmpty) return true;
+          .eq('status', 'pending');
     } on PostgrestException catch (error) {
       if (!_isColumnError(error)) rethrow;
     }
-
-    return false;
   }
 
-  Future<bool> _markMyApplicationRejected({
+  Future<void> _markMyApplicationRejected({
     required String applicationId,
     required String creatorId,
   }) async {
     try {
-      final rows = await _client
+      await _client
           .from('applications')
           .update({'status': 'rejected'})
           .eq('id', applicationId)
           .eq('applicant_id', creatorId)
-          .eq('status', 'pending')
-          .select('id');
-      if (_rowsToMaps(rows).isNotEmpty) return true;
+          .eq('status', 'pending');
     } on PostgrestException catch (error) {
       if (!_isColumnError(error)) rethrow;
     }
 
     try {
-      final rows = await _client
+      await _client
           .from('applications')
           .update({'status': 'rejected'})
           .eq('id', applicationId)
           .eq('creator_id', creatorId)
-          .eq('status', 'pending')
-          .select('id');
-      if (_rowsToMaps(rows).isNotEmpty) return true;
+          .eq('status', 'pending');
     } on PostgrestException catch (error) {
       if (!_isColumnError(error)) rethrow;
     }
-
-    return false;
   }
 
   Future<void> _decrementCampaignApplicantsCount({

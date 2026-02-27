@@ -38,10 +38,16 @@ class ApplicationRepository {
     if (existing != null) {
       final status = _status(existing['status']);
       final existingId = _string(existing['id']);
-      if (status == 'pending' || status == 'accepted') {
+      if (status == 'accepted') {
         throw StateError(
           'Hai gia inviato una candidatura per questo annuncio.',
         );
+      }
+      if (status == 'pending') {
+        _log(
+          'apply.skip_duplicate_pending campaignId=${campaign.id} creatorId=$creatorId',
+        );
+        return;
       }
       if (existingId != null && existingId.isNotEmpty) {
         final reactivated = await _reactivateApplication(
