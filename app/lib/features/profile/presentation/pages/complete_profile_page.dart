@@ -492,31 +492,6 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           if (_isRoleSelectionStep) ...[
-                            Align(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0x44101722),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: const Color(0x8C87B0E5),
-                                  ),
-                                ),
-                                child: Text(
-                                  'STEP 1 / 2',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 1.1,
-                                    color: const Color(0xFFDDEBFF),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 18),
                             Text(
                               'Scegli il tuo ruolo',
                               textAlign: TextAlign.center,

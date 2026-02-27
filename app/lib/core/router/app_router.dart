@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/pages/auth_page.dart';
-import '../../features/home/presentation/pages/brand_home_page.dart';
+import '../../features/home/presentation/pages/brand_main_page.dart';
 import '../../features/home/presentation/pages/creator_home_page.dart';
 import '../../features/profile/data/profile_model.dart';
 import '../../features/profile/presentation/pages/complete_profile_page.dart';
@@ -44,7 +44,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRouter.brandHomePath,
-        builder: (context, state) => const BrandHomePage(),
+        builder: (context, state) => const BrandMainPage(),
       ),
       GoRoute(
         path: AppRouter.creatorHomePath,
