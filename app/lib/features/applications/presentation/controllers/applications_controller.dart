@@ -194,21 +194,29 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
       final withChats = await _attachChatIds(hydrated);
       final hiddenCampaignIds = _applicationRepository
           .getLocallyWithdrawnCampaignIds();
-      final visibleMine = withChats.where((item) {
-        if (!hiddenCampaignIds.contains(item.campaignId)) return true;
-        if (!item.isPending) {
-          _applicationRepository.clearLocalWithdrawal(item.campaignId);
-          return true;
-        }
-        return false;
-      }).toList();
-      final cancelledWarningCampaignIds = visibleMine
+      final cancelledAfterMatchCampaignIds = withChats
           .where((item) => item.isCancelledAfterMatch)
           .map((item) => item.campaignId)
           .toSet();
+      final visibleMine = withChats
+          .where((item) {
+            if (!hiddenCampaignIds.contains(item.campaignId)) return true;
+            if (!item.isPending) {
+              _applicationRepository.clearLocalWithdrawal(item.campaignId);
+              return true;
+            }
+            return false;
+          })
+          .where((item) {
+            if (!item.isCancelledAfterMatch) return true;
+            return !state.dismissedCancelledWarningCampaignIds.contains(
+              item.campaignId,
+            );
+          })
+          .toList();
       final retainedDismissedWarnings = state
           .dismissedCancelledWarningCampaignIds
-          .where(cancelledWarningCampaignIds.contains)
+          .where(cancelledAfterMatchCampaignIds.contains)
           .toSet();
 
       state = state.copyWith(
@@ -429,8 +437,12 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     if (id.isEmpty) return;
     final next = Set<String>.from(state.dismissedCancelledWarningCampaignIds)
       ..add(id);
+    final nextMine = state.myApplications
+        .where((item) => !(item.campaignId == id && item.isCancelledAfterMatch))
+        .toList();
     state = state.copyWith(
       dismissedCancelledWarningCampaignIds: next,
+      myApplications: nextMine,
       clearError: true,
     );
   }
