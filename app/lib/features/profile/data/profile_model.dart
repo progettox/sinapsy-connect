@@ -39,6 +39,9 @@ class ProfileModel {
     required this.username,
     required this.location,
     this.role,
+    this.firstName,
+    this.lastName,
+    this.birthDate,
     this.bio = '',
     this.avatarUrl,
     this.followersCount,
@@ -49,6 +52,9 @@ class ProfileModel {
   final String id;
   final String username;
   final ProfileRole? role;
+  final String? firstName;
+  final String? lastName;
+  final DateTime? birthDate;
   final String bio;
   final String location;
   final String? avatarUrl;
@@ -69,6 +75,11 @@ class ProfileModel {
       id: (map['id'] ?? map['user_id'] ?? '').toString(),
       username: (map['username'] ?? '').toString(),
       role: profileRoleFromString(map['role']?.toString()),
+      firstName: _normalizeNullableString(
+        map['first_name'] ?? map['firstName'],
+      ),
+      lastName: _normalizeNullableString(map['last_name'] ?? map['lastName']),
+      birthDate: _parseDateTime(map['birth_date'] ?? map['birthDate']),
       bio: (map['bio'] ?? '').toString(),
       location: (map['location'] ?? '').toString(),
       avatarUrl: _normalizeNullableString(map['avatar_url']),
@@ -81,7 +92,7 @@ class ProfileModel {
   }
 
   Map<String, dynamic> toUpsertMap() {
-    return <String, dynamic>{
+    final payload = <String, dynamic>{
       'id': id,
       'username': username.trim(),
       'role': role?.value,
@@ -90,12 +101,22 @@ class ProfileModel {
       'avatar_url': _normalizeNullableString(avatarUrl),
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
+    if (_normalizeNullableString(firstName) != null) {
+      payload['first_name'] = _normalizeNullableString(firstName);
+    }
+    if (_normalizeNullableString(lastName) != null) {
+      payload['last_name'] = _normalizeNullableString(lastName);
+    }
+    if (birthDate != null) {
+      payload['birth_date'] = _asDateOnlyUtcIso(birthDate!);
+    }
+    return payload;
   }
 
   Map<String, dynamic> toUpsertById() => toUpsertMap();
 
   Map<String, dynamic> toUpsertByUserId() {
-    return <String, dynamic>{
+    final payload = <String, dynamic>{
       'user_id': id,
       'username': username.trim(),
       'role': role?.value,
@@ -104,6 +125,16 @@ class ProfileModel {
       'avatar_url': _normalizeNullableString(avatarUrl),
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
+    if (_normalizeNullableString(firstName) != null) {
+      payload['first_name'] = _normalizeNullableString(firstName);
+    }
+    if (_normalizeNullableString(lastName) != null) {
+      payload['last_name'] = _normalizeNullableString(lastName);
+    }
+    if (birthDate != null) {
+      payload['birth_date'] = _asDateOnlyUtcIso(birthDate!);
+    }
+    return payload;
   }
 
   ProfileModel copyWith({
@@ -111,6 +142,12 @@ class ProfileModel {
     String? username,
     ProfileRole? role,
     bool clearRole = false,
+    String? firstName,
+    bool clearFirstName = false,
+    String? lastName,
+    bool clearLastName = false,
+    DateTime? birthDate,
+    bool clearBirthDate = false,
     String? bio,
     String? location,
     String? avatarUrl,
@@ -124,6 +161,9 @@ class ProfileModel {
       id: id ?? this.id,
       username: username ?? this.username,
       role: clearRole ? null : (role ?? this.role),
+      firstName: clearFirstName ? null : (firstName ?? this.firstName),
+      lastName: clearLastName ? null : (lastName ?? this.lastName),
+      birthDate: clearBirthDate ? null : (birthDate ?? this.birthDate),
       bio: bio ?? this.bio,
       location: location ?? this.location,
       avatarUrl: clearAvatar ? null : (avatarUrl ?? this.avatarUrl),
@@ -138,6 +178,11 @@ class ProfileModel {
   static DateTime? _parseDateTime(dynamic raw) {
     if (raw == null) return null;
     return DateTime.tryParse(raw.toString());
+  }
+
+  static String _asDateOnlyUtcIso(DateTime date) {
+    final utcDate = DateTime.utc(date.year, date.month, date.day);
+    return utcDate.toIso8601String().split('T').first;
   }
 
   static String? _normalizeNullableString(dynamic raw) {
@@ -159,6 +204,9 @@ class ProfileUpsertData {
     required this.role,
     required this.username,
     required this.location,
+    this.firstName,
+    this.lastName,
+    this.birthDate,
     this.bio,
     this.avatarUrl,
   });
@@ -166,6 +214,9 @@ class ProfileUpsertData {
   final ProfileRole role;
   final String username;
   final String location;
+  final String? firstName;
+  final String? lastName;
+  final DateTime? birthDate;
   final String? bio;
   final String? avatarUrl;
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../auth/data/auth_repository.dart';
 import '../../data/profile_model.dart';
 import '../controllers/profile_controller.dart';
 
@@ -16,9 +17,13 @@ class CompleteProfilePage extends ConsumerStatefulWidget {
 
 class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
   final _formKey = GlobalKey<FormState>();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _birthDateController = TextEditingController();
   final _usernameController = TextEditingController();
   final _locationController = TextEditingController();
   ProfileRole? _selectedRole;
+  DateTime? _selectedBirthDate;
 
   @override
   void initState() {
@@ -31,6 +36,14 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       if (!mounted || profile == null) return;
       setState(() {
         _selectedRole = profile.role;
+        if (_firstNameController.text.isEmpty) {
+          _firstNameController.text = profile.firstName ?? '';
+        }
+        if (_lastNameController.text.isEmpty) {
+          _lastNameController.text = profile.lastName ?? '';
+        }
+        _selectedBirthDate = profile.birthDate;
+        _birthDateController.text = _formatBirthDate(profile.birthDate);
         if (_usernameController.text.isEmpty) {
           _usernameController.text = profile.username;
         }
@@ -43,6 +56,9 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
 
   @override
   void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _birthDateController.dispose();
     _usernameController.dispose();
     _locationController.dispose();
     super.dispose();
@@ -66,6 +82,9 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
         .read(profileControllerProvider.notifier)
         .upsertMyProfile(
           role: _selectedRole!,
+          firstName: _firstNameController.text,
+          lastName: _lastNameController.text,
+          birthDate: _selectedBirthDate,
           username: _usernameController.text,
           location: _locationController.text,
         );
@@ -79,6 +98,44 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       return '$fieldName obbligatorio';
     }
     return null;
+  }
+
+  String? _validateBirthDate() {
+    if (_selectedBirthDate == null) {
+      return 'Data di nascita obbligatoria';
+    }
+    return null;
+  }
+
+  Future<void> _pickBirthDate() async {
+    final now = DateTime.now();
+    final initial = _selectedBirthDate ?? DateTime(now.year - 18, 1, 1);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1900),
+      lastDate: now,
+    );
+    if (picked == null) return;
+    setState(() {
+      _selectedBirthDate = DateTime(picked.year, picked.month, picked.day);
+      _birthDateController.text = _formatBirthDate(_selectedBirthDate);
+    });
+  }
+
+  String _formatBirthDate(DateTime? date) {
+    if (date == null) return '';
+    final mm = date.month.toString().padLeft(2, '0');
+    final dd = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$mm-$dd';
+  }
+
+  Future<void> _goToLogin() async {
+    try {
+      await ref.read(authRepositoryProvider).signOut();
+    } catch (_) {}
+    if (!mounted) return;
+    context.go(AppRouter.authPath);
   }
 
   @override
@@ -133,6 +190,37 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                     ),
                     const SizedBox(height: 24),
                     TextFormField(
+                      controller: _firstNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => _validateRequired(value, 'Nome'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _lastNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Cognome',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => _validateRequired(value, 'Cognome'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _birthDateController,
+                      readOnly: true,
+                      onTap: state.isLoading ? null : _pickBirthDate,
+                      decoration: const InputDecoration(
+                        labelText: 'Data di nascita',
+                        hintText: 'YYYY-MM-DD',
+                        border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.calendar_today_outlined),
+                      ),
+                      validator: (_) => _validateBirthDate(),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
                       controller: _usernameController,
                       decoration: const InputDecoration(
                         labelText: 'Username',
@@ -155,6 +243,11 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                     ElevatedButton(
                       onPressed: state.isLoading ? null : _save,
                       child: const Text('Salva profilo'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: state.isLoading ? null : _goToLogin,
+                      child: const Text('Ho gia un account'),
                     ),
                     if (state.isLoading) ...[
                       const SizedBox(height: 16),

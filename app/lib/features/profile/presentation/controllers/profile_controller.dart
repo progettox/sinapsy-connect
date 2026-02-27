@@ -66,6 +66,9 @@ class ProfileController extends StateNotifier<ProfileUiState> {
     required ProfileRole role,
     required String username,
     required String location,
+    String? firstName,
+    String? lastName,
+    DateTime? birthDate,
     String? bio,
     String? avatarUrl,
   }) async {
@@ -76,6 +79,9 @@ class ProfileController extends StateNotifier<ProfileUiState> {
           role: role,
           username: username,
           location: location,
+          firstName: firstName,
+          lastName: lastName,
+          birthDate: birthDate,
           bio: bio,
           avatarUrl: avatarUrl,
         ),
@@ -121,11 +127,17 @@ class ProfileController extends StateNotifier<ProfileUiState> {
     required ProfileRole role,
     required String username,
     required String location,
+    String? firstName,
+    String? lastName,
+    DateTime? birthDate,
   }) {
     return upsertMyProfile(
       role: role,
       username: username,
       location: location,
+      firstName: firstName,
+      lastName: lastName,
+      birthDate: birthDate,
     );
   }
 

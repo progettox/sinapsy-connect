@@ -16,8 +16,8 @@ class ProfileRepository {
   ProfileRepository({
     required SupabaseClient client,
     required AuthRepository authRepository,
-  })  : _client = client,
-        _authRepository = authRepository;
+  }) : _client = client,
+       _authRepository = authRepository;
 
   static const String _profilesTable = 'profiles';
 
@@ -47,6 +47,9 @@ class ProfileRepository {
       id: userId,
       username: data.username,
       role: data.role,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      birthDate: data.birthDate,
       bio: data.bio ?? '',
       location: data.location,
       avatarUrl: data.avatarUrl,
@@ -80,12 +83,18 @@ class ProfileRepository {
     required ProfileRole role,
     required String username,
     required String location,
+    String? firstName,
+    String? lastName,
+    DateTime? birthDate,
   }) {
     return upsertMyProfile(
       ProfileUpsertData(
         role: role,
         username: username,
         location: location,
+        firstName: firstName,
+        lastName: lastName,
+        birthDate: birthDate,
       ),
     );
   }

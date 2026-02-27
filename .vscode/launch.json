@@ -2,26 +2,41 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Flutter: app (debug)",
-      "type": "dart",
-      "request": "launch",
-      "cwd": "${workspaceFolder}/app",
-      "program": "lib/main.dart"
-    },
-    {
-      "name": "Flutter: app (profile)",
+      "name": "Flutter Web: app (debug)",
       "type": "dart",
       "request": "launch",
       "cwd": "${workspaceFolder}/app",
       "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "toolArgs": [
+        "-d",
+        "chrome"
+      ]
+    },
+    {
+      "name": "Flutter Web: app (profile)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/app",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "toolArgs": [
+        "-d",
+        "chrome"
+      ],
       "flutterMode": "profile"
     },
     {
-      "name": "Flutter: app (release)",
+      "name": "Flutter Web: app (release)",
       "type": "dart",
       "request": "launch",
       "cwd": "${workspaceFolder}/app",
       "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "toolArgs": [
+        "-d",
+        "chrome"
+      ],
       "flutterMode": "release"
     }
   ]

@@ -308,52 +308,24 @@ class _HeroLogoBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textSize = compact ? 22.0 : 28.0;
-    final logoSize = compact ? 150.0 : 206.0;
+    final textSize = compact ? 12.0 : 14.0;
+    final logoSize = compact ? 108.0 : 148.0;
 
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 18 : 26,
-        vertical: compact ? 16 : 22,
-      ),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xAA111A28), Color(0xAA0C131F)],
-        ),
-        border: Border.all(
-          color: const Color(0xFF6B7F97).withValues(alpha: 0.25),
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x9602050C),
-            blurRadius: 30,
-            offset: Offset(0, 16),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: compact ? 6 : 12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           _AnimatedAtomLogo(size: logoSize),
-          SizedBox(height: compact ? 12 : 14),
-          ShaderMask(
-            shaderCallback: (rect) {
-              return const LinearGradient(
-                colors: [Color(0xFFE5F6FF), Color(0xFFB8DFFF)],
-              ).createShader(rect);
-            },
-            child: Text(
-              'SINAPSY CONNECT',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: textSize,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 2.8,
-                color: Colors.white,
-              ),
+          SizedBox(height: compact ? 8 : 10),
+          Text(
+            'Benvenuti su Sinapsy Connect',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: textSize,
+              fontWeight: FontWeight.w400,
+              letterSpacing: 0.5,
+              color: const Color(0xFFE7EFFF).withValues(alpha: 0.86),
             ),
           ),
         ],
@@ -489,7 +461,7 @@ class _AnimatedAtomLogoState extends State<_AnimatedAtomLogo>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 5200),
+    duration: const Duration(milliseconds: 7200),
   )..repeat();
 
   @override
@@ -535,72 +507,117 @@ class _AtomLogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final baseA = size.width * 0.34;
-    final baseB = size.width * 0.17;
+    final spin = progress * math.pi * 2;
+    final minSide = size.shortestSide;
+    final orbitA = minSide * 0.34;
+    final orbitB = minSide * 0.13;
+    final nucleusRadius = minSide * 0.09;
+    final orbitStroke = math.max(0.95, minSide * 0.012);
+    final electronRadius = math.max(1.0, minSide * 0.017);
+    final orbitAngles = <double>[0, math.pi / 3, -math.pi / 3];
+    final globalRotation = spin;
+    final pulse = 0.9 + 0.1 * math.sin(spin * 2);
 
-    final ringGlow = Paint()
+    final haloPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFF76A9FF).withValues(alpha: 0.2 * pulse),
+          const Color(0xFF76A9FF).withValues(alpha: 0.0),
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: minSide * 0.48));
+    canvas.drawCircle(center, minSide * 0.48, haloPaint);
+
+    final orbitGlowPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.055
-      ..color = const Color(0xFF45D8FF).withValues(alpha: 0.17)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
-    final ring = Paint()
+      ..strokeWidth = orbitStroke * 1.9
+      ..color = const Color(0xFF7DAFFF).withValues(alpha: 0.24)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+
+    final orbitPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.022
+      ..strokeWidth = orbitStroke
+      ..strokeCap = StrokeCap.round
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF8AF0FF), Color(0xFF4798FF)],
-      ).createShader(Rect.fromCircle(center: center, radius: size.width * 0.4));
+        colors: [Color(0xFFF5FAFF), Color(0xFFD3E7FF), Color(0xFF74A8FF)],
+      ).createShader(Rect.fromCircle(center: center, radius: orbitA));
 
-    final rotations = <double>[0, math.pi / 3, -math.pi / 3];
-    for (int i = 0; i < rotations.length; i++) {
-      final rotation = rotations[i];
-      canvas.save();
-      canvas.translate(center.dx, center.dy);
-      canvas.rotate(rotation);
-      canvas.translate(-center.dx, -center.dy);
-      final rect = Rect.fromCenter(
+    for (int i = 0; i < orbitAngles.length; i++) {
+      final rotation = orbitAngles[i] + globalRotation;
+      _drawOrbit(
+        canvas: canvas,
         center: center,
-        width: baseA * 2,
-        height: baseB * 2,
+        a: orbitA,
+        b: orbitB,
+        rotation: rotation,
+        paint: orbitGlowPaint,
       );
-      canvas.drawOval(rect, ringGlow);
-      canvas.drawOval(rect, ring);
-      canvas.restore();
+      _drawOrbit(
+        canvas: canvas,
+        center: center,
+        a: orbitA,
+        b: orbitB,
+        rotation: rotation,
+        paint: orbitPaint,
+      );
 
-      final t = (progress + i * 0.22) * math.pi * 2;
-      final electron = _ellipsePoint(center, baseA, baseB, t, rotation);
+      final electronAngle = spin * 2 + (i * (math.pi * 2 / orbitAngles.length));
+      final electron = _ellipsePoint(
+        center: center,
+        a: orbitA,
+        b: orbitB,
+        angle: electronAngle,
+        rotation: rotation,
+      );
       final electronGlow = Paint()
-        ..color = const Color(0xFF8FE8FF).withValues(alpha: 0.9)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
-      final electronCore = Paint()..color = const Color(0xFFD8F7FF);
-      canvas.drawCircle(electron, size.width * 0.028, electronGlow);
-      canvas.drawCircle(electron, size.width * 0.015, electronCore);
+        ..color = const Color(0xFFDCEAFF).withValues(alpha: 0.88)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+      canvas.drawCircle(electron, electronRadius * 1.6, electronGlow);
+      canvas.drawCircle(
+        electron,
+        electronRadius,
+        Paint()..color = const Color(0xFFFFFFFF),
+      );
     }
 
-    final coreGlow = Paint()
-      ..shader =
-          RadialGradient(
-            colors: [
-              const Color(0xFF92EAFF),
-              const Color(0xFF2B90FF).withValues(alpha: 0.9),
-              const Color(0xFF2B90FF).withValues(alpha: 0.0),
-            ],
-          ).createShader(
-            Rect.fromCircle(center: center, radius: size.width * 0.14),
-          );
-    canvas.drawCircle(center, size.width * 0.14, coreGlow);
+    final coreDotGlow = Paint()
+      ..color = const Color(0xFFDCEAFF).withValues(alpha: 0.45)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
+    final coreDot = Paint()
+      ..color = const Color(0xFFF8FBFF).withValues(alpha: 0.95);
+    canvas.drawCircle(center, nucleusRadius * 0.52, coreDotGlow);
+    canvas.drawCircle(center, nucleusRadius * 0.3, coreDot);
   }
 
-  Offset _ellipsePoint(
-    Offset center,
-    double a,
-    double b,
-    double t,
-    double rotation,
-  ) {
-    final x = a * math.cos(t);
-    final y = b * math.sin(t);
+  void _drawOrbit({
+    required Canvas canvas,
+    required Offset center,
+    required double a,
+    required double b,
+    required double rotation,
+    required Paint paint,
+  }) {
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(rotation);
+    canvas.translate(-center.dx, -center.dy);
+    canvas.drawOval(
+      Rect.fromCenter(center: center, width: a * 2, height: b * 2),
+      paint,
+    );
+    canvas.restore();
+  }
+
+  Offset _ellipsePoint({
+    required Offset center,
+    required double a,
+    required double b,
+    required double angle,
+    required double rotation,
+  }) {
+    final x = a * math.cos(angle);
+    final y = b * math.sin(angle);
     final xr = x * math.cos(rotation) - y * math.sin(rotation);
     final yr = x * math.sin(rotation) + y * math.cos(rotation);
     return Offset(center.dx + xr, center.dy + yr);
