@@ -47,6 +47,41 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
     context.go(AppRouter.authPath);
   }
 
+  Future<void> _confirmRemoveCampaign(CampaignModel campaign) async {
+    final shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Eliminare annuncio?'),
+          content: Text(
+            'Stai per rimuovere "${campaign.title}".\n'
+            'L\'annuncio non sara piu visibile nel feed, anche se e gia in match.\n'
+            'Vuoi continuare?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Elimina'),
+            ),
+          ],
+        );
+      },
+    );
+    if (shouldRemove != true || !mounted) return;
+
+    final ok = await ref
+        .read(brandCampaignsControllerProvider.notifier)
+        .removeCampaign(campaignId: campaign.id);
+    if (!mounted) return;
+    if (ok) {
+      _showSnack('Annuncio eliminato.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(brandCampaignsControllerProvider);
@@ -75,7 +110,8 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
         title: const Text('Brand Dashboard'),
         actions: [
           IconButton(
-            onPressed: state.isLoading || homeState.isLoading
+            onPressed:
+                state.isLoading || state.isRemoving || homeState.isLoading
                 ? null
                 : _openCreateCampaign,
             icon: const Icon(Icons.add),
@@ -128,7 +164,15 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
                 itemCount: state.campaigns.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
-                  return _CampaignTile(campaign: state.campaigns[index]);
+                  final campaign = state.campaigns[index];
+                  final isRemoving =
+                      state.isRemoving &&
+                      state.removingCampaignId == campaign.id;
+                  return _CampaignTile(
+                    campaign: campaign,
+                    isRemoving: isRemoving,
+                    onRemove: () => _confirmRemoveCampaign(campaign),
+                  );
                 },
               ),
             );
@@ -136,7 +180,9 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: state.isLoading ? null : _openCreateCampaign,
+        onPressed: state.isLoading || state.isRemoving
+            ? null
+            : _openCreateCampaign,
         child: const Icon(Icons.add),
       ),
     );
@@ -144,9 +190,15 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
 }
 
 class _CampaignTile extends StatelessWidget {
-  const _CampaignTile({required this.campaign});
+  const _CampaignTile({
+    required this.campaign,
+    required this.isRemoving,
+    required this.onRemove,
+  });
 
   final CampaignModel campaign;
+  final bool isRemoving;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -195,22 +247,39 @@ class _CampaignTile extends StatelessWidget {
             if (campaign.createdAt != null)
               Text('Creata: ${_formatDate(campaign.createdAt!)}'),
             const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => BrandApplicationsPage(
-                        campaignId: campaign.id,
-                        campaignTitle: campaign.title,
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.people_outline),
-                label: const Text('Applications'),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: isRemoving
+                        ? null
+                        : () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => BrandApplicationsPage(
+                                  campaignId: campaign.id,
+                                  campaignTitle: campaign.title,
+                                ),
+                              ),
+                            );
+                          },
+                    icon: const Icon(Icons.people_outline),
+                    label: const Text('Applications'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: isRemoving ? null : onRemove,
+                  icon: isRemoving
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.delete_outline),
+                  label: const Text('Elimina'),
+                ),
+              ],
             ),
           ],
         ),

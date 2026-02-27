@@ -25,22 +25,33 @@ final createCampaignControllerProvider =
 class BrandCampaignsState {
   const BrandCampaignsState({
     this.isLoading = false,
+    this.isRemoving = false,
+    this.removingCampaignId,
     this.errorMessage,
     this.campaigns = const <CampaignModel>[],
   });
 
   final bool isLoading;
+  final bool isRemoving;
+  final String? removingCampaignId;
   final String? errorMessage;
   final List<CampaignModel> campaigns;
 
   BrandCampaignsState copyWith({
     bool? isLoading,
+    bool? isRemoving,
+    String? removingCampaignId,
+    bool clearRemovingCampaign = false,
     String? errorMessage,
     bool clearError = false,
     List<CampaignModel>? campaigns,
   }) {
     return BrandCampaignsState(
       isLoading: isLoading ?? this.isLoading,
+      isRemoving: isRemoving ?? this.isRemoving,
+      removingCampaignId: clearRemovingCampaign
+          ? null
+          : (removingCampaignId ?? this.removingCampaignId),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       campaigns: campaigns ?? this.campaigns,
     );
@@ -177,6 +188,76 @@ class BrandCampaignsController extends StateNotifier<BrandCampaignsState> {
         errorMessage: 'Errore caricamento campagne: $error',
       );
     }
+  }
+
+  Future<bool> removeCampaign({required String campaignId}) async {
+    final brandId = _authRepository.currentUser?.id;
+    if (brandId == null) {
+      state = state.copyWith(errorMessage: 'Sessione non valida.');
+      return false;
+    }
+
+    state = state.copyWith(
+      isRemoving: true,
+      removingCampaignId: campaignId,
+      clearError: true,
+    );
+
+    try {
+      await _cancelCampaign(campaignId: campaignId, brandId: brandId);
+      final nextCampaigns = state.campaigns
+          .where((campaign) => campaign.id != campaignId)
+          .toList();
+      state = state.copyWith(
+        isRemoving: false,
+        clearRemovingCampaign: true,
+        campaigns: nextCampaigns,
+        clearError: true,
+      );
+      _log('brand_campaigns.remove.success campaignId=$campaignId');
+      return true;
+    } catch (error) {
+      _log('brand_campaigns.remove.error campaignId=$campaignId error=$error');
+      state = state.copyWith(
+        isRemoving: false,
+        clearRemovingCampaign: true,
+        errorMessage: 'Errore eliminazione annuncio: $error',
+      );
+      return false;
+    }
+  }
+
+  Future<void> _cancelCampaign({
+    required String campaignId,
+    required String brandId,
+  }) async {
+    try {
+      await _client
+          .from('campaigns')
+          .update({'status': 'cancelled'})
+          .eq('id', campaignId)
+          .eq('brand_id', brandId);
+      return;
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    try {
+      await _client
+          .from('campaigns')
+          .update({'status': 'cancelled'})
+          .eq('id', campaignId)
+          .eq('brandId', brandId);
+      return;
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    await _client
+        .from('campaigns')
+        .update({'status': 'cancelled'})
+        .eq('campaignId', campaignId)
+        .eq('brandId', brandId);
   }
 
   void clearError() {

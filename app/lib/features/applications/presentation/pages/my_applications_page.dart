@@ -127,10 +127,20 @@ class _MyApplicationsPageState extends ConsumerState<MyApplicationsPage> {
                   final item = state.myApplications[index];
                   final isMutating =
                       state.isMutating && state.activeMutationId == item.id;
+                  final showCancelledWarning =
+                      item.isCancelledAfterMatch &&
+                      !state.dismissedCancelledWarningCampaignIds.contains(
+                        item.campaignId,
+                      );
                   return _MyApplicationCard(
                     item: item,
                     isMutating: isMutating,
                     onWithdraw: item.isPending ? () => _withdraw(item) : null,
+                    onDismissCancelledWarning: showCancelledWarning
+                        ? () => ref
+                              .read(applicationsControllerProvider.notifier)
+                              .dismissCancelledMatchWarning(item.campaignId)
+                        : null,
                   );
                 },
               ),
@@ -147,11 +157,13 @@ class _MyApplicationCard extends StatelessWidget {
     required this.item,
     required this.isMutating,
     required this.onWithdraw,
+    required this.onDismissCancelledWarning,
   });
 
   final ApplicationItem item;
   final bool isMutating;
   final VoidCallback? onWithdraw;
+  final VoidCallback? onDismissCancelledWarning;
 
   @override
   Widget build(BuildContext context) {
@@ -185,6 +197,40 @@ class _MyApplicationCard extends StatelessWidget {
             if (item.createdAt != null) ...[
               const SizedBox(height: 4),
               Text('Applied: ${_date(item.createdAt!)}'),
+            ],
+            if (onDismissCancelledWarning != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Avvertenza: il brand ha annullato il match per questo annuncio.',
+                        style: TextStyle(
+                          color: Colors.orange.shade900,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: onDismissCancelledWarning,
+                      tooltip: 'Chiudi avviso',
+                      icon: const Icon(Icons.close),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+              ),
             ],
             if (hasChat) ...[
               const SizedBox(height: 10),
