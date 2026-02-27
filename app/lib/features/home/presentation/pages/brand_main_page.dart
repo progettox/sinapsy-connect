@@ -98,6 +98,7 @@ class _BrandMainPageState extends State<BrandMainPage> {
                 child: NavigationBar(
                   height: 68,
                   backgroundColor: Colors.transparent,
+                  labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
                   selectedIndex: _selectedIndex,
                   onDestinationSelected: (index) {
                     if (index == _selectedIndex) return;
