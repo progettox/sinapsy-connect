@@ -36,7 +36,26 @@ class ApplicationRepository {
       campaignId: campaign.id,
     );
     if (existing != null) {
-      throw StateError('Hai gia inviato una candidatura per questo annuncio.');
+      final status = _status(existing['status']);
+      final existingId = _string(existing['id']);
+      if (status == 'pending' || status == 'accepted') {
+        throw StateError(
+          'Hai gia inviato una candidatura per questo annuncio.',
+        );
+      }
+      if (existingId != null && existingId.isNotEmpty) {
+        final reactivated = await _reactivateApplication(
+          applicationId: existingId,
+          creatorId: creatorId,
+        );
+        if (reactivated) {
+          await _incrementApplicantsCount(campaign);
+          _log(
+            'apply.success_reactivated campaignId=${campaign.id} creatorId=$creatorId applicationId=$existingId',
+          );
+          return;
+        }
+      }
     }
 
     await _insertApplication(campaign: campaign, creatorId: creatorId);
@@ -54,8 +73,9 @@ class ApplicationRepository {
           .select('id,status')
           .eq('campaign_id', campaignId)
           .eq('applicant_id', creatorId)
-          .maybeSingle();
-      return _toNullableMap(result);
+          .limit(1);
+      final rows = _toMaps(result);
+      return rows.isEmpty ? null : rows.first;
     } on PostgrestException catch (error) {
       if (!_isColumnError(error)) rethrow;
 
@@ -64,9 +84,42 @@ class ApplicationRepository {
           .select('id,status')
           .eq('campaign_id', campaignId)
           .eq('creator_id', creatorId)
-          .maybeSingle();
-      return _toNullableMap(result);
+          .limit(1);
+      final rows = _toMaps(result);
+      return rows.isEmpty ? null : rows.first;
     }
+  }
+
+  Future<bool> _reactivateApplication({
+    required String applicationId,
+    required String creatorId,
+  }) async {
+    final now = DateTime.now().toUtc().toIso8601String();
+    try {
+      final rows = await _client
+          .from('applications')
+          .update({'status': 'pending', 'created_at': now})
+          .eq('id', applicationId)
+          .eq('applicant_id', creatorId)
+          .select('id');
+      if (_toMaps(rows).isNotEmpty) return true;
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    try {
+      final rows = await _client
+          .from('applications')
+          .update({'status': 'pending', 'created_at': now})
+          .eq('id', applicationId)
+          .eq('creator_id', creatorId)
+          .select('id');
+      if (_toMaps(rows).isNotEmpty) return true;
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    return false;
   }
 
   Future<void> _insertApplication({
@@ -124,13 +177,27 @@ class ApplicationRepository {
     }
   }
 
-  Map<String, dynamic>? _toNullableMap(dynamic raw) {
-    if (raw == null) return null;
-    if (raw is Map<String, dynamic>) return raw;
-    if (raw is Map) {
-      return raw.map((key, value) => MapEntry('$key', value));
+  List<Map<String, dynamic>> _toMaps(dynamic raw) {
+    final rows = raw is List ? raw : const <dynamic>[];
+    return rows.whereType<Object>().map(_toMap).toList();
+  }
+
+  Map<String, dynamic> _toMap(Object row) {
+    if (row is Map<String, dynamic>) return row;
+    if (row is Map) {
+      return row.map((key, value) => MapEntry('$key', value));
     }
     throw StateError('Formato application non valido.');
+  }
+
+  String? _string(dynamic raw) {
+    final value = (raw ?? '').toString().trim();
+    if (value.isEmpty) return null;
+    return value;
+  }
+
+  String _status(dynamic raw) {
+    return (raw ?? '').toString().trim().toLowerCase();
   }
 
   bool _isColumnError(PostgrestException error) {

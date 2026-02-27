@@ -87,10 +87,12 @@ class _CreateCampaignPageState extends ConsumerState<CreateCampaignPage> {
   }
 
   Future<void> _onContinue() async {
-    if (_currentStep == 0 && !(_stepOneFormKey.currentState?.validate() ?? false)) {
+    if (_currentStep == 0 &&
+        !(_stepOneFormKey.currentState?.validate() ?? false)) {
       return;
     }
-    if (_currentStep == 1 && !(_stepTwoFormKey.currentState?.validate() ?? false)) {
+    if (_currentStep == 1 &&
+        !(_stepTwoFormKey.currentState?.validate() ?? false)) {
       return;
     }
 
@@ -137,7 +139,9 @@ class _CreateCampaignPageState extends ConsumerState<CreateCampaignPage> {
 
       setState(() => _isUploadingCover = true);
       try {
-        coverImageUrl = await ref.read(storageServiceProvider).uploadCampaignCoverImage(
+        coverImageUrl = await ref
+            .read(storageServiceProvider)
+            .uploadCampaignCoverImage(
               brandId: brandId,
               bytes: _coverBytes!,
               originalFileName: _coverFileName!,
@@ -154,7 +158,9 @@ class _CreateCampaignPageState extends ConsumerState<CreateCampaignPage> {
       }
     }
 
-    final id = await ref.read(createCampaignControllerProvider.notifier).createCampaign(
+    final id = await ref
+        .read(createCampaignControllerProvider.notifier)
+        .createCampaign(
           CreateCampaignInput(
             title: _titleController.text,
             description: _descriptionController.text,
@@ -177,8 +183,12 @@ class _CreateCampaignPageState extends ConsumerState<CreateCampaignPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(createCampaignControllerProvider);
 
-    ref.listen<CreateCampaignState>(createCampaignControllerProvider, (previous, next) {
-      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+    ref.listen<CreateCampaignState>(createCampaignControllerProvider, (
+      previous,
+      next,
+    ) {
+      if (next.errorMessage != null &&
+          next.errorMessage != previous?.errorMessage) {
         _showSnack(next.errorMessage!);
         ref.read(createCampaignControllerProvider.notifier).clearError();
       }
@@ -272,7 +282,9 @@ class _CreateCampaignPageState extends ConsumerState<CreateCampaignPage> {
                   children: [
                     TextFormField(
                       controller: _cashOfferController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Cash offer *',
                         border: OutlineInputBorder(),
@@ -333,10 +345,9 @@ class _CreateCampaignPageState extends ConsumerState<CreateCampaignPage> {
                     TextFormField(
                       controller: _locationRequiredController,
                       decoration: const InputDecoration(
-                        labelText: 'locationRequired *',
+                        labelText: 'locationRequired (opzionale)',
                         border: OutlineInputBorder(),
                       ),
-                      validator: _requiredValidator,
                     ),
                     const SizedBox(height: 12),
                     Row(

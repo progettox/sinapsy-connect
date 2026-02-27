@@ -32,10 +32,9 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage> {
 
   Future<void> _apply(CampaignModel campaign) async {
     final profile = ref.read(profileControllerProvider).profile;
-    final ok = await ref.read(creatorFeedControllerProvider.notifier).applyToCampaign(
-          campaign: campaign,
-          profile: profile,
-        );
+    final ok = await ref
+        .read(creatorFeedControllerProvider.notifier)
+        .applyToCampaign(campaign: campaign, profile: profile);
     if (!mounted || !ok) return;
     _showSnack('Candidatura inviata con successo.');
   }
@@ -44,8 +43,12 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(creatorFeedControllerProvider);
 
-    ref.listen<CreatorFeedState>(creatorFeedControllerProvider, (previous, next) {
-      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+    ref.listen<CreatorFeedState>(creatorFeedControllerProvider, (
+      previous,
+      next,
+    ) {
+      if (next.errorMessage != null &&
+          next.errorMessage != previous?.errorMessage) {
         _showSnack(next.errorMessage!);
         ref.read(creatorFeedControllerProvider.notifier).clearError();
       }
@@ -58,7 +61,9 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage> {
           IconButton(
             onPressed: state.isLoading
                 ? null
-                : () => ref.read(creatorFeedControllerProvider.notifier).loadFeed(),
+                : () => ref
+                      .read(creatorFeedControllerProvider.notifier)
+                      .loadFeed(),
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -83,8 +88,9 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage> {
                       ),
                       const SizedBox(height: 12),
                       ElevatedButton(
-                        onPressed: () =>
-                            ref.read(creatorFeedControllerProvider.notifier).loadFeed(),
+                        onPressed: () => ref
+                            .read(creatorFeedControllerProvider.notifier)
+                            .loadFeed(),
                         child: const Text('Ricarica'),
                       ),
                     ],
@@ -101,7 +107,8 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage> {
                 final campaign = state.campaigns[index];
                 return _CampaignCard(
                   campaign: campaign,
-                  isApplying: state.isApplying &&
+                  isApplying:
+                      state.isApplying &&
                       state.applyingCampaignId == campaign.id,
                   onApply: () => _apply(campaign),
                   onSkip: () => ref
@@ -181,7 +188,9 @@ class _CampaignCard extends StatelessWidget {
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Text('Apply'),
                       ),
@@ -200,10 +209,9 @@ class _CampaignCard extends StatelessWidget {
     final minFollowersLabel = campaign.minFollowers != null
         ? '${campaign.minFollowers}+ followers'
         : 'followers non specificati';
-    final locationLabel =
-        campaign.locationRequired?.trim().isNotEmpty == true
-            ? campaign.locationRequired!
-            : 'location libera';
+    final locationLabel = campaign.locationRequired?.trim().isNotEmpty == true
+        ? 'location preferita: ${campaign.locationRequired!}'
+        : 'location libera';
     return 'Req: $minFollowersLabel | $locationLabel | ${campaign.category}';
   }
 }

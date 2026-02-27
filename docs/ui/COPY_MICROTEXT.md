@@ -11,7 +11,12 @@
 ## Empty states
 - No campaigns: "Nessuna campagna disponibile. Prova ad allargare i filtri."
 - No matches: "Ancora nessun match. Continua a swipare."
+- No applications: "Non hai ancora candidature."
 
 ## Modals
 - Delivery confirm: "Confermi la consegna di questo lavoro?"
 - Complete confirm: "Confermare chiusura progetto?"
+- Withdraw application confirm: "Questa candidatura verra rimossa e non sara piu visibile al brand."
+
+## Buttons
+- My Applications: "Abbandona richiesta"

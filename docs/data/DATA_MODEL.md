@@ -18,7 +18,7 @@
 - description: string
 - category: string
 - minFollowers: number
-- locationRequiredCity: string
+- locationRequiredCity: string? (opzionale, non bloccante)
 - productBenefit: string?
 - coverImageUrl: string?
 - status: `active` | `matched` | `completed` | `cancelled`
@@ -32,6 +32,7 @@
 - creatorId: string
 - brandId: string
 - status: `pending` | `accepted` | `rejected`
+- note: una candidatura `pending` puo essere rimossa dal creator (delete) o marcata `rejected` come fallback withdraw; poi puo essere inviata di nuovo
 - proposalMessage: string?
 - createdAt: timestamp
 

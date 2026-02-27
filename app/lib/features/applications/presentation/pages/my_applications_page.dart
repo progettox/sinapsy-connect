@@ -31,6 +31,37 @@ class _MyApplicationsPageState extends ConsumerState<MyApplicationsPage> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _withdraw(ApplicationItem item) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Abbandonare candidatura?'),
+          content: const Text(
+            'Questa candidatura verra rimossa e non sara piu visibile al brand.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Conferma'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirm != true || !mounted) return;
+
+    final ok = await ref
+        .read(applicationsControllerProvider.notifier)
+        .withdrawMyApplication(item);
+    if (!mounted) return;
+    _showSnack(ok ? 'Candidatura abbandonata.' : 'Operazione fallita.');
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(applicationsControllerProvider);
@@ -93,7 +124,14 @@ class _MyApplicationsPageState extends ConsumerState<MyApplicationsPage> {
                 itemCount: state.myApplications.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
-                  return _MyApplicationCard(item: state.myApplications[index]);
+                  final item = state.myApplications[index];
+                  final isMutating =
+                      state.isMutating && state.activeMutationId == item.id;
+                  return _MyApplicationCard(
+                    item: item,
+                    isMutating: isMutating,
+                    onWithdraw: item.isPending ? () => _withdraw(item) : null,
+                  );
                 },
               ),
             );
@@ -105,9 +143,15 @@ class _MyApplicationsPageState extends ConsumerState<MyApplicationsPage> {
 }
 
 class _MyApplicationCard extends StatelessWidget {
-  const _MyApplicationCard({required this.item});
+  const _MyApplicationCard({
+    required this.item,
+    required this.isMutating,
+    required this.onWithdraw,
+  });
 
   final ApplicationItem item;
+  final bool isMutating;
+  final VoidCallback? onWithdraw;
 
   @override
   Widget build(BuildContext context) {
@@ -157,6 +201,23 @@ class _MyApplicationCard extends StatelessWidget {
                 },
                 icon: const Icon(Icons.chat_bubble_outline),
                 label: const Text('Open chat'),
+              ),
+            ],
+            if (onWithdraw != null) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: isMutating ? null : onWithdraw,
+                  icon: isMutating
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.close),
+                  label: const Text('Abbandona richiesta'),
+                ),
               ),
             ],
           ],

@@ -231,8 +231,7 @@ class CreateCampaignController extends StateNotifier<CreateCampaignState> {
 
     if (input.title.trim().isEmpty ||
         input.description.trim().isEmpty ||
-        input.category.trim().isEmpty ||
-        input.locationRequired.trim().isEmpty) {
+        input.category.trim().isEmpty) {
       state = state.copyWith(
         errorMessage: 'Compila tutti i campi obbligatori.',
       );
@@ -261,7 +260,7 @@ class CreateCampaignController extends StateNotifier<CreateCampaignState> {
       'product_benefit': _nullableString(input.productBenefit),
       'deadline': input.deadline?.toUtc().toIso8601String(),
       'min_followers': input.minFollowers,
-      'location_required': input.locationRequired.trim(),
+      'location_required': _nullableString(input.locationRequired),
       'cover_image_url': _nullableString(input.coverImageUrl),
       'status': 'active',
       'applicants_count': 0,
@@ -279,7 +278,7 @@ class CreateCampaignController extends StateNotifier<CreateCampaignState> {
         'product_benefit': _nullableString(input.productBenefit),
         'deadline': input.deadline?.toUtc().toIso8601String(),
         'min_followers': input.minFollowers,
-        'location_required_city': input.locationRequired.trim(),
+        'location_required_city': _nullableString(input.locationRequired),
         'cover_image_url': _nullableString(input.coverImageUrl),
         'status': 'active',
         'applicants_count': 0,
@@ -295,7 +294,7 @@ class CreateCampaignController extends StateNotifier<CreateCampaignState> {
         'productBenefit': _nullableString(input.productBenefit),
         'deadline': input.deadline?.toUtc().toIso8601String(),
         'minFollowers': input.minFollowers,
-        'locationRequiredCity': input.locationRequired.trim(),
+        'locationRequiredCity': _nullableString(input.locationRequired),
         'coverImageUrl': _nullableString(input.coverImageUrl),
         'status': 'active',
         'applicantsCount': 0,

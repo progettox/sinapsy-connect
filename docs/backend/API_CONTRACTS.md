@@ -4,8 +4,9 @@
 
 ## Azioni principali (concept)
 - POST /campaigns
-- GET /campaigns?role=creator&city=Milano
+- GET /campaigns?role=creator&city=Milano (city opzionale, non bloccante)
 - POST /applications
+- DELETE /applications/{id} (creator owner, solo se `pending`; fallback possibile: update status a `rejected`)
 - POST /applications/{id}/accept
 - POST /projects/{id}/deliver
 - POST /projects/{id}/approve

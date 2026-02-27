@@ -284,6 +284,67 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     }
   }
 
+  Future<bool> withdrawMyApplication(ApplicationItem item) async {
+    if (!item.isPending) {
+      state = state.copyWith(
+        errorMessage: 'Puoi abbandonare solo candidature pending.',
+      );
+      return false;
+    }
+
+    final creatorId = _authRepository.currentUser?.id;
+    if (creatorId == null) {
+      state = state.copyWith(errorMessage: 'Sessione non valida.');
+      return false;
+    }
+
+    _log(
+      'application.withdraw.start applicationId=${item.id} campaignId=${item.campaignId} creatorId=$creatorId',
+    );
+    state = state.copyWith(
+      isMutating: true,
+      activeMutationId: item.id,
+      clearError: true,
+    );
+
+    try {
+      final deleted = await _deleteMyApplication(
+        applicationId: item.id,
+        creatorId: creatorId,
+      );
+      var changed = deleted;
+      if (!changed) {
+        changed = await _markMyApplicationRejected(
+          applicationId: item.id,
+          creatorId: creatorId,
+        );
+      }
+      if (!changed) {
+        throw StateError(
+          'Operazione non consentita: verifica le policy RLS su applications (delete/update pending).',
+        );
+      }
+      await _decrementCampaignApplicantsCount(campaignId: item.campaignId);
+      _removeApplicationLocally(item.id);
+
+      state = state.copyWith(
+        isMutating: false,
+        clearActiveMutation: true,
+        clearError: true,
+      );
+      _log('application.withdraw.success applicationId=${item.id}');
+      return true;
+    } catch (error) {
+      _log('application.withdraw.error applicationId=${item.id} error=$error');
+      state = state.copyWith(
+        isMutating: false,
+        clearActiveMutation: true,
+        errorMessage: 'Errore annullamento candidatura: $error',
+      );
+      return false;
+    }
+  }
+
   void clearError() {
     state = state.copyWith(clearError: true);
   }
@@ -425,15 +486,32 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
   ) async {
     if (campaignIds.isEmpty) return const <String, String>{};
 
-    final rows = await _client
-        .from('campaigns')
-        .select('id,title,name,headline')
-        .inFilter('id', campaignIds.toList());
+    List<Map<String, dynamic>> rows;
+    try {
+      final result = await _client
+          .from('campaigns')
+          .select('id,title')
+          .inFilter('id', campaignIds.toList());
+      rows = _rowsToMaps(result);
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+      try {
+        final result = await _client
+            .from('campaigns')
+            .select('id,name')
+            .inFilter('id', campaignIds.toList());
+        rows = _rowsToMaps(result);
+      } on PostgrestException catch (innerError) {
+        if (!_isColumnError(innerError)) rethrow;
+        final result = await _client
+            .from('campaigns')
+            .select('id,headline')
+            .inFilter('id', campaignIds.toList());
+        rows = _rowsToMaps(result);
+      }
+    }
 
-    return _rowsToMaps(rows).fold<Map<String, String>>(<String, String>{}, (
-      acc,
-      row,
-    ) {
+    return rows.fold<Map<String, String>>(<String, String>{}, (acc, row) {
       final id = _string(row['id']);
       final title =
           _string(row['title']) ??
@@ -526,6 +604,143 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     }
   }
 
+  Future<bool> _deleteMyApplication({
+    required String applicationId,
+    required String creatorId,
+  }) async {
+    try {
+      final rows = await _client
+          .from('applications')
+          .delete()
+          .eq('id', applicationId)
+          .eq('applicant_id', creatorId)
+          .eq('status', 'pending')
+          .select('id');
+      if (_rowsToMaps(rows).isNotEmpty) return true;
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    try {
+      final rows = await _client
+          .from('applications')
+          .delete()
+          .eq('id', applicationId)
+          .eq('creator_id', creatorId)
+          .eq('status', 'pending')
+          .select('id');
+      if (_rowsToMaps(rows).isNotEmpty) return true;
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    return false;
+  }
+
+  Future<bool> _markMyApplicationRejected({
+    required String applicationId,
+    required String creatorId,
+  }) async {
+    try {
+      final rows = await _client
+          .from('applications')
+          .update({'status': 'rejected'})
+          .eq('id', applicationId)
+          .eq('applicant_id', creatorId)
+          .eq('status', 'pending')
+          .select('id');
+      if (_rowsToMaps(rows).isNotEmpty) return true;
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    try {
+      final rows = await _client
+          .from('applications')
+          .update({'status': 'rejected'})
+          .eq('id', applicationId)
+          .eq('creator_id', creatorId)
+          .eq('status', 'pending')
+          .select('id');
+      if (_rowsToMaps(rows).isNotEmpty) return true;
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    return false;
+  }
+
+  Future<void> _decrementCampaignApplicantsCount({
+    required String campaignId,
+  }) async {
+    try {
+      await _client.rpc(
+        'decrement_campaign_applicants_count',
+        params: {'campaign_id_input': campaignId},
+      );
+      return;
+    } on PostgrestException catch (error) {
+      if (!_isMissingRpc(error) && !_isColumnError(error)) {
+        _log(
+          'campaign.decrement.rpc.error campaignId=$campaignId error=$error',
+        );
+      }
+    } catch (error) {
+      _log('campaign.decrement.rpc.error campaignId=$campaignId error=$error');
+    }
+
+    try {
+      final row = await _client
+          .from('campaigns')
+          .select('applicants_count')
+          .eq('id', campaignId)
+          .maybeSingle();
+      if (row != null) {
+        final map = _toMap(row);
+        final current = _int(map['applicants_count']) ?? 0;
+        final next = current > 0 ? current - 1 : 0;
+        await _client
+            .from('campaigns')
+            .update({'applicants_count': next})
+            .eq('id', campaignId);
+        return;
+      }
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) {
+        _log(
+          'campaign.decrement.column.error campaignId=$campaignId error=$error',
+        );
+        return;
+      }
+    } catch (error) {
+      _log(
+        'campaign.decrement.column.error campaignId=$campaignId error=$error',
+      );
+      return;
+    }
+
+    try {
+      final row = await _client
+          .from('campaigns')
+          .select('applicantsCount')
+          .eq('id', campaignId)
+          .maybeSingle();
+      if (row != null) {
+        final map = _toMap(row);
+        final current = _int(map['applicantsCount']) ?? 0;
+        final next = current > 0 ? current - 1 : 0;
+        await _client
+            .from('campaigns')
+            .update({'applicantsCount': next})
+            .eq('id', campaignId);
+      }
+    } catch (error) {
+      _log(
+        'campaign.decrement.fallback.error campaignId=$campaignId error=$error',
+      );
+    }
+  }
+
   void _replaceApplicationLocally(
     String applicationId, {
     required String status,
@@ -542,6 +757,17 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     state = state.copyWith(
       brandApplications: patch(state.brandApplications),
       myApplications: patch(state.myApplications),
+    );
+  }
+
+  void _removeApplicationLocally(String applicationId) {
+    List<ApplicationItem> remove(List<ApplicationItem> list) {
+      return list.where((item) => item.id != applicationId).toList();
+    }
+
+    state = state.copyWith(
+      brandApplications: remove(state.brandApplications),
+      myApplications: remove(state.myApplications),
     );
   }
 
@@ -620,6 +846,13 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     return text;
   }
 
+  int? _int(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
+  }
+
   DateTime? _dateTime(dynamic value) {
     if (value == null) return null;
     return DateTime.tryParse(value.toString());
@@ -627,6 +860,12 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
 
   bool _isColumnError(PostgrestException error) {
     return error.code == '42703' || error.code == 'PGRST204';
+  }
+
+  bool _isMissingRpc(PostgrestException error) {
+    return error.code == '42883' ||
+        error.message.toLowerCase().contains('function') ||
+        error.message.toLowerCase().contains('rpc');
   }
 
   void _log(String message) {

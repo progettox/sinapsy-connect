@@ -6,6 +6,14 @@
 - Allora vedo 1 card alla volta con info essenziali
 - Swipe dx = crea application se requisiti ok
 - Swipe sx = scarta e passa alla successiva
+- La location della campagna e opzionale e non blocca la candidatura
+
+## My Applications
+- Dato un creator con una candidatura `pending`
+- Quando preme "Abbandona richiesta" e conferma
+- Allora la candidatura viene rimossa dalla lista My Applications
+- E non risulta piu come candidatura `pending` lato brand
+- E il creator puo inviare nuovamente una candidatura per la stessa campagna
 
 ## Match
 - Dato che un brand accetta una application

@@ -137,13 +137,6 @@ class CreatorFeedController extends StateNotifier<CreatorFeedState> {
       return 'Completa il profilo prima di candidarti.';
     }
 
-    final campaignLocation = (campaign.locationRequired ?? '').trim();
-    final profileLocation = profile.location.trim();
-    if (campaignLocation.isNotEmpty &&
-        profileLocation.toLowerCase() != campaignLocation.toLowerCase()) {
-      return 'Requisito location non soddisfatto per questo annuncio.';
-    }
-
     final requiredFollowers = campaign.minFollowers;
     final profileFollowers = _readFollowers(profile);
     if (requiredFollowers != null &&
