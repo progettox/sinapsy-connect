@@ -28,17 +28,27 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     ProfileRole.brand,
     ProfileRole.creator,
   ];
+  static const List<String> _brandTypeOptions = <String>[
+    'Brand',
+    'Impresa',
+    'E-commerce',
+    'Startup',
+    'Agenzia',
+  ];
+  static const List<String> _creatorTypeOptions = <String>[
+    'Creator',
+    'Fotografo',
+    'Videomaker',
+  ];
 
   final _formKey = GlobalKey<FormState>();
-  final _firstNameController = TextEditingController();
-  final _lastNameController = TextEditingController();
-  final _birthDateController = TextEditingController();
   final _bioController = TextEditingController();
   final _brandLinksController = TextEditingController();
   final _usernameController = TextEditingController();
   final _locationController = TextEditingController();
   ProfileRole? _selectedRole;
-  DateTime? _selectedBirthDate;
+  String? _selectedBrandType;
+  String? _selectedCreatorType;
   Uint8List? _avatarBytes;
   String? _avatarFileName;
   String? _avatarUrl;
@@ -57,19 +67,25 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       setState(() {
         _selectedRole = profile.role;
         _isRoleSelectionStep = profile.role == null;
-        if (_firstNameController.text.isEmpty) {
-          _firstNameController.text = profile.firstName ?? '';
-        }
-        if (_lastNameController.text.isEmpty) {
-          _lastNameController.text = profile.lastName ?? '';
-        }
-        _selectedBirthDate = profile.birthDate;
-        _birthDateController.text = _formatBirthDate(profile.birthDate);
+        final parsedProfileMeta = _parseProfileMetadata(profile.bio);
         if (_bioController.text.isEmpty) {
-          _bioController.text = _extractBrandBio(profile.bio);
+          _bioController.text = parsedProfileMeta['bio'] ?? '';
+        }
+        final savedBrandType = parsedProfileMeta['brandType'] ?? '';
+        if ((_selectedBrandType ?? '').isEmpty && savedBrandType.isNotEmpty) {
+          _selectedBrandType = _brandTypeOptions.contains(savedBrandType)
+              ? savedBrandType
+              : null;
+        }
+        final savedCreatorType = parsedProfileMeta['creatorType'] ?? '';
+        if ((_selectedCreatorType ?? '').isEmpty &&
+            savedCreatorType.isNotEmpty) {
+          _selectedCreatorType = _creatorTypeOptions.contains(savedCreatorType)
+              ? savedCreatorType
+              : null;
         }
         if (_brandLinksController.text.isEmpty) {
-          _brandLinksController.text = _extractBrandLinks(profile.bio);
+          _brandLinksController.text = parsedProfileMeta['links'] ?? '';
         }
         _avatarUrl = profile.avatarUrl;
         if (_usernameController.text.isEmpty) {
@@ -84,9 +100,6 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
 
   @override
   void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _birthDateController.dispose();
     _bioController.dispose();
     _brandLinksController.dispose();
     _usernameController.dispose();
@@ -109,13 +122,24 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final isBrand = _selectedRole == ProfileRole.brand;
+    final isCreator = _selectedRole == ProfileRole.creator;
+    if (isBrand && (_selectedBrandType ?? '').trim().isEmpty) {
+      _showSnack('Seleziona la tipologia della tua attivita.');
+      return;
+    }
+    if (isCreator && (_selectedCreatorType ?? '').trim().isEmpty) {
+      _showSnack('Seleziona la tua specializzazione.');
+      return;
+    }
     var avatarUrl = _avatarUrl;
-    final brandBio = _composeBrandBio(
+    final profileBio = _composeProfileBio(
       _bioController.text,
       _brandLinksController.text,
+      brandType: isBrand ? _selectedBrandType : null,
+      creatorType: isCreator ? _selectedCreatorType : null,
     );
 
-    if (isBrand && _avatarBytes != null && _avatarFileName != null) {
+    if (_avatarBytes != null && _avatarFileName != null) {
       final userId = ref.read(authRepositoryProvider).currentUser?.id;
       if (userId == null) {
         _showSnack('Sessione non valida. Effettua di nuovo il login.');
@@ -155,11 +179,11 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
         .read(profileControllerProvider.notifier)
         .upsertMyProfile(
           role: _selectedRole!,
-          firstName: isBrand ? null : _firstNameController.text,
-          lastName: isBrand ? null : _lastNameController.text,
-          birthDate: isBrand ? null : _selectedBirthDate,
-          bio: isBrand ? brandBio : null,
-          avatarUrl: isBrand ? avatarUrl : null,
+          firstName: null,
+          lastName: null,
+          birthDate: null,
+          bio: profileBio,
+          avatarUrl: avatarUrl,
           username: _usernameController.text,
           location: _locationController.text,
         );
@@ -173,29 +197,6 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       return '$fieldName obbligatorio';
     }
     return null;
-  }
-
-  String? _validateBirthDate() {
-    if (_selectedBirthDate == null) {
-      return 'Data di nascita obbligatoria';
-    }
-    return null;
-  }
-
-  Future<void> _pickBirthDate() async {
-    final now = DateTime.now();
-    final initial = _selectedBirthDate ?? DateTime(now.year - 18, 1, 1);
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(1900),
-      lastDate: now,
-    );
-    if (picked == null) return;
-    setState(() {
-      _selectedBirthDate = DateTime(picked.year, picked.month, picked.day);
-      _birthDateController.text = _formatBirthDate(_selectedBirthDate);
-    });
   }
 
   Future<void> _pickAvatar() async {
@@ -217,7 +218,14 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     });
   }
 
-  Widget _buildBrandAvatarPicker(bool isBusy) {
+  Widget _buildAvatarPicker({required bool isBusy, required ProfileRole role}) {
+    final placeholderIcon = role == ProfileRole.brand
+        ? Icons.storefront_rounded
+        : Icons.auto_awesome_rounded;
+    final label = role == ProfileRole.brand
+        ? 'Foto profilo brand'
+        : 'Foto profilo creator';
+
     Widget avatar;
     if (_avatarBytes != null) {
       avatar = ClipOval(
@@ -235,12 +243,11 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
           fit: BoxFit.cover,
           width: 108,
           height: 108,
-          errorBuilder: (_, _, _) =>
-              const Icon(Icons.storefront_rounded, size: 38),
+          errorBuilder: (_, _, _) => Icon(placeholderIcon, size: 38),
         ),
       );
     } else {
-      avatar = const Icon(Icons.storefront_rounded, size: 38);
+      avatar = Icon(placeholderIcon, size: 38);
     }
 
     return Column(
@@ -285,7 +292,7 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Foto profilo brand',
+          label,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13,
             fontWeight: FontWeight.w600,
@@ -296,34 +303,136 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     );
   }
 
-  String _composeBrandBio(String bio, String links) {
+  Widget _buildTypeSelector({
+    required bool isBusy,
+    required String title,
+    required List<String> options,
+    required String? selectedValue,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xDDEAF3FF),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final option in options)
+              ChoiceChip(
+                label: Text(option),
+                selected: selectedValue == option,
+                onSelected: isBusy
+                    ? null
+                    : (selected) => onChanged(selected ? option : null),
+                labelStyle: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: selectedValue == option
+                      ? const Color(0xFF0D1826)
+                      : const Color(0xE8E8F3FF),
+                ),
+                backgroundColor: const Color(0x301A2B42),
+                selectedColor: const Color(0xFF8EC8FF),
+                side: BorderSide(
+                  color: selectedValue == option
+                      ? const Color(0xFFB8DCFF)
+                      : const Color(0x7A88A9CC),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBrandTypeSelector(bool isBusy) {
+    return _buildTypeSelector(
+      isBusy: isBusy,
+      title: 'Tipologia attivita',
+      options: _brandTypeOptions,
+      selectedValue: _selectedBrandType,
+      onChanged: (value) => setState(() => _selectedBrandType = value),
+    );
+  }
+
+  Widget _buildCreatorTypeSelector(bool isBusy) {
+    return _buildTypeSelector(
+      isBusy: isBusy,
+      title: 'Specializzazione',
+      options: _creatorTypeOptions,
+      selectedValue: _selectedCreatorType,
+      onChanged: (value) => setState(() => _selectedCreatorType = value),
+    );
+  }
+
+  String _composeProfileBio(
+    String bio,
+    String links, {
+    String? brandType,
+    String? creatorType,
+  }) {
     final cleanBio = bio.trim();
     final cleanLinks = links.trim();
-    if (cleanBio.isEmpty && cleanLinks.isEmpty) return '';
-    if (cleanBio.isEmpty) return 'Links:\n$cleanLinks';
-    if (cleanLinks.isEmpty) return cleanBio;
-    return '$cleanBio\n\nLinks:\n$cleanLinks';
+    final cleanBrandType = (brandType ?? '').trim();
+    final cleanCreatorType = (creatorType ?? '').trim();
+    final sections = <String>[
+      if (cleanBio.isNotEmpty) cleanBio,
+      if (cleanBrandType.isNotEmpty) 'Tipologia:\n$cleanBrandType',
+      if (cleanCreatorType.isNotEmpty) 'Specializzazione:\n$cleanCreatorType',
+      if (cleanLinks.isNotEmpty) 'Links:\n$cleanLinks',
+    ];
+    return sections.join('\n\n');
   }
 
-  String _extractBrandBio(String rawBio) {
-    const marker = '\n\nLinks:\n';
-    final index = rawBio.indexOf(marker);
-    if (index < 0) return rawBio;
-    return rawBio.substring(0, index).trimRight();
-  }
+  Map<String, String> _parseProfileMetadata(String rawBio) {
+    final trimmed = rawBio.trim();
+    if (trimmed.isEmpty) {
+      return <String, String>{
+        'bio': '',
+        'brandType': '',
+        'creatorType': '',
+        'links': '',
+      };
+    }
 
-  String _extractBrandLinks(String rawBio) {
-    const marker = '\n\nLinks:\n';
-    final index = rawBio.indexOf(marker);
-    if (index < 0) return '';
-    return rawBio.substring(index + marker.length).trim();
-  }
+    var brandType = '';
+    var creatorType = '';
+    var links = '';
+    final bioChunks = <String>[];
+    for (final chunk in trimmed.split('\n\n')) {
+      if (chunk.startsWith('Tipologia:\n')) {
+        brandType = chunk.substring('Tipologia:\n'.length).trim();
+        continue;
+      }
+      if (chunk.startsWith('Specializzazione:\n')) {
+        creatorType = chunk.substring('Specializzazione:\n'.length).trim();
+        continue;
+      }
+      if (chunk.startsWith('Links:\n')) {
+        links = chunk.substring('Links:\n'.length).trim();
+        continue;
+      }
+      bioChunks.add(chunk.trimRight());
+    }
 
-  String _formatBirthDate(DateTime? date) {
-    if (date == null) return '';
-    final mm = date.month.toString().padLeft(2, '0');
-    final dd = date.day.toString().padLeft(2, '0');
-    return '${date.year}-$mm-$dd';
+    return <String, String>{
+      'bio': bioChunks.join('\n\n').trim(),
+      'brandType': brandType,
+      'creatorType': creatorType,
+      'links': links,
+    };
   }
 
   Future<void> _goToLogin() async {
@@ -350,6 +459,7 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     final pageTextTheme = GoogleFonts.plusJakartaSansTextTheme(theme.textTheme);
     final isBusy = state.isLoading || _isUploadingAvatar;
     final isBrandRole = _selectedRole == ProfileRole.brand;
+    final locationLabel = isBrandRole ? 'Sede' : 'Localita';
 
     ref.listen<ProfileUiState>(profileControllerProvider, (previous, next) {
       if (next.errorMessage != null &&
@@ -489,7 +599,12 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                             ),
                             const SizedBox(height: 12),
                             if (isBrandRole) ...[
-                              Center(child: _buildBrandAvatarPicker(isBusy)),
+                              Center(
+                                child: _buildAvatarPicker(
+                                  isBusy: isBusy,
+                                  role: ProfileRole.brand,
+                                ),
+                              ),
                               const SizedBox(height: 14),
                               TextFormField(
                                 controller: _usernameController,
@@ -500,6 +615,8 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                                 validator: (value) =>
                                     _validateRequired(value, 'Username'),
                               ),
+                              const SizedBox(height: 12),
+                              _buildBrandTypeSelector(isBusy),
                               const SizedBox(height: 12),
                               TextFormField(
                                 controller: _bioController,
@@ -526,41 +643,13 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                                 ),
                               ),
                             ] else ...[
-                              TextFormField(
-                                controller: _firstNameController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Nome',
-                                  border: OutlineInputBorder(),
+                              Center(
+                                child: _buildAvatarPicker(
+                                  isBusy: isBusy,
+                                  role: ProfileRole.creator,
                                 ),
-                                validator: (value) =>
-                                    _validateRequired(value, 'Nome'),
                               ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _lastNameController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Cognome',
-                                  border: OutlineInputBorder(),
-                                ),
-                                validator: (value) =>
-                                    _validateRequired(value, 'Cognome'),
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _birthDateController,
-                                readOnly: true,
-                                onTap: isBusy ? null : _pickBirthDate,
-                                decoration: const InputDecoration(
-                                  labelText: 'Data di nascita',
-                                  hintText: 'YYYY-MM-DD',
-                                  border: OutlineInputBorder(),
-                                  suffixIcon: Icon(
-                                    Icons.calendar_today_outlined,
-                                  ),
-                                ),
-                                validator: (_) => _validateBirthDate(),
-                              ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 14),
                               TextFormField(
                                 controller: _usernameController,
                                 decoration: const InputDecoration(
@@ -570,16 +659,43 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                                 validator: (value) =>
                                     _validateRequired(value, 'Username'),
                               ),
+                              const SizedBox(height: 12),
+                              _buildCreatorTypeSelector(isBusy),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _bioController,
+                                minLines: 3,
+                                maxLines: 5,
+                                decoration: const InputDecoration(
+                                  labelText: 'Bio del creator',
+                                  hintText:
+                                      'Presentati: stile contenuti, nicchia e formato principale.',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _brandLinksController,
+                                minLines: 2,
+                                maxLines: 4,
+                                keyboardType: TextInputType.url,
+                                decoration: const InputDecoration(
+                                  labelText: 'Link social o portfolio',
+                                  hintText:
+                                      'https://instagram.com/tuonome\nhttps://youtube.com/@tuonome',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
                             ],
                             const SizedBox(height: 12),
                             TextFormField(
                               controller: _locationController,
-                              decoration: const InputDecoration(
-                                labelText: 'Sede',
+                              decoration: InputDecoration(
+                                labelText: locationLabel,
                                 border: OutlineInputBorder(),
                               ),
                               validator: (value) =>
-                                  _validateRequired(value, 'Sede'),
+                                  _validateRequired(value, locationLabel),
                             ),
                             const SizedBox(height: 20),
                             ElevatedButton(
