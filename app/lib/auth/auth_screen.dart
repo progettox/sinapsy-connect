@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/widgets/sinapsy_logo_loader.dart';
+
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -150,7 +152,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     if (_isLoading) ...[
                       const SizedBox(height: 16),
-                      const Center(child: CircularProgressIndicator()),
+                      const Center(child: SinapsyLogoLoader()),
                     ],
                   ],
                 ),

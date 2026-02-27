@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../applications/presentation/pages/my_applications_page.dart';
 import '../../../campaigns/presentation/pages/creator_feed_page.dart';
 import '../controllers/home_controller.dart';
@@ -84,7 +85,7 @@ class CreatorHomePage extends ConsumerWidget {
               ),
               if (state.isLoading) ...[
                 const SizedBox(height: 12),
-                const CircularProgressIndicator(),
+                const SinapsyLogoLoader(),
               ],
             ],
           ),

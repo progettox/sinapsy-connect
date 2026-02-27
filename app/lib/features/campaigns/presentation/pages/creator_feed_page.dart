@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../data/campaign_model.dart';
 import '../controllers/creator_feed_controller.dart';
@@ -72,7 +73,7 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage> {
         child: Builder(
           builder: (context) {
             if (state.isLoading && state.campaigns.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(child: SinapsyLogoLoader());
             }
 
             if (state.campaigns.isEmpty) {
@@ -188,9 +189,7 @@ class _CampaignCard extends StatelessWidget {
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
+                                child: SinapsyLogoLoader(size: 18),
                               )
                             : const Text('Apply'),
                       ),

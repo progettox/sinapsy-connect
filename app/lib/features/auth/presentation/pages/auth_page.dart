@@ -1,10 +1,10 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/widgets/luxury_neon_backdrop.dart';
+import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../domain/models/auth_user_model.dart';
 import '../controllers/auth_controller.dart';
 
@@ -104,7 +104,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const _LuxuryDarkBackdrop(),
+          const LuxuryNeonBackdrop(),
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -170,137 +170,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   }
 }
 
-class _LuxuryDarkBackdrop extends StatelessWidget {
-  const _LuxuryDarkBackdrop();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF05080E), Color(0xFF0A111B), Color(0xFF0E1724)],
-        ),
-      ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: const [
-          Positioned.fill(child: _ShadowBands()),
-          Positioned(
-            top: -70,
-            right: -150,
-            child: _ShadowPanel(
-              width: 560,
-              height: 160,
-              angle: -0.38,
-              color: Color(0xAA254264),
-            ),
-          ),
-          Positioned(
-            bottom: -90,
-            left: -180,
-            child: _ShadowPanel(
-              width: 620,
-              height: 170,
-              angle: 0.34,
-              color: Color(0xAA1B3553),
-            ),
-          ),
-          Positioned(
-            top: 160,
-            left: -220,
-            child: _ShadowPanel(
-              width: 500,
-              height: 120,
-              angle: 0.18,
-              color: Color(0x99264366),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ShadowBands extends StatelessWidget {
-  const _ShadowBands();
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(child: CustomPaint(painter: _ShadowBandsPainter()));
-  }
-}
-
-class _ShadowBandsPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final band = Paint()
-      ..color = const Color(0xFF6C87A7).withValues(alpha: 0.05)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-
-    const gap = 38.0;
-    for (double x = -size.height; x < size.width + size.height; x += gap) {
-      canvas.drawLine(Offset(x, 0), Offset(x + size.height, size.height), band);
-    }
-
-    final softVignette = Paint()
-      ..shader = RadialGradient(
-        center: Alignment.center,
-        radius: 0.92,
-        colors: [
-          const Color(0x00000000),
-          const Color(0xFF000000).withValues(alpha: 0.28),
-        ],
-      ).createShader(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, softVignette);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _ShadowPanel extends StatelessWidget {
-  const _ShadowPanel({
-    required this.width,
-    required this.height,
-    required this.angle,
-    required this.color,
-  });
-
-  final double width;
-  final double height;
-  final double angle;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: angle,
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(120),
-          gradient: LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [color.withValues(alpha: 0.18), Colors.transparent],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.28),
-              blurRadius: 80,
-              spreadRadius: 8,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _HeroLogoBlock extends StatelessWidget {
   const _HeroLogoBlock({this.compact = false});
 
@@ -316,7 +185,7 @@ class _HeroLogoBlock extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _AnimatedAtomLogo(size: logoSize),
+          SinapsyAnimatedLogo(size: logoSize),
           SizedBox(height: compact ? 8 : 10),
           Text(
             'Benvenuti su Sinapsy Connect',
@@ -417,7 +286,7 @@ class _AuthCard extends StatelessWidget {
                     ? const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _MiniLogoSpinner(size: 18),
+                          SinapsyLogoLoader(size: 18),
                           SizedBox(width: 8),
                           Text('Accesso...'),
                         ],
@@ -434,7 +303,7 @@ class _AuthCard extends StatelessWidget {
                 const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _MiniLogoSpinner(size: 22),
+                    SinapsyLogoLoader(size: 22),
                     SizedBox(width: 8),
                     Text('Sincronizzazione in corso'),
                   ],
@@ -445,186 +314,5 @@ class _AuthCard extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _AnimatedAtomLogo extends StatefulWidget {
-  const _AnimatedAtomLogo({required this.size});
-
-  final double size;
-
-  @override
-  State<_AnimatedAtomLogo> createState() => _AnimatedAtomLogoState();
-}
-
-class _AnimatedAtomLogoState extends State<_AnimatedAtomLogo>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 7200),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return CustomPaint(
-          size: Size.square(widget.size),
-          painter: _AtomLogoPainter(progress: _controller.value),
-        );
-      },
-    );
-  }
-}
-
-class _MiniLogoSpinner extends StatelessWidget {
-  const _MiniLogoSpinner({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: _AnimatedAtomLogo(size: size),
-    );
-  }
-}
-
-class _AtomLogoPainter extends CustomPainter {
-  const _AtomLogoPainter({required this.progress});
-
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final spin = progress * math.pi * 2;
-    final minSide = size.shortestSide;
-    final orbitA = minSide * 0.34;
-    final orbitB = minSide * 0.13;
-    final nucleusRadius = minSide * 0.09;
-    final orbitStroke = math.max(0.95, minSide * 0.012);
-    final electronRadius = math.max(1.0, minSide * 0.017);
-    final orbitAngles = <double>[0, math.pi / 3, -math.pi / 3];
-    final globalRotation = spin;
-    final pulse = 0.9 + 0.1 * math.sin(spin * 2);
-
-    final haloPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFF76A9FF).withValues(alpha: 0.2 * pulse),
-          const Color(0xFF76A9FF).withValues(alpha: 0.0),
-        ],
-      ).createShader(Rect.fromCircle(center: center, radius: minSide * 0.48));
-    canvas.drawCircle(center, minSide * 0.48, haloPaint);
-
-    final orbitGlowPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = orbitStroke * 1.9
-      ..color = const Color(0xFF7DAFFF).withValues(alpha: 0.24)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-
-    final orbitPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = orbitStroke
-      ..strokeCap = StrokeCap.round
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0xFFF5FAFF), Color(0xFFD3E7FF), Color(0xFF74A8FF)],
-      ).createShader(Rect.fromCircle(center: center, radius: orbitA));
-
-    for (int i = 0; i < orbitAngles.length; i++) {
-      final rotation = orbitAngles[i] + globalRotation;
-      _drawOrbit(
-        canvas: canvas,
-        center: center,
-        a: orbitA,
-        b: orbitB,
-        rotation: rotation,
-        paint: orbitGlowPaint,
-      );
-      _drawOrbit(
-        canvas: canvas,
-        center: center,
-        a: orbitA,
-        b: orbitB,
-        rotation: rotation,
-        paint: orbitPaint,
-      );
-
-      final electronAngle = spin * 2 + (i * (math.pi * 2 / orbitAngles.length));
-      final electron = _ellipsePoint(
-        center: center,
-        a: orbitA,
-        b: orbitB,
-        angle: electronAngle,
-        rotation: rotation,
-      );
-      final electronGlow = Paint()
-        ..color = const Color(0xFFDCEAFF).withValues(alpha: 0.88)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-      canvas.drawCircle(electron, electronRadius * 1.6, electronGlow);
-      canvas.drawCircle(
-        electron,
-        electronRadius,
-        Paint()..color = const Color(0xFFFFFFFF),
-      );
-    }
-
-    final coreDotGlow = Paint()
-      ..color = const Color(0xFFDCEAFF).withValues(alpha: 0.45)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
-    final coreDot = Paint()
-      ..color = const Color(0xFFF8FBFF).withValues(alpha: 0.95);
-    canvas.drawCircle(center, nucleusRadius * 0.52, coreDotGlow);
-    canvas.drawCircle(center, nucleusRadius * 0.3, coreDot);
-  }
-
-  void _drawOrbit({
-    required Canvas canvas,
-    required Offset center,
-    required double a,
-    required double b,
-    required double rotation,
-    required Paint paint,
-  }) {
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    canvas.rotate(rotation);
-    canvas.translate(-center.dx, -center.dy);
-    canvas.drawOval(
-      Rect.fromCenter(center: center, width: a * 2, height: b * 2),
-      paint,
-    );
-    canvas.restore();
-  }
-
-  Offset _ellipsePoint({
-    required Offset center,
-    required double a,
-    required double b,
-    required double angle,
-    required double rotation,
-  }) {
-    final x = a * math.cos(angle);
-    final y = b * math.sin(angle);
-    final xr = x * math.cos(rotation) - y * math.sin(rotation);
-    final yr = x * math.sin(rotation) + y * math.cos(rotation);
-    return Offset(center.dx + xr, center.dy + yr);
-  }
-
-  @override
-  bool shouldRepaint(covariant _AtomLogoPainter oldDelegate) {
-    return oldDelegate.progress != progress;
   }
 }

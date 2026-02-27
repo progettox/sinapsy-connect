@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../data/message_model.dart';
 import '../controllers/chat_controller.dart';
 
 class ChatPage extends ConsumerStatefulWidget {
-  const ChatPage({
-    super.key,
-    required this.chatId,
-    this.title,
-  });
+  const ChatPage({super.key, required this.chatId, this.title});
 
   final String chatId;
   final String? title;
@@ -66,8 +63,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     final state = ref.watch(chatControllerProvider(widget.chatId));
     final messagesAsync = ref.watch(chatMessagesProvider(widget.chatId));
 
-    ref.listen<ChatState>(chatControllerProvider(widget.chatId), (previous, next) {
-      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+    ref.listen<ChatState>(chatControllerProvider(widget.chatId), (
+      previous,
+      next,
+    ) {
+      if (next.errorMessage != null &&
+          next.errorMessage != previous?.errorMessage) {
         _showSnack(next.errorMessage!);
         ref.read(chatControllerProvider(widget.chatId).notifier).clearError();
       }
@@ -84,7 +85,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             }
           },
           error: (error, _) {
-            final previousError = previous?.hasError == true ? previous!.error : null;
+            final previousError = previous?.hasError == true
+                ? previous!.error
+                : null;
             if (error != previousError) {
               _showSnack('Errore caricamento messaggi: $error');
             }
@@ -94,9 +97,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title ?? 'Chat'),
-      ),
+      appBar: AppBar(title: Text(widget.title ?? 'Chat')),
       body: Container(
         color: const Color(0xFFECE5DD),
         child: SafeArea(
@@ -104,7 +105,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             children: [
               Expanded(
                 child: messagesAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () => const Center(child: SinapsyLogoLoader()),
                   error: (error, _) => Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
@@ -135,7 +136,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   data: (messages) {
                     if (messages.isEmpty) {
                       return const Center(
-                        child: Text('Nessun messaggio. Inizia la conversazione.'),
+                        child: Text(
+                          'Nessun messaggio. Inizia la conversazione.',
+                        ),
                       );
                     }
 
@@ -145,12 +148,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       itemCount: messages.length,
                       itemBuilder: (context, index) {
                         final message = messages[index];
-                        final isMine = state.currentUserId != null &&
+                        final isMine =
+                            state.currentUserId != null &&
                             message.senderId == state.currentUserId;
-                        return _MessageBubble(
-                          message: message,
-                          isMine: isMine,
-                        );
+                        return _MessageBubble(message: message, isMine: isMine);
                       },
                     );
                   },
@@ -170,10 +171,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({
-    required this.message,
-    required this.isMine,
-  });
+  const _MessageBubble({required this.message, required this.isMine});
 
   final MessageModel message;
   final bool isMine;
@@ -221,10 +219,7 @@ class _MessageBubble extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     _formatTime(message.createdAt),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade700,
-                    ),
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
                   ),
                 ],
               ),
@@ -296,10 +291,7 @@ class _InputBar extends StatelessWidget {
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
+                        child: SinapsyLogoLoader(size: 18),
                       )
                     : const Icon(Icons.send, color: Colors.white),
               ),

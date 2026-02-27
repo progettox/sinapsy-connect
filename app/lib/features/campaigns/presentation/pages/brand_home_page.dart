@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../applications/presentation/pages/brand_applications_page.dart';
 import '../../../home/presentation/controllers/home_controller.dart';
 import '../../data/campaign_model.dart';
@@ -128,7 +129,7 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
         child: Builder(
           builder: (context) {
             if (state.isLoading && state.campaigns.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(child: SinapsyLogoLoader());
             }
 
             if (state.campaigns.isEmpty) {
@@ -274,7 +275,7 @@ class _CampaignTile extends StatelessWidget {
                       ? const SizedBox(
                           width: 14,
                           height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: SinapsyLogoLoader(size: 14),
                         )
                       : const Icon(Icons.delete_outline),
                   label: const Text('Elimina'),

@@ -6,6 +6,7 @@ import '../../features/auth/data/auth_repository.dart';
 import '../../features/profile/data/profile_model.dart';
 import '../../features/profile/data/profile_repository.dart';
 import '../router/app_router.dart';
+import '../widgets/sinapsy_logo_loader.dart';
 
 class AuthGate extends ConsumerStatefulWidget {
   const AuthGate({super.key});
@@ -87,7 +88,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(),
+              SinapsyLogoLoader(),
               SizedBox(height: 16),
               Text('Sinapsy Connect'),
             ],
@@ -108,10 +109,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _retry,
-                child: const Text('Riprova'),
-              ),
+              ElevatedButton(onPressed: _retry, child: const Text('Riprova')),
             ],
           ),
         ),

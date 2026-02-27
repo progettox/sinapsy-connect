@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../chats/presentation/pages/chat_page.dart';
 import '../controllers/applications_controller.dart';
 
@@ -116,7 +117,7 @@ class _BrandApplicationsPageState extends ConsumerState<BrandApplicationsPage> {
         child: Builder(
           builder: (context) {
             if (state.isLoadingBrand && state.brandApplications.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(child: SinapsyLogoLoader());
             }
 
             if (state.brandApplications.isEmpty) {
@@ -252,7 +253,7 @@ class _BrandApplicationCard extends StatelessWidget {
                         ? const SizedBox(
                             height: 18,
                             width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: SinapsyLogoLoader(size: 18),
                           )
                         : const Text('Accept'),
                   ),

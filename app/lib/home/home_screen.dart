@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/widgets/sinapsy_logo_loader.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -59,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               if (_isLoading) ...[
                 const SizedBox(height: 16),
-                const CircularProgressIndicator(),
+                const SinapsyLogoLoader(),
               ],
             ],
           ),

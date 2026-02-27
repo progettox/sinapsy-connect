@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../data/profile_model.dart';
 import '../controllers/profile_controller.dart';
 import 'edit_profile_page.dart';
@@ -44,7 +45,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final state = ref.watch(profileControllerProvider);
 
     ref.listen<ProfileUiState>(profileControllerProvider, (previous, next) {
-      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+      if (next.errorMessage != null &&
+          next.errorMessage != previous?.errorMessage) {
         _showSnack(next.errorMessage!);
         ref.read(profileControllerProvider.notifier).clearError();
       }
@@ -58,7 +60,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         child: Builder(
           builder: (context) {
             if (state.isLoading && profile == null) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(child: SinapsyLogoLoader());
             }
 
             if (profile == null) {
@@ -71,8 +73,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       const Text('Profilo non trovato.'),
                       const SizedBox(height: 12),
                       ElevatedButton(
-                        onPressed: () =>
-                            ref.read(profileControllerProvider.notifier).loadMyProfile(),
+                        onPressed: () => ref
+                            .read(profileControllerProvider.notifier)
+                            .loadMyProfile(),
                         child: const Text('Ricarica'),
                       ),
                     ],
@@ -121,7 +124,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   ),
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    onPressed: state.isLoading ? null : () => _openEdit(profile),
+                    onPressed: state.isLoading
+                        ? null
+                        : () => _openEdit(profile),
                     child: const Text('Edit'),
                   ),
                 ],
@@ -140,10 +145,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 }
 
 class _ProfileRow extends StatelessWidget {
-  const _ProfileRow({
-    required this.label,
-    required this.value,
-  });
+  const _ProfileRow({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -157,10 +159,7 @@ class _ProfileRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 2),
           Text(value),

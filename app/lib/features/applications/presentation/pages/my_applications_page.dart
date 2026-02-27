@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../chats/presentation/pages/chat_page.dart';
 import '../controllers/applications_controller.dart';
 
@@ -91,7 +92,7 @@ class _MyApplicationsPageState extends ConsumerState<MyApplicationsPage> {
         child: Builder(
           builder: (context) {
             if (state.isLoadingMine && state.myApplications.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(child: SinapsyLogoLoader());
             }
 
             if (state.myApplications.isEmpty) {
@@ -271,7 +272,7 @@ class _MyApplicationCard extends StatelessWidget {
                       ? const SizedBox(
                           width: 14,
                           height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: SinapsyLogoLoader(size: 14),
                         )
                       : const Icon(Icons.close),
                   label: const Text('Abbandona richiesta'),

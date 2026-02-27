@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/storage/storage_service.dart';
+import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../auth/data/auth_repository.dart';
 import '../controllers/create_campaign_controller.dart';
 
@@ -225,7 +226,7 @@ class _CreateCampaignPageState extends ConsumerState<CreateCampaignPage> {
                   const SizedBox(
                     height: 18,
                     width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: SinapsyLogoLoader(size: 18),
                   ),
                 ],
               ],

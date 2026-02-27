@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../data/profile_model.dart';
 import '../controllers/profile_controller.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
-  const EditProfilePage({
-    required this.profile,
-    super.key,
-  });
+  const EditProfilePage({required this.profile, super.key});
 
   final ProfileModel profile;
 
@@ -55,7 +53,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final profile = await ref.read(profileControllerProvider.notifier).upsertMyProfile(
+    final profile = await ref
+        .read(profileControllerProvider.notifier)
+        .upsertMyProfile(
           role: _selectedRole,
           username: _usernameController.text,
           location: _locationController.text,
@@ -77,7 +77,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     final state = ref.watch(profileControllerProvider);
 
     ref.listen<ProfileUiState>(profileControllerProvider, (previous, next) {
-      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+      if (next.errorMessage != null &&
+          next.errorMessage != previous?.errorMessage) {
         _showSnack(next.errorMessage!);
         ref.read(profileControllerProvider.notifier).clearError();
       }
@@ -114,7 +115,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                           if (value == null) return;
                           setState(() => _selectedRole = value);
                         },
-                  validator: (value) => value == null ? 'Ruolo obbligatorio' : null,
+                  validator: (value) =>
+                      value == null ? 'Ruolo obbligatorio' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -160,7 +162,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 ),
                 if (state.isLoading) ...[
                   const SizedBox(height: 16),
-                  const Center(child: CircularProgressIndicator()),
+                  const Center(child: SinapsyLogoLoader()),
                 ],
               ],
             ),

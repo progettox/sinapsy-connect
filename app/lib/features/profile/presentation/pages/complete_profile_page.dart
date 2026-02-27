@@ -1,8 +1,13 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/widgets/luxury_neon_backdrop.dart';
+import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../auth/data/auth_repository.dart';
 import '../../data/profile_model.dart';
 import '../controllers/profile_controller.dart';
@@ -16,6 +21,11 @@ class CompleteProfilePage extends ConsumerStatefulWidget {
 }
 
 class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
+  static const List<ProfileRole> _roleOrder = <ProfileRole>[
+    ProfileRole.brand,
+    ProfileRole.creator,
+  ];
+
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -24,6 +34,7 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
   final _locationController = TextEditingController();
   ProfileRole? _selectedRole;
   DateTime? _selectedBirthDate;
+  bool _isRoleSelectionStep = true;
 
   @override
   void initState() {
@@ -36,6 +47,7 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       if (!mounted || profile == null) return;
       setState(() {
         _selectedRole = profile.role;
+        _isRoleSelectionStep = profile.role == null;
         if (_firstNameController.text.isEmpty) {
           _firstNameController.text = profile.firstName ?? '';
         }
@@ -138,9 +150,20 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     context.go(AppRouter.authPath);
   }
 
+  String _roleDescription(ProfileRole role) {
+    switch (role) {
+      case ProfileRole.brand:
+        return 'Pubblica campagne e collabora con creator selezionati.';
+      case ProfileRole.creator:
+        return 'Scopri opportunita, candidati e consegna progetti ai brand.';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(profileControllerProvider);
+    final theme = Theme.of(context);
+    final pageTextTheme = GoogleFonts.plusJakartaSansTextTheme(theme.textTheme);
 
     ref.listen<ProfileUiState>(profileControllerProvider, (previous, next) {
       if (next.errorMessage != null &&
@@ -150,114 +173,211 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       }
     });
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Completa profilo')),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'Scegli il tuo ruolo',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: ProfileRole.values
-                          .map(
-                            (role) => _RoleCard(
-                              role: role,
-                              isSelected: _selectedRole == role,
-                              onTap: state.isLoading
-                                  ? null
-                                  : () => setState(() => _selectedRole = role),
+    return Theme(
+      data: theme.copyWith(
+        textTheme: pageTextTheme,
+        primaryTextTheme: GoogleFonts.plusJakartaSansTextTheme(
+          theme.primaryTextTheme,
+        ),
+      ),
+      child: Scaffold(
+        appBar: AppBar(
+          centerTitle: true,
+          title: Text(
+            'Completa profilo',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.25,
+              color: const Color(0xFFEAF3FF),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+        ),
+        body: Stack(
+          children: [
+            const Positioned.fill(child: LuxuryNeonBackdrop()),
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (_isRoleSelectionStep) ...[
+                            Align(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0x44101722),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: const Color(0x8C87B0E5),
+                                  ),
+                                ),
+                                child: Text(
+                                  'STEP 1 / 2',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.1,
+                                    color: const Color(0xFFDDEBFF),
+                                  ),
+                                ),
+                              ),
                             ),
-                          )
-                          .toList(),
-                    ),
-                    const SizedBox(height: 24),
-                    TextFormField(
-                      controller: _firstNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nome',
-                        border: OutlineInputBorder(),
+                            const SizedBox(height: 18),
+                            Text(
+                              'Scegli il tuo ruolo',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 34,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                                height: 1,
+                                color: const Color(0xFFEAF3FF),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Seleziona Brand o Creator per continuare.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xB7D6E8FF),
+                                fontSize: 14,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            const SizedBox(height: 26),
+                            Column(
+                              children: [
+                                for (final entry in _roleOrder.asMap().entries)
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                      bottom: entry.key == _roleOrder.length - 1
+                                          ? 0
+                                          : 18,
+                                    ),
+                                    child: _RoleCard(
+                                      role: entry.value,
+                                      description: _roleDescription(
+                                        entry.value,
+                                      ),
+                                      isSelected: _selectedRole == entry.value,
+                                      onTap: state.isLoading
+                                          ? null
+                                          : () => setState(() {
+                                              _selectedRole = entry.value;
+                                              _isRoleSelectionStep = false;
+                                            }),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ] else ...[
+                            Text(
+                              'Anagrafica ${_selectedRole?.label ?? ''}',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              onPressed: state.isLoading
+                                  ? null
+                                  : () => setState(() {
+                                      _isRoleSelectionStep = true;
+                                    }),
+                              icon: const Icon(Icons.arrow_back_rounded),
+                              label: const Text('Torna alla scelta ruolo'),
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _firstNameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Nome',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (value) =>
+                                  _validateRequired(value, 'Nome'),
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _lastNameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Cognome',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (value) =>
+                                  _validateRequired(value, 'Cognome'),
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _birthDateController,
+                              readOnly: true,
+                              onTap: state.isLoading ? null : _pickBirthDate,
+                              decoration: const InputDecoration(
+                                labelText: 'Data di nascita',
+                                hintText: 'YYYY-MM-DD',
+                                border: OutlineInputBorder(),
+                                suffixIcon: Icon(Icons.calendar_today_outlined),
+                              ),
+                              validator: (_) => _validateBirthDate(),
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _usernameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Username',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (value) =>
+                                  _validateRequired(value, 'Username'),
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _locationController,
+                              decoration: const InputDecoration(
+                                labelText: 'Location',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (value) =>
+                                  _validateRequired(value, 'Location'),
+                            ),
+                            const SizedBox(height: 20),
+                            ElevatedButton(
+                              onPressed: state.isLoading ? null : _save,
+                              child: const Text('Salva profilo'),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: state.isLoading ? null : _goToLogin,
+                            child: const Text('Ho gia un account'),
+                          ),
+                          if (state.isLoading) ...[
+                            const SizedBox(height: 16),
+                            const Center(child: SinapsyLogoLoader()),
+                          ],
+                        ],
                       ),
-                      validator: (value) => _validateRequired(value, 'Nome'),
                     ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _lastNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Cognome',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) => _validateRequired(value, 'Cognome'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _birthDateController,
-                      readOnly: true,
-                      onTap: state.isLoading ? null : _pickBirthDate,
-                      decoration: const InputDecoration(
-                        labelText: 'Data di nascita',
-                        hintText: 'YYYY-MM-DD',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.calendar_today_outlined),
-                      ),
-                      validator: (_) => _validateBirthDate(),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _usernameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Username',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) =>
-                          _validateRequired(value, 'Username'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _locationController,
-                      decoration: const InputDecoration(
-                        labelText: 'Location',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) =>
-                          _validateRequired(value, 'Location'),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: state.isLoading ? null : _save,
-                      child: const Text('Salva profilo'),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: state.isLoading ? null : _goToLogin,
-                      child: const Text('Ho gia un account'),
-                    ),
-                    if (state.isLoading) ...[
-                      const SizedBox(height: 16),
-                      const Center(child: CircularProgressIndicator()),
-                    ],
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -267,48 +387,210 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
 class _RoleCard extends StatelessWidget {
   const _RoleCard({
     required this.role,
+    required this.description,
     required this.isSelected,
     required this.onTap,
   });
 
   final ProfileRole role;
+  final String description;
   final bool isSelected;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    const accent = Color(0xFF8EC8FF);
+    final border = isSelected
+        ? const Color(0xAAAFD8FF)
+        : const Color(0x6186A3C5);
+    final surface = isSelected
+        ? const Color(0x40293E62)
+        : const Color(0x30152036);
 
-    return SizedBox(
-      width: 160,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected ? colorScheme.primary : colorScheme.outline,
-              width: isSelected ? 2 : 1,
-            ),
-            color: isSelected
-                ? colorScheme.primary.withValues(alpha: 0.08)
-                : colorScheme.surface,
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(_iconForRole(role)),
-              const SizedBox(height: 12),
-              Text(
-                role.label,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              constraints: const BoxConstraints(minHeight: 148),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: border,
+                  width: isSelected ? 1.8 : 1.2,
                 ),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    surface,
+                    const Color(0x1A1B2C46),
+                    const Color(0x12111A2A),
+                  ],
+                  stops: const [0, 0.56, 1],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(
+                      0xFF78B8FF,
+                    ).withValues(alpha: isSelected ? 0.34 : 0.14),
+                    blurRadius: isSelected ? 30 : 18,
+                    spreadRadius: isSelected ? 1 : 0,
+                    offset: const Offset(0, 12),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: isSelected ? 0.42 : 0.28,
+                    ),
+                    blurRadius: isSelected ? 28 : 18,
+                    offset: const Offset(0, 16),
+                  ),
+                ],
               ),
-            ],
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: Container(
+                        margin: const EdgeInsets.all(1.8),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color: Colors.white.withValues(
+                              alpha: isSelected ? 0.18 : 0.1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    top: -26,
+                    child: IgnorePointer(
+                      child: Container(
+                        height: 78,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(60),
+                          gradient: RadialGradient(
+                            colors: [
+                              Colors.white.withValues(
+                                alpha: isSelected ? 0.3 : 0.18,
+                              ),
+                              Colors.white.withValues(alpha: 0),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: -16,
+                    top: -22,
+                    child: IgnorePointer(
+                      child: Container(
+                        width: 92,
+                        height: 92,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              accent.withValues(
+                                alpha: isSelected ? 0.26 : 0.12,
+                              ),
+                              accent.withValues(alpha: 0),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 22,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.24),
+                            ),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withValues(alpha: 0.16),
+                                const Color(0x1A87B8F2),
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: accent.withValues(
+                                  alpha: isSelected ? 0.24 : 0.12,
+                                ),
+                                blurRadius: 14,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            _iconForRole(role),
+                            color: isSelected
+                                ? accent
+                                : const Color(0xFFDDEBFF),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                role.label,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.35,
+                                  color: const Color(0xFFF2F7FF),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                description,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  height: 1.3,
+                                  color: const Color(0xD7D8E9FF),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          isSelected
+                              ? Icons.arrow_forward_rounded
+                              : Icons.chevron_right_rounded,
+                          color: isSelected ? accent : const Color(0xFFC9D7E8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -318,9 +600,9 @@ class _RoleCard extends StatelessWidget {
   IconData _iconForRole(ProfileRole role) {
     switch (role) {
       case ProfileRole.brand:
-        return Icons.storefront_outlined;
+        return Icons.storefront_rounded;
       case ProfileRole.creator:
-        return Icons.camera_alt_outlined;
+        return Icons.auto_awesome_rounded;
     }
   }
 }
