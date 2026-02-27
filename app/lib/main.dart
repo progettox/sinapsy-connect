@@ -13,11 +13,7 @@ Future<void> main() async {
     anonKey: SupabaseConfig.anonKey,
   );
 
-  runApp(
-    const ProviderScope(
-      child: SinapsyConnectApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: SinapsyConnectApp()));
 }
 
 class SinapsyConnectApp extends ConsumerWidget {
@@ -25,14 +21,21 @@ class SinapsyConnectApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final darkTheme = ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: Colors.blue,
+        brightness: Brightness.dark,
+      ),
+    );
+
     return MaterialApp.router(
       title: 'Sinapsy Connect',
       debugShowCheckedModeBanner: false,
       routerConfig: ref.watch(goRouterProvider),
-      theme: ThemeData(
-        colorSchemeSeed: Colors.blue,
-        useMaterial3: true,
-      ),
+      themeMode: ThemeMode.dark,
+      theme: ThemeData(colorSchemeSeed: Colors.blue, useMaterial3: true),
+      darkTheme: darkTheme,
     );
   }
 }
