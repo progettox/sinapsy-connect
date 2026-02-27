@@ -442,27 +442,6 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
         ),
       ),
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            'Brand Dashboard',
-            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
-          ),
-          actions: [
-            IconButton(
-              onPressed:
-                  state.isLoading || state.isRemoving || homeState.isLoading
-                  ? null
-                  : _openCreateCampaign,
-              icon: const Icon(Icons.add),
-              tooltip: 'Nuova campagna',
-            ),
-            IconButton(
-              onPressed: homeState.isLoading ? null : _logout,
-              icon: const Icon(Icons.logout),
-              tooltip: 'Logout',
-            ),
-          ],
-        ),
         body: Stack(
           children: [
             const Positioned.fill(child: LuxuryNeonBackdrop()),
@@ -482,8 +461,18 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
                     },
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                       children: [
+                        _DashboardHeaderPanel(
+                          canCreateCampaign:
+                              !state.isLoading &&
+                              !state.isRemoving &&
+                              !homeState.isLoading,
+                          canLogout: !homeState.isLoading,
+                          onCreateCampaign: _openCreateCampaign,
+                          onLogout: _logout,
+                        ),
+                        const SizedBox(height: 12),
                         _QuickStatsSection(
                           activeCampaigns: activeCampaigns,
                           spentBudget: spentBudget,
@@ -497,7 +486,7 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
                             setState(() => _selectedTimeline = timeline);
                           },
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 18),
                         _UsersMiniFeed(
                           users: _communityUsers,
                           isLoading: _isCommunityUsersLoading,
@@ -511,6 +500,104 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardHeaderPanel extends StatelessWidget {
+  const _DashboardHeaderPanel({
+    required this.canCreateCampaign,
+    required this.canLogout,
+    required this.onCreateCampaign,
+    required this.onLogout,
+  });
+
+  final bool canCreateCampaign;
+  final bool canLogout;
+  final VoidCallback onCreateCampaign;
+  final VoidCallback onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return _GlassPanel(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Brand Dashboard',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            _HeaderActionButton(
+              icon: Icons.add_rounded,
+              tooltip: 'Nuova campagna',
+              onPressed: canCreateCampaign ? onCreateCampaign : null,
+            ),
+            const SizedBox(width: 8),
+            _HeaderActionButton(
+              icon: Icons.logout_rounded,
+              tooltip: 'Logout',
+              onPressed: canLogout ? onLogout : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderActionButton extends StatelessWidget {
+  const _HeaderActionButton({
+    required this.icon,
+    required this.tooltip,
+    this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isEnabled = onPressed != null;
+
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(999),
+          child: Ink(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(
+                alpha: isEnabled ? 0.16 : 0.08,
+              ),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(
+                  alpha: isEnabled ? 0.44 : 0.2,
+                ),
+              ),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: const Color(0xFFEAF3FF).withValues(
+                alpha: isEnabled ? 1 : 0.45,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -569,7 +656,7 @@ class _QuickStatsSection extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         SizedBox(
           height: 260,
           child: _TrendCardsCarousel(
@@ -581,10 +668,10 @@ class _QuickStatsSection extends StatelessWidget {
             onTimelineChanged: onTimelineChanged,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
-          height: 42,
+          height: 44,
           child: ElevatedButton(
             onPressed: onOpenMatched,
             style: ElevatedButton.styleFrom(
@@ -650,7 +737,7 @@ class _UsersMiniFeed extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         if (isLoading)
           const _UsersMiniFeedLoading()
         else if (errorMessage != null)
