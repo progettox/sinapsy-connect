@@ -248,11 +248,39 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                       value: _formatDate(profile.updatedAt),
                                     ),
                                     const SizedBox(height: 20),
-                                    ElevatedButton(
-                                      onPressed: state.isLoading || _isUploadingAvatar
-                                          ? null
-                                          : () => _openEdit(profile),
-                                      child: const Text('Edit'),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 40,
+                                      child: OutlinedButton(
+                                        onPressed:
+                                            state.isLoading || _isUploadingAvatar
+                                            ? null
+                                            : () => _openEdit(profile),
+                                        style: OutlinedButton.styleFrom(
+                                          backgroundColor: Colors.transparent,
+                                          foregroundColor: theme.colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.9),
+                                          disabledForegroundColor:
+                                              theme.colorScheme.onSurface
+                                                  .withValues(alpha: 0.4),
+                                          side: BorderSide(
+                                            color: const Color(
+                                              0xFF9FC8F8,
+                                            ).withValues(alpha: 0.24),
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          textStyle: theme.textTheme.titleSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                        child: const Text('Modifica'),
+                                      ),
                                     ),
                                   ],
                                 ),
