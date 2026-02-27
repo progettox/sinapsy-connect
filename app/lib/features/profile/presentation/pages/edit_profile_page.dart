@@ -141,10 +141,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 TextFormField(
                   controller: _locationController,
                   decoration: const InputDecoration(
-                    labelText: 'Location',
+                    labelText: 'Sede',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (value) => _validateRequired(value, 'Location'),
+                  validator: (value) => _validateRequired(value, 'Sede'),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(

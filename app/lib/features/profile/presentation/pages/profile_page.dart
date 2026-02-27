@@ -109,7 +109,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     label: 'Bio',
                     value: profile.bio.trim().isEmpty ? '-' : profile.bio,
                   ),
-                  _ProfileRow(label: 'Location', value: profile.location),
+                  _ProfileRow(label: 'Sede', value: profile.location),
                   _ProfileRow(
                     label: 'Avatar URL',
                     value: profile.avatarUrl ?? '-',

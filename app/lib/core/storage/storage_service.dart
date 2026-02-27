@@ -26,7 +26,9 @@ class StorageService {
     final objectPath =
         '$brandId/${DateTime.now().millisecondsSinceEpoch}_$safeFileName';
 
-    await _client.storage.from(bucket).uploadBinary(
+    await _client.storage
+        .from(bucket)
+        .uploadBinary(
           objectPath,
           bytes,
           fileOptions: FileOptions(
@@ -38,10 +40,9 @@ class StorageService {
 
     if (preferSignedUrl) {
       try {
-        return await _client.storage.from(bucket).createSignedUrl(
-              objectPath,
-              60 * 60 * 24 * 30,
-            );
+        return await _client.storage
+            .from(bucket)
+            .createSignedUrl(objectPath, 60 * 60 * 24 * 30);
       } on StorageException {
         return _client.storage.from(bucket).getPublicUrl(objectPath);
       }
@@ -50,10 +51,24 @@ class StorageService {
     final publicUrl = _client.storage.from(bucket).getPublicUrl(objectPath);
     if (publicUrl.isNotEmpty) return publicUrl;
 
-    return _client.storage.from(bucket).createSignedUrl(
-          objectPath,
-          60 * 60 * 24 * 30,
-        );
+    return _client.storage
+        .from(bucket)
+        .createSignedUrl(objectPath, 60 * 60 * 24 * 30);
+  }
+
+  Future<String> uploadProfileAvatar({
+    required String userId,
+    required Uint8List bytes,
+    required String originalFileName,
+    bool preferSignedUrl = false,
+  }) {
+    return uploadCampaignCoverImage(
+      brandId: userId,
+      bytes: bytes,
+      originalFileName: originalFileName,
+      bucket: 'profile-avatars',
+      preferSignedUrl: preferSignedUrl,
+    );
   }
 
   String _sanitizeFileName(String fileName) {

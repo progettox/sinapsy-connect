@@ -1,11 +1,14 @@
 import 'dart:ui';
+import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/storage/storage_service.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../auth/data/auth_repository.dart';
@@ -30,10 +33,16 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _birthDateController = TextEditingController();
+  final _bioController = TextEditingController();
+  final _brandLinksController = TextEditingController();
   final _usernameController = TextEditingController();
   final _locationController = TextEditingController();
   ProfileRole? _selectedRole;
   DateTime? _selectedBirthDate;
+  Uint8List? _avatarBytes;
+  String? _avatarFileName;
+  String? _avatarUrl;
+  bool _isUploadingAvatar = false;
   bool _isRoleSelectionStep = true;
 
   @override
@@ -56,6 +65,13 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
         }
         _selectedBirthDate = profile.birthDate;
         _birthDateController.text = _formatBirthDate(profile.birthDate);
+        if (_bioController.text.isEmpty) {
+          _bioController.text = _extractBrandBio(profile.bio);
+        }
+        if (_brandLinksController.text.isEmpty) {
+          _brandLinksController.text = _extractBrandLinks(profile.bio);
+        }
+        _avatarUrl = profile.avatarUrl;
         if (_usernameController.text.isEmpty) {
           _usernameController.text = profile.username;
         }
@@ -71,6 +87,8 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _birthDateController.dispose();
+    _bioController.dispose();
+    _brandLinksController.dispose();
     _usernameController.dispose();
     _locationController.dispose();
     super.dispose();
@@ -90,13 +108,58 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     }
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    final isBrand = _selectedRole == ProfileRole.brand;
+    var avatarUrl = _avatarUrl;
+    final brandBio = _composeBrandBio(
+      _bioController.text,
+      _brandLinksController.text,
+    );
+
+    if (isBrand && _avatarBytes != null && _avatarFileName != null) {
+      final userId = ref.read(authRepositoryProvider).currentUser?.id;
+      if (userId == null) {
+        _showSnack('Sessione non valida. Effettua di nuovo il login.');
+        return;
+      }
+
+      setState(() => _isUploadingAvatar = true);
+      try {
+        avatarUrl = await ref
+            .read(storageServiceProvider)
+            .uploadProfileAvatar(
+              userId: userId,
+              bytes: _avatarBytes!,
+              originalFileName: _avatarFileName!,
+            );
+      } catch (error) {
+        if (mounted) {
+          _showSnack('Errore caricamento foto profilo: $error');
+        }
+        if (mounted) {
+          setState(() => _isUploadingAvatar = false);
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _avatarUrl = avatarUrl;
+          _avatarBytes = null;
+          _avatarFileName = null;
+          _isUploadingAvatar = false;
+        });
+      }
+    }
+
     final profile = await ref
         .read(profileControllerProvider.notifier)
         .upsertMyProfile(
           role: _selectedRole!,
-          firstName: _firstNameController.text,
-          lastName: _lastNameController.text,
-          birthDate: _selectedBirthDate,
+          firstName: isBrand ? null : _firstNameController.text,
+          lastName: isBrand ? null : _lastNameController.text,
+          birthDate: isBrand ? null : _selectedBirthDate,
+          bio: isBrand ? brandBio : null,
+          avatarUrl: isBrand ? avatarUrl : null,
           username: _usernameController.text,
           location: _locationController.text,
         );
@@ -135,6 +198,127 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     });
   }
 
+  Future<void> _pickAvatar() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.first;
+    if (file.bytes == null) {
+      _showSnack('Impossibile leggere il file selezionato.');
+      return;
+    }
+
+    setState(() {
+      _avatarBytes = file.bytes;
+      _avatarFileName = file.name;
+    });
+  }
+
+  Widget _buildBrandAvatarPicker(bool isBusy) {
+    Widget avatar;
+    if (_avatarBytes != null) {
+      avatar = ClipOval(
+        child: Image.memory(
+          _avatarBytes!,
+          fit: BoxFit.cover,
+          width: 108,
+          height: 108,
+        ),
+      );
+    } else if ((_avatarUrl ?? '').trim().isNotEmpty) {
+      avatar = ClipOval(
+        child: Image.network(
+          _avatarUrl!,
+          fit: BoxFit.cover,
+          width: 108,
+          height: 108,
+          errorBuilder: (_, _, _) =>
+              const Icon(Icons.storefront_rounded, size: 38),
+        ),
+      );
+    } else {
+      avatar = const Icon(Icons.storefront_rounded, size: 38);
+    }
+
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: isBusy ? null : _pickAvatar,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 108,
+                height: 108,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0x261A2E49),
+                  border: Border.all(
+                    color: const Color(0x90A8CCF2),
+                    width: 1.2,
+                  ),
+                ),
+                child: Center(child: avatar),
+              ),
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF8EC8FF),
+                  ),
+                  child: const Icon(
+                    Icons.add_a_photo_rounded,
+                    size: 18,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Foto profilo brand',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xDDEAF3FF),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _composeBrandBio(String bio, String links) {
+    final cleanBio = bio.trim();
+    final cleanLinks = links.trim();
+    if (cleanBio.isEmpty && cleanLinks.isEmpty) return '';
+    if (cleanBio.isEmpty) return 'Links:\n$cleanLinks';
+    if (cleanLinks.isEmpty) return cleanBio;
+    return '$cleanBio\n\nLinks:\n$cleanLinks';
+  }
+
+  String _extractBrandBio(String rawBio) {
+    const marker = '\n\nLinks:\n';
+    final index = rawBio.indexOf(marker);
+    if (index < 0) return rawBio;
+    return rawBio.substring(0, index).trimRight();
+  }
+
+  String _extractBrandLinks(String rawBio) {
+    const marker = '\n\nLinks:\n';
+    final index = rawBio.indexOf(marker);
+    if (index < 0) return '';
+    return rawBio.substring(index + marker.length).trim();
+  }
+
   String _formatBirthDate(DateTime? date) {
     if (date == null) return '';
     final mm = date.month.toString().padLeft(2, '0');
@@ -164,6 +348,8 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     final state = ref.watch(profileControllerProvider);
     final theme = Theme.of(context);
     final pageTextTheme = GoogleFonts.plusJakartaSansTextTheme(theme.textTheme);
+    final isBusy = state.isLoading || _isUploadingAvatar;
+    final isBrandRole = _selectedRole == ProfileRole.brand;
 
     ref.listen<ProfileUiState>(profileControllerProvider, (previous, next) {
       if (next.errorMessage != null &&
@@ -181,28 +367,13 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
         ),
       ),
       child: Scaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          title: Text(
-            'Completa profilo',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.25,
-              color: const Color(0xFFEAF3FF),
-            ),
-          ),
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-        ),
         body: Stack(
           children: [
             const Positioned.fill(child: LuxuryNeonBackdrop()),
             SafeArea(
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 520),
                     child: Form(
@@ -273,7 +444,7 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                                         entry.value,
                                       ),
                                       isSelected: _selectedRole == entry.value,
-                                      onTap: state.isLoading
+                                      onTap: isBusy
                                           ? null
                                           : () => setState(() {
                                               _selectedRole = entry.value;
@@ -284,89 +455,144 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                               ],
                             ),
                           ] else ...[
-                            Text(
-                              'Anagrafica ${_selectedRole?.label ?? ''}',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w700,
+                            SizedBox(
+                              height: 44,
+                              child: Stack(
+                                children: [
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: IconButton(
+                                      onPressed: isBusy
+                                          ? null
+                                          : () => setState(() {
+                                              _isRoleSelectionStep = true;
+                                            }),
+                                      icon: const Icon(
+                                        Icons.arrow_back_ios_new_rounded,
+                                      ),
+                                      color: const Color(0xFF8EC8FF),
+                                      tooltip: 'Torna alla scelta ruolo',
+                                    ),
+                                  ),
+                                  Center(
+                                    child: Text(
+                                      'Crea il tuo profilo',
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            OutlinedButton.icon(
-                              onPressed: state.isLoading
-                                  ? null
-                                  : () => setState(() {
-                                      _isRoleSelectionStep = true;
-                                    }),
-                              icon: const Icon(Icons.arrow_back_rounded),
-                              label: const Text('Torna alla scelta ruolo'),
                             ),
                             const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _firstNameController,
-                              decoration: const InputDecoration(
-                                labelText: 'Nome',
-                                border: OutlineInputBorder(),
+                            if (isBrandRole) ...[
+                              Center(child: _buildBrandAvatarPicker(isBusy)),
+                              const SizedBox(height: 14),
+                              TextFormField(
+                                controller: _usernameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Username',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (value) =>
+                                    _validateRequired(value, 'Username'),
                               ),
-                              validator: (value) =>
-                                  _validateRequired(value, 'Nome'),
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _lastNameController,
-                              decoration: const InputDecoration(
-                                labelText: 'Cognome',
-                                border: OutlineInputBorder(),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _bioController,
+                                minLines: 3,
+                                maxLines: 5,
+                                decoration: const InputDecoration(
+                                  labelText: 'Bio del brand',
+                                  hintText:
+                                      'Racconta in breve il tuo brand, tono e valori.',
+                                  border: OutlineInputBorder(),
+                                ),
                               ),
-                              validator: (value) =>
-                                  _validateRequired(value, 'Cognome'),
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _birthDateController,
-                              readOnly: true,
-                              onTap: state.isLoading ? null : _pickBirthDate,
-                              decoration: const InputDecoration(
-                                labelText: 'Data di nascita',
-                                hintText: 'YYYY-MM-DD',
-                                border: OutlineInputBorder(),
-                                suffixIcon: Icon(Icons.calendar_today_outlined),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _brandLinksController,
+                                minLines: 2,
+                                maxLines: 4,
+                                keyboardType: TextInputType.url,
+                                decoration: const InputDecoration(
+                                  labelText: 'Link social o sito web',
+                                  hintText:
+                                      'https://instagram.com/tuobrand\nhttps://tuobrand.com',
+                                  border: OutlineInputBorder(),
+                                ),
                               ),
-                              validator: (_) => _validateBirthDate(),
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _usernameController,
-                              decoration: const InputDecoration(
-                                labelText: 'Username',
-                                border: OutlineInputBorder(),
+                            ] else ...[
+                              TextFormField(
+                                controller: _firstNameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Nome',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (value) =>
+                                    _validateRequired(value, 'Nome'),
                               ),
-                              validator: (value) =>
-                                  _validateRequired(value, 'Username'),
-                            ),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _lastNameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Cognome',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (value) =>
+                                    _validateRequired(value, 'Cognome'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _birthDateController,
+                                readOnly: true,
+                                onTap: isBusy ? null : _pickBirthDate,
+                                decoration: const InputDecoration(
+                                  labelText: 'Data di nascita',
+                                  hintText: 'YYYY-MM-DD',
+                                  border: OutlineInputBorder(),
+                                  suffixIcon: Icon(
+                                    Icons.calendar_today_outlined,
+                                  ),
+                                ),
+                                validator: (_) => _validateBirthDate(),
+                              ),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _usernameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Username',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (value) =>
+                                    _validateRequired(value, 'Username'),
+                              ),
+                            ],
                             const SizedBox(height: 12),
                             TextFormField(
                               controller: _locationController,
                               decoration: const InputDecoration(
-                                labelText: 'Location',
+                                labelText: 'Sede',
                                 border: OutlineInputBorder(),
                               ),
                               validator: (value) =>
-                                  _validateRequired(value, 'Location'),
+                                  _validateRequired(value, 'Sede'),
                             ),
                             const SizedBox(height: 20),
                             ElevatedButton(
-                              onPressed: state.isLoading ? null : _save,
+                              onPressed: isBusy ? null : _save,
                               child: const Text('Salva profilo'),
                             ),
                           ],
                           const SizedBox(height: 8),
                           TextButton(
-                            onPressed: state.isLoading ? null : _goToLogin,
+                            onPressed: isBusy ? null : _goToLogin,
                             child: const Text('Ho gia un account'),
                           ),
-                          if (state.isLoading) ...[
+                          if (isBusy) ...[
                             const SizedBox(height: 16),
                             const Center(child: SinapsyLogoLoader()),
                           ],

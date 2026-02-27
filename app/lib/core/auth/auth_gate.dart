@@ -6,6 +6,7 @@ import '../../features/auth/data/auth_repository.dart';
 import '../../features/profile/data/profile_model.dart';
 import '../../features/profile/data/profile_repository.dart';
 import '../router/app_router.dart';
+import '../widgets/luxury_neon_backdrop.dart';
 import '../widgets/sinapsy_logo_loader.dart';
 
 class AuthGate extends ConsumerStatefulWidget {
@@ -84,15 +85,29 @@ class _AuthGateState extends ConsumerState<AuthGate> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SinapsyLogoLoader(),
-              SizedBox(height: 16),
-              Text('Sinapsy Connect'),
-            ],
-          ),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            LuxuryNeonBackdrop(),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SinapsyAnimatedLogo(size: 86),
+                  SizedBox(height: 18),
+                  Text(
+                    'Sinapsy Connect',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.4,
+                      color: Color(0xE6EAF3FF),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       );
     }
