@@ -59,6 +59,12 @@ class _BrandApplicationsPageState extends ConsumerState<BrandApplicationsPage> {
     }
   }
 
+  void _dismissRejected(ApplicationItem item) {
+    ref
+        .read(applicationsControllerProvider.notifier)
+        .dismissRejectedApplicationForBrandView(item.id);
+  }
+
   Future<void> _openChat(ApplicationItem item) async {
     final chatId = item.chatId?.trim();
     if (chatId == null || chatId.isEmpty) {
@@ -155,6 +161,9 @@ class _BrandApplicationsPageState extends ConsumerState<BrandApplicationsPage> {
                     isMutating: isMutating,
                     onAccept: canAccept ? () => _accept(item) : null,
                     onReject: item.isPending ? () => _reject(item) : null,
+                    onDismissRejected: item.status.toLowerCase() == 'rejected'
+                        ? () => _dismissRejected(item)
+                        : null,
                     onOpenChat: item.chatId?.trim().isNotEmpty == true
                         ? () => _openChat(item)
                         : null,
@@ -175,6 +184,7 @@ class _BrandApplicationCard extends StatelessWidget {
     required this.isMutating,
     required this.onAccept,
     required this.onReject,
+    required this.onDismissRejected,
     required this.onOpenChat,
   });
 
@@ -182,6 +192,7 @@ class _BrandApplicationCard extends StatelessWidget {
   final bool isMutating;
   final VoidCallback? onAccept;
   final VoidCallback? onReject;
+  final VoidCallback? onDismissRejected;
   final VoidCallback? onOpenChat;
 
   @override
@@ -248,6 +259,17 @@ class _BrandApplicationCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (onDismissRejected != null) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  onPressed: onDismissRejected,
+                  tooltip: 'Rimuovi dalla lista',
+                  icon: const Icon(Icons.close),
+                ),
+              ),
+            ],
           ],
         ),
       ),

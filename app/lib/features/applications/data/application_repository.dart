@@ -23,9 +23,14 @@ class ApplicationRepository {
   final SupabaseClient _client;
   final AuthRepository _authRepository;
   final Set<String> _locallyWithdrawnCampaignIds = <String>{};
+  final Set<String> _locallyWithdrawnApplicationIds = <String>{};
 
   Set<String> getLocallyWithdrawnCampaignIds() {
     return Set<String>.from(_locallyWithdrawnCampaignIds);
+  }
+
+  Set<String> getLocallyWithdrawnApplicationIds() {
+    return Set<String>.from(_locallyWithdrawnApplicationIds);
   }
 
   void markCampaignLocallyWithdrawn(String campaignId) {
@@ -34,10 +39,22 @@ class ApplicationRepository {
     _locallyWithdrawnCampaignIds.add(id);
   }
 
+  void markApplicationLocallyWithdrawn(String applicationId) {
+    final id = applicationId.trim();
+    if (id.isEmpty) return;
+    _locallyWithdrawnApplicationIds.add(id);
+  }
+
   void clearLocalWithdrawal(String campaignId) {
     final id = campaignId.trim();
     if (id.isEmpty) return;
     _locallyWithdrawnCampaignIds.remove(id);
+  }
+
+  void clearLocalWithdrawnApplication(String applicationId) {
+    final id = applicationId.trim();
+    if (id.isEmpty) return;
+    _locallyWithdrawnApplicationIds.remove(id);
   }
 
   Future<Map<String, String>> getMyPendingOrAcceptedCampaignStatuses() async {
@@ -82,6 +99,9 @@ class ApplicationRepository {
     if (existing != null) {
       final status = _status(existing['status']);
       final existingId = _string(existing['id']);
+      if (existingId != null) {
+        clearLocalWithdrawnApplication(existingId);
+      }
       if (status == 'accepted') {
         throw StateError(
           'Hai gia inviato una candidatura per questo annuncio.',

@@ -27,6 +27,8 @@ class ApplicationsState {
     this.brandApplications = const <ApplicationItem>[],
     this.myApplications = const <ApplicationItem>[],
     this.dismissedCancelledWarningCampaignIds = const <String>{},
+    this.dismissedBrandRejectedApplicationIds = const <String>{},
+    this.dismissedBrandViewRejectedApplicationIds = const <String>{},
   });
 
   final bool isLoadingBrand;
@@ -37,6 +39,8 @@ class ApplicationsState {
   final List<ApplicationItem> brandApplications;
   final List<ApplicationItem> myApplications;
   final Set<String> dismissedCancelledWarningCampaignIds;
+  final Set<String> dismissedBrandRejectedApplicationIds;
+  final Set<String> dismissedBrandViewRejectedApplicationIds;
 
   ApplicationsState copyWith({
     bool? isLoadingBrand,
@@ -50,6 +54,10 @@ class ApplicationsState {
     List<ApplicationItem>? myApplications,
     Set<String>? dismissedCancelledWarningCampaignIds,
     bool clearDismissedCancelledWarnings = false,
+    Set<String>? dismissedBrandRejectedApplicationIds,
+    bool clearDismissedBrandRejected = false,
+    Set<String>? dismissedBrandViewRejectedApplicationIds,
+    bool clearDismissedBrandViewRejected = false,
   }) {
     return ApplicationsState(
       isLoadingBrand: isLoadingBrand ?? this.isLoadingBrand,
@@ -66,6 +74,18 @@ class ApplicationsState {
           : Set<String>.from(
               dismissedCancelledWarningCampaignIds ??
                   this.dismissedCancelledWarningCampaignIds,
+            ),
+      dismissedBrandRejectedApplicationIds: clearDismissedBrandRejected
+          ? <String>{}
+          : Set<String>.from(
+              dismissedBrandRejectedApplicationIds ??
+                  this.dismissedBrandRejectedApplicationIds,
+            ),
+      dismissedBrandViewRejectedApplicationIds: clearDismissedBrandViewRejected
+          ? <String>{}
+          : Set<String>.from(
+              dismissedBrandViewRejectedApplicationIds ??
+                  this.dismissedBrandViewRejectedApplicationIds,
             ),
     );
   }
@@ -158,14 +178,29 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
       final items = rows.map(_applicationFromMap).toList();
       final hydrated = await _hydrateApplications(items);
       final withChats = await _attachChatIds(hydrated);
+      final brandRejectedApplicationIds = withChats
+          .where((item) => item.status.toLowerCase() == 'rejected')
+          .map((item) => item.id)
+          .toSet();
+      final visibleBrand = withChats.where((item) {
+        if (item.status.toLowerCase() != 'rejected') return true;
+        return !state.dismissedBrandViewRejectedApplicationIds.contains(
+          item.id,
+        );
+      }).toList();
+      final retainedDismissedRejected = state
+          .dismissedBrandViewRejectedApplicationIds
+          .where(brandRejectedApplicationIds.contains)
+          .toSet();
 
       state = state.copyWith(
         isLoadingBrand: false,
-        brandApplications: withChats,
+        brandApplications: visibleBrand,
+        dismissedBrandViewRejectedApplicationIds: retainedDismissedRejected,
         clearError: true,
       );
       _log(
-        'brand_applications.fetch.success campaignId=$campaignId count=${withChats.length}',
+        'brand_applications.fetch.success campaignId=$campaignId count=${visibleBrand.length}',
       );
     } catch (error) {
       _log(
@@ -194,12 +229,23 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
       final withChats = await _attachChatIds(hydrated);
       final hiddenCampaignIds = _applicationRepository
           .getLocallyWithdrawnCampaignIds();
+      final hiddenApplicationIds = _applicationRepository
+          .getLocallyWithdrawnApplicationIds();
       final cancelledAfterMatchCampaignIds = withChats
           .where((item) => item.isCancelledAfterMatch)
           .map((item) => item.campaignId)
           .toSet();
+      final brandRejectedApplicationIds = withChats
+          .where(
+            (item) =>
+                item.status.toLowerCase() == 'rejected' &&
+                !hiddenApplicationIds.contains(item.id),
+          )
+          .map((item) => item.id)
+          .toSet();
       final visibleMine = withChats
           .where((item) {
+            if (hiddenApplicationIds.contains(item.id)) return false;
             if (!hiddenCampaignIds.contains(item.campaignId)) return true;
             if (!item.isPending) {
               _applicationRepository.clearLocalWithdrawal(item.campaignId);
@@ -213,16 +259,27 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
               item.campaignId,
             );
           })
+          .where((item) {
+            if (item.status.toLowerCase() != 'rejected') return true;
+            return !state.dismissedBrandRejectedApplicationIds.contains(
+              item.id,
+            );
+          })
           .toList();
       final retainedDismissedWarnings = state
           .dismissedCancelledWarningCampaignIds
           .where(cancelledAfterMatchCampaignIds.contains)
+          .toSet();
+      final retainedDismissedRejected = state
+          .dismissedBrandRejectedApplicationIds
+          .where(brandRejectedApplicationIds.contains)
           .toSet();
 
       state = state.copyWith(
         isLoadingMine: false,
         myApplications: visibleMine,
         dismissedCancelledWarningCampaignIds: retainedDismissedWarnings,
+        dismissedBrandRejectedApplicationIds: retainedDismissedRejected,
         clearError: true,
       );
       _log(
@@ -407,6 +464,7 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
         throw StateError('Annullamento non riuscito: $updateError');
       }
       _applicationRepository.markCampaignLocallyWithdrawn(item.campaignId);
+      _applicationRepository.markApplicationLocallyWithdrawn(item.id);
       await _decrementCampaignApplicantsCount(campaignId: item.campaignId);
       _removeApplicationLocally(item.id);
 
@@ -443,6 +501,37 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     state = state.copyWith(
       dismissedCancelledWarningCampaignIds: next,
       myApplications: nextMine,
+      clearError: true,
+    );
+  }
+
+  void dismissBrandRejectedApplication(String applicationId) {
+    final id = applicationId.trim();
+    if (id.isEmpty) return;
+    final next = Set<String>.from(state.dismissedBrandRejectedApplicationIds)
+      ..add(id);
+    final nextMine = state.myApplications
+        .where((item) => item.id != id)
+        .toList();
+    state = state.copyWith(
+      dismissedBrandRejectedApplicationIds: next,
+      myApplications: nextMine,
+      clearError: true,
+    );
+  }
+
+  void dismissRejectedApplicationForBrandView(String applicationId) {
+    final id = applicationId.trim();
+    if (id.isEmpty) return;
+    final next = Set<String>.from(
+      state.dismissedBrandViewRejectedApplicationIds,
+    )..add(id);
+    final nextBrand = state.brandApplications
+        .where((item) => item.id != id)
+        .toList();
+    state = state.copyWith(
+      dismissedBrandViewRejectedApplicationIds: next,
+      brandApplications: nextBrand,
       clearError: true,
     );
   }

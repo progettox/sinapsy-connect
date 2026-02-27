@@ -132,6 +132,11 @@ class _MyApplicationsPageState extends ConsumerState<MyApplicationsPage> {
                       !state.dismissedCancelledWarningCampaignIds.contains(
                         item.campaignId,
                       );
+                  final showDismissRejectedByBrand =
+                      item.status.toLowerCase() == 'rejected' &&
+                      !state.dismissedBrandRejectedApplicationIds.contains(
+                        item.id,
+                      );
                   return _MyApplicationCard(
                     item: item,
                     isMutating: isMutating,
@@ -140,6 +145,11 @@ class _MyApplicationsPageState extends ConsumerState<MyApplicationsPage> {
                         ? () => ref
                               .read(applicationsControllerProvider.notifier)
                               .dismissCancelledMatchWarning(item.campaignId)
+                        : null,
+                    onDismissRejectedByBrand: showDismissRejectedByBrand
+                        ? () => ref
+                              .read(applicationsControllerProvider.notifier)
+                              .dismissBrandRejectedApplication(item.id)
                         : null,
                   );
                 },
@@ -158,12 +168,14 @@ class _MyApplicationCard extends StatelessWidget {
     required this.isMutating,
     required this.onWithdraw,
     required this.onDismissCancelledWarning,
+    required this.onDismissRejectedByBrand,
   });
 
   final ApplicationItem item;
   final bool isMutating;
   final VoidCallback? onWithdraw;
   final VoidCallback? onDismissCancelledWarning;
+  final VoidCallback? onDismissRejectedByBrand;
 
   @override
   Widget build(BuildContext context) {
@@ -263,6 +275,17 @@ class _MyApplicationCard extends StatelessWidget {
                         )
                       : const Icon(Icons.close),
                   label: const Text('Abbandona richiesta'),
+                ),
+              ),
+            ],
+            if (onDismissRejectedByBrand != null) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  onPressed: onDismissRejectedByBrand,
+                  tooltip: 'Rimuovi richiesta',
+                  icon: const Icon(Icons.close),
                 ),
               ),
             ],
