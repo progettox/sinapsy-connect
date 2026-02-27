@@ -3,14 +3,58 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../applications/presentation/pages/brand_applications_page.dart';
 import '../../../home/presentation/controllers/home_controller.dart';
 import '../../data/campaign_model.dart';
 import '../controllers/create_campaign_controller.dart';
 import 'create_campaign_page.dart';
+
+enum _MatchingTimeline { lastWeek, lastMonth, sixMonths, lastYear }
+
+extension _MatchingTimelineX on _MatchingTimeline {
+  String get label {
+    switch (this) {
+      case _MatchingTimeline.lastWeek:
+        return 'Ultima settimana';
+      case _MatchingTimeline.lastMonth:
+        return 'Ultimo mese';
+      case _MatchingTimeline.sixMonths:
+        return 'Ultimi 6 mesi';
+      case _MatchingTimeline.lastYear:
+        return 'Ultimo anno';
+    }
+  }
+
+  String get comparisonLabel {
+    switch (this) {
+      case _MatchingTimeline.lastWeek:
+        return 'giorno precedente';
+      case _MatchingTimeline.lastMonth:
+        return 'settimana precedente';
+      case _MatchingTimeline.sixMonths:
+      case _MatchingTimeline.lastYear:
+        return 'mese precedente';
+    }
+  }
+
+  String get shortLabel {
+    switch (this) {
+      case _MatchingTimeline.lastWeek:
+        return '7G';
+      case _MatchingTimeline.lastMonth:
+        return '1M';
+      case _MatchingTimeline.sixMonths:
+        return '6M';
+      case _MatchingTimeline.lastYear:
+        return '1A';
+    }
+  }
+}
 
 class BrandHomePage extends ConsumerStatefulWidget {
   const BrandHomePage({super.key});
@@ -20,6 +64,8 @@ class BrandHomePage extends ConsumerStatefulWidget {
 }
 
 class _BrandHomePageState extends ConsumerState<BrandHomePage> {
+  _MatchingTimeline _selectedTimeline = _MatchingTimeline.sixMonths;
+
   @override
   void initState() {
     super.initState();
@@ -85,28 +131,116 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
     }
   }
 
-  List<_TrendPoint> _buildMatchingTrend(List<CampaignModel> campaigns) {
-    final now = DateTime.now();
-    final monthAnchors = List<DateTime>.generate(
-      6,
-      (index) => DateTime(now.year, now.month - (5 - index), 1),
+  List<_TrendPoint> _buildMatchingTrend(
+    List<CampaignModel> campaigns,
+    _MatchingTimeline timeline,
+  ) {
+    switch (timeline) {
+      case _MatchingTimeline.lastWeek:
+        return _buildDailyTrend(campaigns, days: 7);
+      case _MatchingTimeline.lastMonth:
+        return _buildWeeklyTrend(campaigns, weeks: 4);
+      case _MatchingTimeline.sixMonths:
+        return _buildMonthlyTrend(campaigns, months: 6);
+      case _MatchingTimeline.lastYear:
+        return _buildMonthlyTrend(campaigns, months: 12);
+    }
+  }
+
+  List<_TrendPoint> _buildDailyTrend(
+    List<CampaignModel> campaigns, {
+    required int days,
+  }) {
+    final today = DateTime.now();
+    final dayAnchors = List<DateTime>.generate(
+      days,
+      (index) =>
+          DateTime(today.year, today.month, today.day - (days - 1 - index)),
     );
 
-    return monthAnchors.map((monthStart) {
-      final monthEnd = DateTime(monthStart.year, monthStart.month + 1, 1);
-      final value = campaigns.where((campaign) {
-        final createdAt = campaign.createdAt;
-        if (createdAt == null) return false;
-        final status = campaign.status.toLowerCase();
-        if (status != 'matched' && status != 'completed') return false;
-        return !createdAt.isBefore(monthStart) && createdAt.isBefore(monthEnd);
-      }).length;
+    return dayAnchors
+        .map((dayStart) {
+          final dayEnd = dayStart.add(const Duration(days: 1));
+          return _TrendPoint(
+            label: _weekdayLabel(dayStart),
+            value: _countMatchesInRange(campaigns, dayStart, dayEnd).toDouble(),
+          );
+        })
+        .toList(growable: false);
+  }
 
+  List<_TrendPoint> _buildWeeklyTrend(
+    List<CampaignModel> campaigns, {
+    required int weeks,
+  }) {
+    final now = DateTime.now();
+    final endBoundary = DateTime(now.year, now.month, now.day + 1);
+
+    return List<_TrendPoint>.generate(weeks, (index) {
+      final offset = weeks - 1 - index;
+      final intervalEnd = endBoundary.subtract(Duration(days: offset * 7));
+      final intervalStart = intervalEnd.subtract(const Duration(days: 7));
       return _TrendPoint(
-        label: _monthLabel(monthStart),
-        value: value.toDouble(),
+        label: _dayMonthLabel(intervalStart),
+        value: _countMatchesInRange(
+          campaigns,
+          intervalStart,
+          intervalEnd,
+        ).toDouble(),
       );
-    }).toList(growable: false);
+    });
+  }
+
+  List<_TrendPoint> _buildMonthlyTrend(
+    List<CampaignModel> campaigns, {
+    required int months,
+  }) {
+    final now = DateTime.now();
+    final monthAnchors = List<DateTime>.generate(
+      months,
+      (index) => DateTime(now.year, now.month - (months - 1 - index), 1),
+    );
+
+    return monthAnchors
+        .map((monthStart) {
+          final monthEnd = DateTime(monthStart.year, monthStart.month + 1, 1);
+          return _TrendPoint(
+            label: _monthLabel(monthStart),
+            value: _countMatchesInRange(
+              campaigns,
+              monthStart,
+              monthEnd,
+            ).toDouble(),
+          );
+        })
+        .toList(growable: false);
+  }
+
+  int _countMatchesInRange(
+    List<CampaignModel> campaigns,
+    DateTime start,
+    DateTime end,
+  ) {
+    return campaigns.where((campaign) {
+      final createdAt = campaign.createdAt;
+      if (createdAt == null) return false;
+      final status = campaign.status.toLowerCase();
+      if (status != 'matched' && status != 'completed') return false;
+      return !createdAt.isBefore(start) && createdAt.isBefore(end);
+    }).length;
+  }
+
+  String _weekdayLabel(DateTime date) {
+    const shortWeekdays = <String>[
+      'Lun',
+      'Mar',
+      'Mer',
+      'Gio',
+      'Ven',
+      'Sab',
+      'Dom',
+    ];
+    return shortWeekdays[date.weekday - 1];
   }
 
   String _monthLabel(DateTime date) {
@@ -127,10 +261,18 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
     return shortMonths[date.month - 1];
   }
 
+  String _dayMonthLabel(DateTime date) {
+    final dd = date.day.toString().padLeft(2, '0');
+    final mm = date.month.toString().padLeft(2, '0');
+    return '$dd/$mm';
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(brandCampaignsControllerProvider);
     final homeState = ref.watch(homeControllerProvider);
+    final theme = Theme.of(context);
+    final textTheme = GoogleFonts.plusJakartaSansTextTheme(theme.textTheme);
     final campaigns = state.campaigns;
     final activeCampaigns = campaigns
         .where((campaign) => campaign.status.toLowerCase() == 'active')
@@ -138,16 +280,13 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
     final matchedCampaigns = campaigns
         .where((campaign) => campaign.status.toLowerCase() == 'matched')
         .length;
-    final completedCampaigns = campaigns
-        .where((campaign) => campaign.status.toLowerCase() == 'completed')
-        .length;
     final spentBudget = campaigns
         .where((campaign) {
           final status = campaign.status.toLowerCase();
           return status == 'matched' || status == 'completed';
         })
         .fold<num>(0, (total, campaign) => total + campaign.budget);
-    final matchingTrend = _buildMatchingTrend(campaigns);
+    final matchingTrend = _buildMatchingTrend(campaigns, _selectedTimeline);
 
     ref.listen<BrandCampaignsState>(brandCampaignsControllerProvider, (
       previous,
@@ -167,74 +306,117 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
       }
     });
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Brand Dashboard'),
-        actions: [
-          IconButton(
-            onPressed:
-                state.isLoading || state.isRemoving || homeState.isLoading
-                ? null
-                : _openCreateCampaign,
-            icon: const Icon(Icons.add),
-            tooltip: 'Nuova campagna',
+    return Theme(
+      data: theme.copyWith(
+        textTheme: textTheme,
+        primaryTextTheme: GoogleFonts.plusJakartaSansTextTheme(
+          theme.primaryTextTheme,
+        ),
+        scaffoldBackgroundColor: Colors.transparent,
+        appBarTheme: theme.appBarTheme.copyWith(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          foregroundColor: const Color(0xFFEAF3FF),
+        ),
+        cardTheme: CardThemeData(
+          color: const Color(0xC0162030),
+          elevation: 0,
+          margin: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: const Color(0xFF9FC8F8).withValues(alpha: 0.16),
+            ),
           ),
-          IconButton(
-            onPressed: homeState.isLoading ? null : _logout,
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Builder(
-          builder: (context) {
-            if (state.isLoading && campaigns.isEmpty) {
-              return const Center(child: SinapsyLogoLoader());
-            }
-
-            return RefreshIndicator(
-              onRefresh: () => ref
-                  .read(brandCampaignsControllerProvider.notifier)
-                  .loadMyCampaigns(),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _QuickStatsSection(
-                    activeCampaigns: activeCampaigns,
-                    spentBudget: spentBudget,
-                    matchedCampaigns: matchedCampaigns,
-                    completedCampaigns: completedCampaigns,
-                    matchingTrend: matchingTrend,
-                  ),
-                  const SizedBox(height: 16),
-                  if (campaigns.isEmpty)
-                    _EmptyCampaignState(onCreateCampaign: _openCreateCampaign)
-                  else
-                    for (var index = 0; index < campaigns.length; index++) ...[
-                      _CampaignTile(
-                        campaign: campaigns[index],
-                        isRemoving:
-                            state.isRemoving &&
-                            state.removingCampaignId == campaigns[index].id,
-                        onRemove: () =>
-                            _confirmRemoveCampaign(campaigns[index]),
-                      ),
-                      if (index != campaigns.length - 1)
-                        const SizedBox(height: 10),
-                    ],
-                ],
-              ),
-            );
-          },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: state.isLoading || state.isRemoving
-            ? null
-            : _openCreateCampaign,
-        child: const Icon(Icons.add),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Brand Dashboard',
+            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+          ),
+          actions: [
+            IconButton(
+              onPressed:
+                  state.isLoading || state.isRemoving || homeState.isLoading
+                  ? null
+                  : _openCreateCampaign,
+              icon: const Icon(Icons.add),
+              tooltip: 'Nuova campagna',
+            ),
+            IconButton(
+              onPressed: homeState.isLoading ? null : _logout,
+              icon: const Icon(Icons.logout),
+              tooltip: 'Logout',
+            ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            const Positioned.fill(child: LuxuryNeonBackdrop()),
+            SafeArea(
+              child: Builder(
+                builder: (context) {
+                  if (state.isLoading && campaigns.isEmpty) {
+                    return const Center(child: SinapsyLogoLoader());
+                  }
+
+                  return RefreshIndicator(
+                    onRefresh: () => ref
+                        .read(brandCampaignsControllerProvider.notifier)
+                        .loadMyCampaigns(),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        _QuickStatsSection(
+                          activeCampaigns: activeCampaigns,
+                          spentBudget: spentBudget,
+                          matchedCampaigns: matchedCampaigns,
+                          matchingTrend: matchingTrend,
+                          selectedTimeline: _selectedTimeline,
+                          onTimelineChanged: (timeline) {
+                            setState(() => _selectedTimeline = timeline);
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        if (campaigns.isEmpty)
+                          _EmptyCampaignState(
+                            onCreateCampaign: _openCreateCampaign,
+                          )
+                        else
+                          for (
+                            var index = 0;
+                            index < campaigns.length;
+                            index++
+                          ) ...[
+                            _CampaignTile(
+                              campaign: campaigns[index],
+                              isRemoving:
+                                  state.isRemoving &&
+                                  state.removingCampaignId == campaigns[index].id,
+                              onRemove: () =>
+                                  _confirmRemoveCampaign(campaigns[index]),
+                            ),
+                            if (index != campaigns.length - 1)
+                              const SizedBox(height: 10),
+                          ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: state.isLoading || state.isRemoving
+              ? null
+              : _openCreateCampaign,
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }
@@ -246,22 +428,28 @@ class _QuickStatsSection extends StatelessWidget {
     required this.spentBudget,
     required this.matchedCampaigns,
     required this.matchingTrend,
+    required this.selectedTimeline,
+    required this.onTimelineChanged,
   });
 
   final int activeCampaigns;
   final num spentBudget;
   final int matchedCampaigns;
   final List<_TrendPoint> matchingTrend;
+  final _MatchingTimeline selectedTimeline;
+  final ValueChanged<_MatchingTimeline> onTimelineChanged;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 230,
+      height: 260,
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             flex: 5,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
                   child: _StatCard(
@@ -287,6 +475,8 @@ class _QuickStatsSection extends StatelessWidget {
             child: _MatchingCard(
               matchedCampaigns: matchedCampaigns,
               trendPoints: matchingTrend,
+              selectedTimeline: selectedTimeline,
+              onTimelineChanged: onTimelineChanged,
             ),
           ),
         ],
@@ -322,9 +512,10 @@ class _StatCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, color: theme.colorScheme.primary, size: 22),
-            const Spacer(),
+            const SizedBox(height: 8),
             Text(
               title,
               textAlign: TextAlign.center,
@@ -332,12 +523,15 @@ class _StatCard extends StatelessWidget {
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
+            const SizedBox(height: 6),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],
@@ -350,61 +544,82 @@ class _StatCard extends StatelessWidget {
 class _MatchingCard extends StatelessWidget {
   const _MatchingCard({
     required this.matchedCampaigns,
-    required this.activeCampaigns,
-    required this.completedCampaigns,
+    required this.trendPoints,
+    required this.selectedTimeline,
+    required this.onTimelineChanged,
   });
 
   final int matchedCampaigns;
-  final int activeCampaigns;
-  final int completedCampaigns;
+  final List<_TrendPoint> trendPoints;
+  final _MatchingTimeline selectedTimeline;
+  final ValueChanged<_MatchingTimeline> onTimelineChanged;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final total = activeCampaigns + matchedCampaigns + completedCampaigns;
-    final matchingRate = total == 0
-        ? 0
-        : ((matchedCampaigns / total) * 100).round();
+    final lastMonthValue = trendPoints.isNotEmpty
+        ? trendPoints.last.value.toInt()
+        : 0;
+    final previousMonthValue = trendPoints.length > 1
+        ? trendPoints[trendPoints.length - 2].value.toInt()
+        : 0;
+    final delta = lastMonthValue - previousMonthValue;
+    final deltaLabel = delta == 0
+        ? 'stabile vs ${selectedTimeline.comparisonLabel}'
+        : '${delta > 0 ? '+' : ''}$delta vs ${selectedTimeline.comparisonLabel}';
 
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Matching creator',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Matching creator',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                _TimelineMenuButton(
+                  selectedTimeline: selectedTimeline,
+                  onTimelineChanged: onTimelineChanged,
+                ),
+              ],
             ),
             const SizedBox(height: 2),
             Text(
-              '$matchedCampaigns campagne in matching • $matchingRate%',
+              '$matchedCampaigns campagne in matching ora',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
               ),
             ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: _MatchingChart(
-                activeCampaigns: activeCampaigns,
-                matchedCampaigns: matchedCampaigns,
-                completedCampaigns: completedCampaigns,
+            const SizedBox(height: 2),
+            Text(
+              'Ultimo periodo: $lastMonthValue ($deltaLabel)',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
               ),
             ),
+            const SizedBox(height: 12),
+            Expanded(child: _MatchingChart(points: trendPoints)),
             const SizedBox(height: 8),
             Wrap(
               alignment: WrapAlignment.center,
               spacing: 10,
               runSpacing: 6,
               children: [
-                _LegendChip(color: theme.colorScheme.primary, label: 'Active'),
-                _LegendChip(color: Colors.orange.shade700, label: 'Match'),
-                _LegendChip(color: Colors.green.shade700, label: 'Done'),
+                _LegendChip(
+                  color: theme.colorScheme.primary,
+                  label:
+                      'Trend match/completed (${selectedTimeline.label.toLowerCase()})',
+                ),
               ],
             ),
           ],
@@ -415,29 +630,20 @@ class _MatchingCard extends StatelessWidget {
 }
 
 class _MatchingChart extends StatelessWidget {
-  const _MatchingChart({
-    required this.activeCampaigns,
-    required this.matchedCampaigns,
-    required this.completedCampaigns,
-  });
+  const _MatchingChart({required this.points});
 
-  final int activeCampaigns;
-  final int matchedCampaigns;
-  final int completedCampaigns;
+  final List<_TrendPoint> points;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final values = points.map((point) => point.value).toList(growable: false);
     return Column(
       children: [
         Expanded(
           child: CustomPaint(
             painter: _PremiumLineChartPainter(
-              values: <double>[
-                activeCampaigns.toDouble(),
-                matchedCampaigns.toDouble(),
-                completedCampaigns.toDouble(),
-              ],
+              values: values,
               lineColor: theme.colorScheme.primary,
               gridColor: theme.colorScheme.outline.withValues(alpha: 0.28),
               dotColor: const Color(0xFFEAF3FF),
@@ -451,13 +657,85 @@ class _MatchingChart extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Row(
-          children: const [
-            Expanded(child: Text('Active', textAlign: TextAlign.center)),
-            Expanded(child: Text('Match', textAlign: TextAlign.center)),
-            Expanded(child: Text('Done', textAlign: TextAlign.center)),
+          children: [
+            for (var i = 0; i < points.length; i++)
+              Expanded(
+                child: Text(
+                  _labelForIndex(i),
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.labelSmall,
+                ),
+              ),
           ],
         ),
       ],
+    );
+  }
+
+  String _labelForIndex(int index) {
+    if (points.length <= 6) return points[index].label;
+    if (index.isEven) return points[index].label;
+    return '';
+  }
+}
+
+class _TrendPoint {
+  const _TrendPoint({required this.label, required this.value});
+
+  final String label;
+  final double value;
+}
+
+class _TimelineMenuButton extends StatelessWidget {
+  const _TimelineMenuButton({
+    required this.selectedTimeline,
+    required this.onTimelineChanged,
+  });
+
+  final _MatchingTimeline selectedTimeline;
+  final ValueChanged<_MatchingTimeline> onTimelineChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return PopupMenuButton<_MatchingTimeline>(
+      tooltip: 'Cambia timeline',
+      initialValue: selectedTimeline,
+      onSelected: onTimelineChanged,
+      itemBuilder: (context) => _MatchingTimeline.values
+          .map(
+            (timeline) => PopupMenuItem<_MatchingTimeline>(
+              value: timeline,
+              child: Text(timeline.label),
+            ),
+          )
+          .toList(growable: false),
+      child: Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primary.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: theme.colorScheme.primary.withValues(alpha: 0.45),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.schedule_rounded, size: 13),
+            const SizedBox(width: 5),
+            Text(
+              selectedTimeline.shortLabel,
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 2),
+            const Icon(Icons.keyboard_arrow_down_rounded, size: 14),
+          ],
+        ),
+      ),
     );
   }
 }
