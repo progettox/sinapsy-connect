@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/supabase/supabase_client_provider.dart';
 import '../../../auth/data/auth_repository.dart';
 import '../../../chats/data/chat_repository.dart';
+import '../../data/application_repository.dart';
 
 final applicationsControllerProvider =
     StateNotifierProvider<ApplicationsController, ApplicationsState>((ref) {
@@ -12,6 +13,7 @@ final applicationsControllerProvider =
         client: ref.watch(supabaseClientProvider),
         authRepository: ref.watch(authRepositoryProvider),
         chatRepository: ref.watch(chatRepositoryProvider),
+        applicationRepository: ref.watch(applicationRepositoryProvider),
       );
     });
 
@@ -111,14 +113,17 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     required SupabaseClient client,
     required AuthRepository authRepository,
     required ChatRepository chatRepository,
+    required ApplicationRepository applicationRepository,
   }) : _client = client,
        _authRepository = authRepository,
        _chatRepository = chatRepository,
+       _applicationRepository = applicationRepository,
        super(const ApplicationsState());
 
   final SupabaseClient _client;
   final AuthRepository _authRepository;
   final ChatRepository _chatRepository;
+  final ApplicationRepository _applicationRepository;
 
   Future<void> loadBrandApplications({required String campaignId}) async {
     final brandId = _authRepository.currentUser?.id;
@@ -170,14 +175,24 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
       final items = rows.map(_applicationFromMap).toList();
       final hydrated = await _hydrateApplications(items);
       final withChats = await _attachChatIds(hydrated);
+      final hiddenCampaignIds = _applicationRepository
+          .getLocallyWithdrawnCampaignIds();
+      final visibleMine = withChats.where((item) {
+        if (!hiddenCampaignIds.contains(item.campaignId)) return true;
+        if (!item.isPending) {
+          _applicationRepository.clearLocalWithdrawal(item.campaignId);
+          return true;
+        }
+        return false;
+      }).toList();
 
       state = state.copyWith(
         isLoadingMine: false,
-        myApplications: withChats,
+        myApplications: visibleMine,
         clearError: true,
       );
       _log(
-        'my_applications.fetch.success creatorId=$creatorId count=${withChats.length}',
+        'my_applications.fetch.success creatorId=$creatorId count=${visibleMine.length}',
       );
     } catch (error) {
       _log('my_applications.fetch.error creatorId=$creatorId error=$error');
@@ -332,6 +347,7 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
       if (deleteError != null && updateError != null) {
         throw StateError('Annullamento non riuscito: $updateError');
       }
+      _applicationRepository.markCampaignLocallyWithdrawn(item.campaignId);
       await _decrementCampaignApplicantsCount(campaignId: item.campaignId);
       _removeApplicationLocally(item.id);
 

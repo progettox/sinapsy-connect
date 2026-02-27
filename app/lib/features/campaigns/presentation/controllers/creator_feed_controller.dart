@@ -64,9 +64,22 @@ class CreatorFeedController extends StateNotifier<CreatorFeedState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final campaigns = await _campaignRepository.getActiveCampaigns();
+      final activeApplications = await _applicationRepository
+          .getMyPendingOrAcceptedCampaignStatuses();
+      final locallyWithdrawnCampaignIds = _applicationRepository
+          .getLocallyWithdrawnCampaignIds();
+      final visibleCampaigns = campaigns.where((campaign) {
+        final status = activeApplications[campaign.id];
+        if (status == null) return true;
+        if (status == 'accepted') return false;
+        if (status == 'pending') {
+          return locallyWithdrawnCampaignIds.contains(campaign.id);
+        }
+        return true;
+      }).toList();
       state = state.copyWith(
         isLoading: false,
-        campaigns: campaigns,
+        campaigns: visibleCampaigns,
         clearError: true,
       );
     } catch (error) {

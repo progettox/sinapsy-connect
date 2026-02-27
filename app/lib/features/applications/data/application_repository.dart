@@ -22,8 +22,52 @@ class ApplicationRepository {
 
   final SupabaseClient _client;
   final AuthRepository _authRepository;
+  final Set<String> _locallyWithdrawnCampaignIds = <String>{};
+
+  Set<String> getLocallyWithdrawnCampaignIds() {
+    return Set<String>.from(_locallyWithdrawnCampaignIds);
+  }
+
+  void markCampaignLocallyWithdrawn(String campaignId) {
+    final id = campaignId.trim();
+    if (id.isEmpty) return;
+    _locallyWithdrawnCampaignIds.add(id);
+  }
+
+  void clearLocalWithdrawal(String campaignId) {
+    final id = campaignId.trim();
+    if (id.isEmpty) return;
+    _locallyWithdrawnCampaignIds.remove(id);
+  }
+
+  Future<Map<String, String>> getMyPendingOrAcceptedCampaignStatuses() async {
+    final creatorId = _authRepository.currentUser?.id;
+    if (creatorId == null) {
+      throw StateError('Sessione utente non valida.');
+    }
+
+    try {
+      final rows = await _client
+          .from('applications')
+          .select('campaign_id,status')
+          .eq('applicant_id', creatorId)
+          .inFilter('status', const ['pending', 'accepted']);
+      return _campaignStatusesFromRows(rows);
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+
+      final rows = await _client
+          .from('applications')
+          .select('campaign_id,campaignId,status')
+          .eq('creator_id', creatorId)
+          .inFilter('status', const ['pending', 'accepted']);
+      return _campaignStatusesFromRows(rows);
+    }
+  }
 
   Future<void> applyToCampaign(CampaignModel campaign) async {
+    clearLocalWithdrawal(campaign.id);
+
     final creatorId = _authRepository.currentUser?.id;
     if (creatorId == null) {
       throw StateError('Sessione utente non valida.');
@@ -186,6 +230,24 @@ class ApplicationRepository {
   List<Map<String, dynamic>> _toMaps(dynamic raw) {
     final rows = raw is List ? raw : const <dynamic>[];
     return rows.whereType<Object>().map(_toMap).toList();
+  }
+
+  Map<String, String> _campaignStatusesFromRows(dynamic raw) {
+    final statuses = <String, String>{};
+    for (final row in _toMaps(raw)) {
+      final id = _string(row['campaign_id'] ?? row['campaignId']);
+      final status = _status(row['status']);
+      if (id == null || status.isEmpty) continue;
+
+      final current = statuses[id];
+      if (current == 'accepted') continue;
+      if (status == 'accepted') {
+        statuses[id] = 'accepted';
+        continue;
+      }
+      statuses[id] = status;
+    }
+    return statuses;
   }
 
   Map<String, dynamic> _toMap(Object row) {
