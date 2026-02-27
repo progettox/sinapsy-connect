@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/sinapsy_confirm_dialog.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../chats/presentation/pages/chat_page.dart';
 import '../controllers/applications_controller.dart';
@@ -33,28 +34,16 @@ class _MyApplicationsPageState extends ConsumerState<MyApplicationsPage> {
   }
 
   Future<void> _withdraw(ApplicationItem item) async {
-    final confirm = await showDialog<bool>(
+    final confirm = await showSinapsyConfirmDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Abbandonare candidatura?'),
-          content: const Text(
-            'Questa candidatura verra rimossa e non sara piu visibile al brand.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Annulla'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Conferma'),
-            ),
-          ],
-        );
-      },
+      title: 'Abbandonare candidatura?',
+      message:
+          'Questa candidatura verra rimossa e non sara piu visibile al brand.',
+      confirmLabel: 'Conferma',
+      destructive: true,
+      icon: Icons.warning_amber_rounded,
     );
-    if (confirm != true || !mounted) return;
+    if (!confirm || !mounted) return;
 
     final ok = await ref
         .read(applicationsControllerProvider.notifier)

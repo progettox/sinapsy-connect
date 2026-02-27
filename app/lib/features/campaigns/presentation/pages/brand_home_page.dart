@@ -10,6 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/app_router.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
+import '../../../../core/widgets/sinapsy_confirm_dialog.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../applications/presentation/pages/brand_applications_page.dart';
 import '../../../home/data/user_search_repository.dart';
@@ -1488,42 +1489,74 @@ class _TimelineMenuButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return PopupMenuButton<_MatchingTimeline>(
-      tooltip: 'Cambia timeline',
-      initialValue: selectedTimeline,
-      onSelected: onTimelineChanged,
-      itemBuilder: (context) => _MatchingTimeline.values
-          .map(
-            (timeline) => PopupMenuItem<_MatchingTimeline>(
-              value: timeline,
-              child: Text(timeline.label),
+    return Theme(
+      data: theme.copyWith(
+        highlightColor: Colors.transparent,
+        splashColor: const Color(0xFF8EC8FF).withValues(alpha: 0.1),
+        popupMenuTheme: theme.popupMenuTheme.copyWith(
+          color: const Color(0xF0162233),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: const Color(0xFF9FC8F8).withValues(alpha: 0.22),
             ),
-          )
-          .toList(growable: false),
-      child: Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primary.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: theme.colorScheme.primary.withValues(alpha: 0.45),
+          ),
+          textStyle: theme.textTheme.bodyMedium?.copyWith(
+            color: const Color(0xFFEAF3FF),
+            fontWeight: FontWeight.w600,
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.schedule_rounded, size: 13),
-            const SizedBox(width: 5),
-            Text(
-              selectedTimeline.shortLabel,
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w700,
+      ),
+      child: PopupMenuButton<_MatchingTimeline>(
+        tooltip: 'Cambia timeline',
+        onSelected: onTimelineChanged,
+        offset: const Offset(0, 8),
+        position: PopupMenuPosition.under,
+        itemBuilder: (context) => _MatchingTimeline.values
+            .map(
+              (timeline) => PopupMenuItem<_MatchingTimeline>(
+                value: timeline,
+                height: 42,
+                child: Text(
+                  timeline.label,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: timeline == selectedTimeline
+                        ? const Color(0xFFB7D8FF)
+                        : const Color(0xFFEAF3FF),
+                    fontWeight: timeline == selectedTimeline
+                        ? FontWeight.w700
+                        : FontWeight.w600,
+                  ),
+                ),
               ),
+            )
+            .toList(growable: false),
+        child: Container(
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: theme.colorScheme.primary.withValues(alpha: 0.45),
             ),
-            const SizedBox(width: 2),
-            const Icon(Icons.keyboard_arrow_down_rounded, size: 14),
-          ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.schedule_rounded, size: 13),
+              const SizedBox(width: 5),
+              Text(
+                selectedTimeline.shortLabel,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 2),
+              const Icon(Icons.keyboard_arrow_down_rounded, size: 14),
+            ],
+          ),
         ),
       ),
     );
@@ -1718,30 +1751,18 @@ class _ActiveCampaignsPageState extends ConsumerState<_ActiveCampaignsPage> {
   }
 
   Future<void> _confirmRemoveCampaign(CampaignModel campaign) async {
-    final shouldRemove = await showDialog<bool>(
+    final shouldRemove = await showSinapsyConfirmDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Eliminare campagna?'),
-          content: Text(
-            'Stai per eliminare "${campaign.title}".\n'
-            'La campagna non sara piu visibile nell\'app.\n'
-            'Vuoi continuare?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Annulla'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Elimina'),
-            ),
-          ],
-        );
-      },
+      title: 'Eliminare campagna?',
+      message:
+          'Stai per eliminare "${campaign.title}".\n'
+          'La campagna non sara piu visibile nell\'app.\n'
+          'Vuoi continuare?',
+      confirmLabel: 'Elimina',
+      destructive: true,
+      icon: Icons.delete_outline_rounded,
     );
-    if (shouldRemove != true || !mounted) return;
+    if (!shouldRemove || !mounted) return;
 
     final ok = await ref
         .read(brandCampaignsControllerProvider.notifier)
@@ -1996,30 +2017,18 @@ class _MatchedCampaignsPageState extends ConsumerState<_MatchedCampaignsPage> {
   }
 
   Future<void> _confirmRemoveCampaign(CampaignModel campaign) async {
-    final shouldRemove = await showDialog<bool>(
+    final shouldRemove = await showSinapsyConfirmDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Eliminare campagna?'),
-          content: Text(
-            'Stai per eliminare "${campaign.title}".\n'
-            'Anche se gia in match, non sara piu visibile nell\'app.\n'
-            'Vuoi continuare?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Annulla'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Elimina'),
-            ),
-          ],
-        );
-      },
+      title: 'Eliminare campagna?',
+      message:
+          'Stai per eliminare "${campaign.title}".\n'
+          'Anche se gia in match, non sara piu visibile nell\'app.\n'
+          'Vuoi continuare?',
+      confirmLabel: 'Elimina',
+      destructive: true,
+      icon: Icons.delete_outline_rounded,
     );
-    if (shouldRemove != true || !mounted) return;
+    if (!shouldRemove || !mounted) return;
 
     final ok = await ref
         .read(brandCampaignsControllerProvider.notifier)

@@ -1,10 +1,13 @@
+import 'dart:ui';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/storage/storage_service.dart';
+import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../auth/data/auth_repository.dart';
 import '../controllers/create_campaign_controller.dart';
@@ -196,191 +199,273 @@ class _CreateCampaignPageState extends ConsumerState<CreateCampaignPage> {
     });
 
     final isBusy = state.isSubmitting || _isUploadingCover;
+    final theme = Theme.of(context);
+    final pageTheme = theme.copyWith(
+      textTheme: GoogleFonts.plusJakartaSansTextTheme(theme.textTheme),
+      primaryTextTheme: GoogleFonts.plusJakartaSansTextTheme(
+        theme.primaryTextTheme,
+      ),
+      colorScheme: theme.colorScheme.copyWith(
+        primary: const Color(0xFF8EC8FF),
+        onPrimary: const Color(0xFF07111C),
+        onSurface: const Color(0xFFEAF3FF),
+        surface: const Color(0xFF0F1827),
+      ),
+      scaffoldBackgroundColor: Colors.transparent,
+      canvasColor: Colors.transparent,
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0x2A121D2C),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        labelStyle: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.84),
+        ),
+        floatingLabelStyle: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.primary.withValues(alpha: 0.9),
+          fontWeight: FontWeight.w600,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(
+            color: const Color(0xFF9FC8F8).withValues(alpha: 0.24),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(
+            color: const Color(0xFF9FC8F8).withValues(alpha: 0.24),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(
+            color: const Color(0xFF8EC8FF).withValues(alpha: 0.8),
+          ),
+        ),
+      ),
+      dividerColor: const Color(0xFF9FC8F8).withValues(alpha: 0.28),
+    );
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Create Campaign')),
-      body: SafeArea(
-        child: Stepper(
-          currentStep: _currentStep,
-          onStepContinue: isBusy ? null : _onContinue,
-          onStepCancel: isBusy ? null : _onCancel,
-          onStepTapped: isBusy
-              ? null
-              : (index) {
-                  setState(() => _currentStep = index);
-                },
-          controlsBuilder: (context, details) {
-            return Row(
-              children: [
-                ElevatedButton(
-                  onPressed: isBusy ? null : details.onStepContinue,
-                  child: Text(_currentStep == 2 ? 'Salva' : 'Avanti'),
-                ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: isBusy ? null : details.onStepCancel,
-                  child: Text(_currentStep == 0 ? 'Chiudi' : 'Indietro'),
-                ),
-                if (isBusy) ...[
-                  const SizedBox(width: 12),
-                  const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: SinapsyLogoLoader(size: 18),
-                  ),
-                ],
-              ],
-            );
-          },
-          steps: [
-            Step(
-              isActive: _currentStep >= 0,
-              title: const Text('Step 1'),
-              subtitle: const Text('Base info'),
-              content: Form(
-                key: _stepOneFormKey,
+    return Theme(
+      data: pageTheme,
+      child: Scaffold(
+        body: Stack(
+          children: [
+            const Positioned.fill(child: LuxuryNeonBackdrop()),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                 child: Column(
                   children: [
-                    TextFormField(
-                      controller: _titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Titolo *',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: _requiredValidator,
+                    _CreateCampaignHeader(
+                      onBack: () => Navigator.of(context).maybePop(),
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _descriptionController,
-                      minLines: 3,
-                      maxLines: 5,
-                      decoration: const InputDecoration(
-                        labelText: 'Descrizione *',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: _requiredValidator,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _categoryController,
-                      decoration: const InputDecoration(
-                        labelText: 'Categoria *',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: _requiredValidator,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Step(
-              isActive: _currentStep >= 1,
-              title: const Text('Step 2'),
-              subtitle: const Text('Budget & deadline'),
-              content: Form(
-                key: _stepTwoFormKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      controller: _cashOfferController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Cash offer *',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        final raw = (value ?? '').trim();
-                        if (raw.isEmpty) return 'Campo obbligatorio';
-                        final parsed = num.tryParse(raw);
-                        if (parsed == null || parsed <= 0) {
-                          return 'Inserisci un valore > 0';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _productBenefitController,
-                      decoration: const InputDecoration(
-                        labelText: 'Product benefit',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Deadline'),
-                      subtitle: Text(
-                        _deadline == null
-                            ? 'Non impostata'
-                            : '${_deadline!.year}-${_deadline!.month.toString().padLeft(2, '0')}-${_deadline!.day.toString().padLeft(2, '0')}',
-                      ),
-                      trailing: OutlinedButton(
-                        onPressed: isBusy ? null : _pickDeadline,
-                        child: const Text('Seleziona'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Step(
-              isActive: _currentStep >= 2,
-              title: const Text('Step 3'),
-              subtitle: const Text('Requirements & cover'),
-              content: Form(
-                key: _stepThreeFormKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      controller: _minFollowersController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'minFollowers',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _locationRequiredController,
-                      decoration: const InputDecoration(
-                        labelText: 'locationRequired (opzionale)',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _coverFileName == null
-                                ? 'Nessuna cover selezionata'
-                                : 'Cover: $_coverFileName',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                    Expanded(
+                      child: _GlassPanel(
+                        child: Stepper(
+                          currentStep: _currentStep,
+                          onStepContinue: isBusy ? null : _onContinue,
+                          onStepCancel: isBusy ? null : _onCancel,
+                          onStepTapped: isBusy
+                              ? null
+                              : (index) => setState(() => _currentStep = index),
+                          controlsBuilder: (context, details) {
+                            return Row(
+                              children: [
+                                SizedBox(
+                                  height: 36,
+                                  child: OutlinedButton(
+                                    onPressed: isBusy
+                                        ? null
+                                        : details.onStepContinue,
+                                    style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      side: BorderSide(
+                                        color: const Color(
+                                          0xFF9FC8F8,
+                                        ).withValues(alpha: 0.24),
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      _currentStep == 2 ? 'Salva' : 'Avanti',
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                TextButton(
+                                  onPressed: isBusy ? null : details.onStepCancel,
+                                  child: Text(
+                                    _currentStep == 0 ? 'Chiudi' : 'Indietro',
+                                  ),
+                                ),
+                                if (isBusy) ...[
+                                  const SizedBox(width: 12),
+                                  const SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: SinapsyLogoLoader(size: 18),
+                                  ),
+                                ],
+                              ],
+                            );
+                          },
+                          steps: [
+                            Step(
+                              isActive: _currentStep >= 0,
+                              title: const Text('Step 1'),
+                              subtitle: const Text('Base info'),
+                              content: Form(
+                                key: _stepOneFormKey,
+                                child: Column(
+                                  children: [
+                                    TextFormField(
+                                      controller: _titleController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Titolo *',
+                                      ),
+                                      validator: _requiredValidator,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextFormField(
+                                      controller: _descriptionController,
+                                      minLines: 3,
+                                      maxLines: 5,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Descrizione *',
+                                      ),
+                                      validator: _requiredValidator,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextFormField(
+                                      controller: _categoryController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Categoria *',
+                                      ),
+                                      validator: _requiredValidator,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Step(
+                              isActive: _currentStep >= 1,
+                              title: const Text('Step 2'),
+                              subtitle: const Text('Budget & deadline'),
+                              content: Form(
+                                key: _stepTwoFormKey,
+                                child: Column(
+                                  children: [
+                                    TextFormField(
+                                      controller: _cashOfferController,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Cash offer *',
+                                      ),
+                                      validator: (value) {
+                                        final raw = (value ?? '').trim();
+                                        if (raw.isEmpty) return 'Campo obbligatorio';
+                                        final parsed = num.tryParse(raw);
+                                        if (parsed == null || parsed <= 0) {
+                                          return 'Inserisci un valore > 0';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextFormField(
+                                      controller: _productBenefitController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Product benefit',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    ListTile(
+                                      contentPadding: EdgeInsets.zero,
+                                      title: const Text('Deadline'),
+                                      subtitle: Text(
+                                        _deadline == null
+                                            ? 'Non impostata'
+                                            : '${_deadline!.year}-${_deadline!.month.toString().padLeft(2, '0')}-${_deadline!.day.toString().padLeft(2, '0')}',
+                                      ),
+                                      trailing: OutlinedButton(
+                                        onPressed: isBusy ? null : _pickDeadline,
+                                        child: const Text('Seleziona'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Step(
+                              isActive: _currentStep >= 2,
+                              title: const Text('Step 3'),
+                              subtitle: const Text('Requirements & cover'),
+                              content: Form(
+                                key: _stepThreeFormKey,
+                                child: Column(
+                                  children: [
+                                    TextFormField(
+                                      controller: _minFollowersController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        labelText: 'minFollowers',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextFormField(
+                                      controller: _locationRequiredController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'locationRequired (opzionale)',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            _coverFileName == null
+                                                ? 'Nessuna cover selezionata'
+                                                : 'Cover: $_coverFileName',
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        OutlinedButton(
+                                          onPressed: isBusy
+                                              ? null
+                                              : _pickCoverImage,
+                                          child: const Text('Upload cover'),
+                                        ),
+                                      ],
+                                    ),
+                                    if (_coverBytes != null) ...[
+                                      const SizedBox(height: 12),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.memory(
+                                          _coverBytes!,
+                                          height: 140,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        OutlinedButton(
-                          onPressed: isBusy ? null : _pickCoverImage,
-                          child: const Text('Upload cover'),
-                        ),
-                      ],
-                    ),
-                    if (_coverBytes != null) ...[
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.memory(
-                          _coverBytes!,
-                          height: 140,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -394,5 +479,77 @@ class _CreateCampaignPageState extends ConsumerState<CreateCampaignPage> {
   String? _requiredValidator(String? value) {
     if ((value ?? '').trim().isEmpty) return 'Campo obbligatorio';
     return null;
+  }
+}
+
+class _CreateCampaignHeader extends StatelessWidget {
+  const _CreateCampaignHeader({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return _GlassPanel(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: onBack,
+              icon: const Icon(Icons.arrow_back_rounded),
+              splashRadius: 18,
+              tooltip: 'Indietro',
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                'Create Campaign',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassPanel extends StatelessWidget {
+  const _GlassPanel({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFF9FC8F8).withValues(alpha: 0.18),
+            ),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0x8A1B2638), Color(0x7A111A2A), Color(0x63202A3A)],
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x88040A14),
+                blurRadius: 22,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
   }
 }
