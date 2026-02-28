@@ -377,6 +377,38 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     );
   }
 
+  String _brandBioLabel() {
+    switch (_selectedBrandType) {
+      case 'Impresa':
+        return 'Bio dell\'impresa';
+      case 'E-commerce':
+        return 'Bio dell\'e-commerce';
+      case 'Startup':
+        return 'Bio della startup';
+      case 'Agenzia':
+        return 'Bio dell\'agenzia';
+      case 'Brand':
+      default:
+        return 'Bio del brand';
+    }
+  }
+
+  String _brandBioHint() {
+    switch (_selectedBrandType) {
+      case 'Impresa':
+        return 'Racconta in breve la tua impresa, missione e valori.';
+      case 'E-commerce':
+        return 'Racconta in breve il tuo e-commerce, catalogo e posizionamento.';
+      case 'Startup':
+        return 'Racconta in breve la tua startup, visione e proposta di valore.';
+      case 'Agenzia':
+        return 'Racconta in breve la tua agenzia, servizi e approccio.';
+      case 'Brand':
+      default:
+        return 'Racconta in breve il tuo brand, tono e valori.';
+    }
+  }
+
   String _composeProfileBio(
     String bio,
     String links, {
@@ -597,10 +629,9 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                                 controller: _bioController,
                                 minLines: 3,
                                 maxLines: 5,
-                                decoration: const InputDecoration(
-                                  labelText: 'Bio del brand',
-                                  hintText:
-                                      'Racconta in breve il tuo brand, tono e valori.',
+                                decoration: InputDecoration(
+                                  labelText: _brandBioLabel(),
+                                  hintText: _brandBioHint(),
                                   border: OutlineInputBorder(),
                                 ),
                               ),
