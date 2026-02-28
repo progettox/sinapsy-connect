@@ -124,7 +124,7 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     final isBrand = _selectedRole == ProfileRole.brand;
     final isCreator = _selectedRole == ProfileRole.creator;
     if (isBrand && (_selectedBrandType ?? '').trim().isEmpty) {
-      _showSnack('Seleziona la tipologia della tua attivita.');
+      _showSnack('Seleziona la tipologia della tua attività.');
       return;
     }
     if (isCreator && (_selectedCreatorType ?? '').trim().isEmpty) {
@@ -360,7 +360,7 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
   Widget _buildBrandTypeSelector(bool isBusy) {
     return _buildTypeSelector(
       isBusy: isBusy,
-      title: 'Tipologia attivita',
+      title: 'Tipologia attività',
       options: _brandTypeOptions,
       selectedValue: _selectedBrandType,
       onChanged: (value) => setState(() => _selectedBrandType = value),
