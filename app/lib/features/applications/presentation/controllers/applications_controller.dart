@@ -313,7 +313,7 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
         state = state.copyWith(
           isMutating: false,
           clearActiveMutation: true,
-          errorMessage: 'Questa campagna ha gia un creator accettato.',
+          errorMessage: 'Questa campagna ha già un creator accettato.',
         );
         return false;
       }

@@ -886,7 +886,7 @@ class _MiniUserCard extends StatelessWidget {
         ? '?'
         : user.username.substring(0, 1).toUpperCase();
     final location = user.location.trim().isEmpty
-        ? 'Localita non indicata'
+        ? 'Località non indicata'
         : user.location.trim();
 
     return SizedBox(
@@ -2066,7 +2066,7 @@ class _MatchedCampaignsPageState extends ConsumerState<_MatchedCampaignsPage> {
       title: 'Eliminare campagna?',
       message:
           'Stai per eliminare "${campaign.title}".\n'
-          'Anche se gia in match, non sara piu visibile nell\'app.\n'
+          'Anche se già in match, non sarà più visibile nell\'app.\n'
           'Vuoi continuare?',
       confirmLabel: 'Elimina',
       destructive: true,

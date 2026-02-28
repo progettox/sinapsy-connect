@@ -409,6 +409,30 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     }
   }
 
+  String _creatorBioLabel() {
+    switch (_selectedCreatorType) {
+      case 'Fotografo':
+        return 'Bio del fotografo';
+      case 'Videomaker':
+        return 'Bio del videomaker';
+      case 'Creator':
+      default:
+        return 'Bio del creator';
+    }
+  }
+
+  String _creatorBioHint() {
+    switch (_selectedCreatorType) {
+      case 'Fotografo':
+        return 'Presentati: stile fotografico, nicchia e tipo di shooting.';
+      case 'Videomaker':
+        return 'Presentati: stile video, nicchia e formati principali.';
+      case 'Creator':
+      default:
+        return 'Presentati: stile contenuti, nicchia e formato principale.';
+    }
+  }
+
   String _composeProfileBio(
     String bio,
     String links, {
@@ -491,7 +515,7 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     final pageTextTheme = GoogleFonts.plusJakartaSansTextTheme(theme.textTheme);
     final isBusy = state.isLoading || _isUploadingAvatar;
     final isBrandRole = _selectedRole == ProfileRole.brand;
-    final locationLabel = isBrandRole ? 'Sede' : 'Localita';
+    final locationLabel = isBrandRole ? 'Sede' : 'Località';
 
     ref.listen<ProfileUiState>(profileControllerProvider, (previous, next) {
       if (next.errorMessage != null &&
@@ -672,10 +696,9 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                                 controller: _bioController,
                                 minLines: 3,
                                 maxLines: 5,
-                                decoration: const InputDecoration(
-                                  labelText: 'Bio del creator',
-                                  hintText:
-                                      'Presentati: stile contenuti, nicchia e formato principale.',
+                                decoration: InputDecoration(
+                                  labelText: _creatorBioLabel(),
+                                  hintText: _creatorBioHint(),
                                   border: OutlineInputBorder(),
                                 ),
                               ),
@@ -712,7 +735,7 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                           const SizedBox(height: 8),
                           TextButton(
                             onPressed: isBusy ? null : _goToLogin,
-                            child: const Text('Ho gia un account'),
+                            child: const Text('Ho già un account'),
                           ),
                           if (isBusy) ...[
                             const SizedBox(height: 16),

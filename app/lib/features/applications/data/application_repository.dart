@@ -104,7 +104,7 @@ class ApplicationRepository {
       }
       if (status == 'accepted') {
         throw StateError(
-          'Hai gia inviato una candidatura per questo annuncio.',
+          'Hai già inviato una candidatura per questo annuncio.',
         );
       }
       if (status == 'pending') {
