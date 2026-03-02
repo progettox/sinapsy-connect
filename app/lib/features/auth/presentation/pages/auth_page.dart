@@ -7,6 +7,7 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
+import '../../data/auth_repository.dart';
 import '../../domain/models/auth_user_model.dart';
 import '../controllers/auth_controller.dart';
 
@@ -22,14 +23,41 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _emailFocusNode = FocusNode();
+  final _introController = PageController();
 
-  bool _showWelcome = true;
+  final bool _showWelcome = true;
+  bool _showOnboarding = true;
+  int _introIndex = 0;
+  bool _showInlineEmailStep = false;
+  bool _showInlinePasswordStep = false;
+
+  static const List<_IntroSlide> _slides = <_IntroSlide>[
+    _IntroSlide(
+      title: 'Trova le opportunita perfette',
+      description:
+          'Swipe tra campagne esclusive di brand verificati. Match immediato con i progetti giusti per te.',
+      icon: Icons.auto_awesome_outlined,
+    ),
+    _IntroSlide(
+      title: 'Pagamenti protetti',
+      description:
+          'Sistema escrow integrato. I tuoi fondi sono sempre al sicuro fino alla consegna approvata.',
+      icon: Icons.shield_outlined,
+    ),
+    _IntroSlide(
+      title: 'Workflow professionale',
+      description:
+          'Chat, delivery, revisioni e approvazioni. Tutto in un unico spazio di lavoro.',
+      icon: Icons.bolt_rounded,
+    ),
+  ];
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     _emailFocusNode.dispose();
+    _introController.dispose();
     super.dispose();
   }
 
@@ -83,11 +111,100 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   }
 
   void _openEmailAuth() {
-    setState(() => _showWelcome = false);
+    setState(() {
+      _showInlineEmailStep = true;
+      _showInlinePasswordStep = false;
+    });
+    _passwordController.clear();
+  }
+
+  Future<void> _continueInlineEmail() async {
+    final error = _validateEmail(_emailController.text);
+    if (error != null) {
+      _showSnack(error);
+      return;
+    }
+
+    if (!_showInlinePasswordStep) {
+      setState(() => _showInlinePasswordStep = true);
+      return;
+    }
+
+    final passwordError = _validatePassword(_passwordController.text);
+    if (passwordError != null) {
+      _showSnack(passwordError);
+      return;
+    }
+
+    final ok = await ref
+        .read(authControllerProvider.notifier)
+        .signInWithEmail(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+    if (!mounted) return;
+    if (ok) {
+      context.go(AppRouter.splashPath);
+      return;
+    }
+
+    // Fallback robusto: se il login fallisce, proviamo registrazione.
+    final signedUp = await ref
+        .read(authControllerProvider.notifier)
+        .signUpWithEmail(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+    if (!mounted || !signedUp) return;
+
+    // Alcune configurazioni Supabase non ritornano subito sessione su signUp.
+    // In quel caso tentiamo un login immediato per portare il nuovo utente
+    // al flusso ruolo/profilo senza rimanere bloccati sulla welcome.
+    var hasSession = ref.read(authRepositoryProvider).currentSession != null;
+    if (!hasSession) {
+      final signedInAfterSignUp = await ref
+          .read(authControllerProvider.notifier)
+          .signInWithEmail(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
+      if (!mounted) return;
+      if (signedInAfterSignUp) {
+        hasSession = ref.read(authRepositoryProvider).currentSession != null;
+      }
+    }
+
+    if (!mounted) return;
+    if (hasSession) {
+      context.go(AppRouter.completeProfilePath);
+      return;
+    }
+
+    _showSnack(
+      'Account creato. Verifica la mail e poi accedi per completare il profilo.',
+    );
+    context.go(AppRouter.splashPath);
   }
 
   void _socialNotAvailable(String provider) {
     _showSnack('$provider non disponibile al momento');
+  }
+
+  void _skipIntro() {
+    setState(() => _showOnboarding = false);
+  }
+
+  Future<void> _goNextIntroStep() async {
+    final isLast = _introIndex == _slides.length - 1;
+    if (isLast) {
+      _skipIntro();
+      return;
+    }
+    await _introController.animateToPage(
+      _introIndex + 1,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
@@ -112,11 +229,29 @@ class _AuthPageState extends ConsumerState<AuthPage> {
       });
     });
 
+    if (_showOnboarding) {
+      return _AuthOnboardingIntro(
+        controller: _introController,
+        slides: _slides,
+        currentIndex: _introIndex,
+        onIndexChanged: (index) => setState(() => _introIndex = index),
+        onSkip: _skipIntro,
+        onPrimaryTap: _goNextIntroStep,
+      );
+    }
+
     if (_showWelcome) {
       return _AuthWelcomeIntro(
+        showInlineEmailStep: _showInlineEmailStep,
+        showInlinePasswordStep: _showInlinePasswordStep,
+        emailController: _emailController,
+        passwordController: _passwordController,
         onAppleTap: () => _socialNotAvailable('Accesso Apple'),
         onGoogleTap: () => _socialNotAvailable('Accesso Google'),
         onEmailTap: _openEmailAuth,
+        onContinueEmailTap: () {
+          _continueInlineEmail();
+        },
       );
     }
 
@@ -197,21 +332,246 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   }
 }
 
-class _AuthWelcomeIntro extends StatelessWidget {
-  const _AuthWelcomeIntro({
-    required this.onAppleTap,
-    required this.onGoogleTap,
-    required this.onEmailTap,
+class _IntroSlide {
+  const _IntroSlide({
+    required this.title,
+    required this.description,
+    required this.icon,
   });
 
-  final VoidCallback onAppleTap;
-  final VoidCallback onGoogleTap;
-  final VoidCallback onEmailTap;
+  final String title;
+  final String description;
+  final IconData icon;
+}
+
+class _AuthOnboardingIntro extends StatelessWidget {
+  const _AuthOnboardingIntro({
+    required this.controller,
+    required this.slides,
+    required this.currentIndex,
+    required this.onIndexChanged,
+    required this.onSkip,
+    required this.onPrimaryTap,
+  });
+
+  final PageController controller;
+  final List<_IntroSlide> slides;
+  final int currentIndex;
+  final ValueChanged<int> onIndexChanged;
+  final VoidCallback onSkip;
+  final VoidCallback onPrimaryTap;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final isLast = currentIndex == slides.length - 1;
 
+    return Scaffold(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const LuxuryNeonBackdrop(),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: onSkip,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.colorTextSecondary,
+                        textStyle: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: const Text('Salta'),
+                    ),
+                  ),
+                  Expanded(
+                    child: PageView.builder(
+                      controller: controller,
+                      itemCount: slides.length,
+                      onPageChanged: onIndexChanged,
+                      itemBuilder: (context, index) {
+                        final slide = slides[index];
+                        return _IntroSlideBody(slide: slide);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List<Widget>.generate(slides.length, (index) {
+                      final active = index == currentIndex;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: active ? 24 : 7,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: active
+                              ? AppTheme.colorAccentPrimary
+                              : AppTheme.colorStrokeMedium.withValues(
+                                  alpha: 0.9,
+                                ),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 56,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: const LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [Color(0xFF9B4EFF), Color(0xFF9E53EA)],
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x66281A4A),
+                            blurRadius: 18,
+                            offset: Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        onPressed: onPrimaryTap,
+                        style: ElevatedButton.styleFrom(
+                          elevation: 0,
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              isLast ? 'Inizia' : 'Avanti',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              size: 22,
+                              color: Colors.white,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IntroSlideBody extends StatelessWidget {
+  const _IntroSlideBody({required this.slide});
+
+  final _IntroSlide slide;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          const SizedBox(height: 92),
+          Container(
+            width: 88,
+            height: 88,
+            padding: const EdgeInsets.all(1.4),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFA855F7), Color(0xFF06B6D4)],
+              ),
+            ),
+            child: Container(
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFF080A11),
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                slide.icon,
+                size: 34,
+                color: AppTheme.colorAccentPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+          Text(
+            slide.title,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            slide.description,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              height: 1.5,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.colorTextSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuthWelcomeIntro extends StatelessWidget {
+  const _AuthWelcomeIntro({
+    required this.showInlineEmailStep,
+    required this.showInlinePasswordStep,
+    required this.emailController,
+    required this.passwordController,
+    required this.onAppleTap,
+    required this.onGoogleTap,
+    required this.onEmailTap,
+    required this.onContinueEmailTap,
+  });
+
+  final bool showInlineEmailStep;
+  final bool showInlinePasswordStep;
+  final TextEditingController emailController;
+  final TextEditingController passwordController;
+  final VoidCallback onAppleTap;
+  final VoidCallback onGoogleTap;
+  final VoidCallback onEmailTap;
+  final VoidCallback onContinueEmailTap;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
@@ -228,42 +588,12 @@ class _AuthWelcomeIntro extends StatelessWidget {
                     children: [
                       const Spacer(flex: 7),
                       const Center(
-                        // Keep logo size aligned with the email auth screen.
-                        child: SinapsyAnimatedLogo(size: 122),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        'Sinapsy Connect',
-                        textAlign: TextAlign.center,
-                        style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.colorTextSecondary,
-                          letterSpacing: 0.25,
-                        ),
+                        // Keep header identical also when "Email" step is shown.
+                        child: SinapsyAnimatedLogo(size: 108),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'Benvenuto',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: -0.3,
-                          height: 1.08,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Accedi per iniziare',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: AppTheme.colorTextSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 34),
+                      const _OnboardingTopHeader(),
+                      const SizedBox(height: 30),
                       _WelcomePrimaryButton(
                         label: 'Continua con Apple',
                         icon: Icons.apple_rounded,
@@ -316,26 +646,119 @@ class _AuthWelcomeIntro extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      TextButton.icon(
-                        onPressed: onEmailTap,
-                        icon: const Icon(
-                          Icons.mail_outline_rounded,
-                          size: 20,
-                          color: AppTheme.colorTextSecondary,
-                        ),
-                        label: Text(
-                          'Continua con Email',
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.colorTextSecondary,
+                      if (showInlineEmailStep) ...[
+                        TextField(
+                          controller: emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: InputDecoration(
+                            hintText: 'Email',
+                            hintStyle: GoogleFonts.inter(
+                              fontSize: 18,
+                              color: AppTheme.colorTextSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            filled: true,
+                            fillColor: AppTheme.colorBgSecondary,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                color: AppTheme.colorStrokeSubtle.withValues(
+                                  alpha: 0.95,
+                                ),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                color: AppTheme.colorStrokeSubtle.withValues(
+                                  alpha: 0.95,
+                                ),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                color: AppTheme.colorAccentPrimary,
+                              ),
+                            ),
                           ),
                         ),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppTheme.colorTextSecondary,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        if (showInlinePasswordStep) ...[
+                          const SizedBox(height: 14),
+                          TextField(
+                            controller: passwordController,
+                            obscureText: true,
+                            decoration: InputDecoration(
+                              hintText: 'Password',
+                              hintStyle: GoogleFonts.inter(
+                                fontSize: 18,
+                                color: AppTheme.colorTextSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              filled: true,
+                              fillColor: AppTheme.colorBgSecondary,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: AppTheme.colorStrokeSubtle.withValues(
+                                    alpha: 0.95,
+                                  ),
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: AppTheme.colorStrokeSubtle.withValues(
+                                    alpha: 0.95,
+                                  ),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: const BorderSide(
+                                  color: AppTheme.colorAccentPrimary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 14),
+                        _WelcomePrimaryButton(
+                          label: 'Continua',
+                          icon: Icons.chevron_right_rounded,
+                          onTap: onContinueEmailTap,
+                          iconTrailing: true,
                         ),
-                      ),
+                      ] else ...[
+                        TextButton.icon(
+                          onPressed: onEmailTap,
+                          icon: const Icon(
+                            Icons.mail_outline_rounded,
+                            size: 20,
+                            color: AppTheme.colorTextSecondary,
+                          ),
+                          label: Text(
+                            'Continua con Email',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.colorTextSecondary,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppTheme.colorTextSecondary,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 22),
                       Center(
                         child: Padding(
@@ -388,13 +811,15 @@ class _AuthWelcomeIntro extends StatelessWidget {
 class _WelcomePrimaryButton extends StatelessWidget {
   const _WelcomePrimaryButton({
     required this.label,
-    required this.icon,
     required this.onTap,
+    this.icon,
+    this.iconTrailing = false,
   });
 
   final String label;
-  final IconData icon;
+  final IconData? icon;
   final VoidCallback onTap;
+  final bool iconTrailing;
 
   @override
   Widget build(BuildContext context) {
@@ -414,7 +839,7 @@ class _WelcomePrimaryButton extends StatelessWidget {
           ),
         ],
       ),
-      child: ElevatedButton.icon(
+      child: ElevatedButton(
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
           elevation: 0,
@@ -426,10 +851,25 @@ class _WelcomePrimaryButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        icon: Icon(icon, size: 20),
-        label: Text(
-          label,
-          style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null && !iconTrailing) ...[
+              Icon(icon, size: 20),
+              const SizedBox(width: 8),
+            ],
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (icon != null && iconTrailing) ...[
+              const SizedBox(width: 8),
+              Icon(icon, size: 20),
+            ],
+          ],
         ),
       ),
     );
@@ -512,7 +952,7 @@ class _OnboardingTopHeader extends StatelessWidget {
             maxLines: 1,
             textAlign: TextAlign.center,
             style: GoogleFonts.sora(
-              fontSize: 30,
+              fontSize: 28,
               fontWeight: FontWeight.w700,
               color: const Color(0xFFEAF3FF),
               letterSpacing: -0.15,
@@ -525,7 +965,7 @@ class _OnboardingTopHeader extends StatelessWidget {
             maxLines: 1,
             textAlign: TextAlign.center,
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
               color: const Color(0xFFC9E0FF),
               letterSpacing: 0.74,
