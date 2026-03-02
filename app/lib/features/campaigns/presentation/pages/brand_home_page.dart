@@ -35,18 +35,6 @@ extension _MatchingTimelineX on _MatchingTimeline {
     }
   }
 
-  String get comparisonLabel {
-    switch (this) {
-      case _MatchingTimeline.lastWeek:
-        return 'giorno precedente';
-      case _MatchingTimeline.lastMonth:
-        return 'settimana precedente';
-      case _MatchingTimeline.sixMonths:
-      case _MatchingTimeline.lastYear:
-        return 'mese precedente';
-    }
-  }
-
   String get shortLabel {
     switch (this) {
       case _MatchingTimeline.lastWeek:
@@ -384,9 +372,6 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
     final activeCampaigns = campaigns
         .where((campaign) => campaign.status.toLowerCase() == 'active')
         .length;
-    final matchedCampaigns = campaigns
-        .where((campaign) => campaign.status.toLowerCase() == 'matched')
-        .length;
     final spentBudget = campaigns
         .where((campaign) {
           final status = campaign.status.toLowerCase();
@@ -477,7 +462,6 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
                         _QuickStatsSection(
                           activeCampaigns: activeCampaigns,
                           spentBudget: spentBudget,
-                          matchedCampaigns: matchedCampaigns,
                           matchingTrend: matchingTrend,
                           spentBudgetTrend: spentBudgetTrend,
                           selectedTimeline: _selectedTimeline,
@@ -632,7 +616,6 @@ class _QuickStatsSection extends StatelessWidget {
   const _QuickStatsSection({
     required this.activeCampaigns,
     required this.spentBudget,
-    required this.matchedCampaigns,
     required this.matchingTrend,
     required this.spentBudgetTrend,
     required this.selectedTimeline,
@@ -644,7 +627,6 @@ class _QuickStatsSection extends StatelessWidget {
 
   final int activeCampaigns;
   final num spentBudget;
-  final int matchedCampaigns;
   final List<_TrendPoint> matchingTrend;
   final List<_TrendPoint> spentBudgetTrend;
   final _MatchingTimeline selectedTimeline;
@@ -662,9 +644,7 @@ class _QuickStatsSection extends StatelessWidget {
           SizedBox(
             height: 260,
             child: _TrendCardsCarousel(
-              matchedCampaigns: matchedCampaigns,
               matchingTrendPoints: matchingTrend,
-              spentBudget: spentBudget,
               spentBudgetTrendPoints: spentBudgetTrend,
               selectedTimeline: selectedTimeline,
               onTimelineChanged: onTimelineChanged,
@@ -973,15 +953,6 @@ class _BrandAnalyticsTrendSectionState
   @override
   Widget build(BuildContext context) {
     final campaigns = widget.campaigns;
-    final matchedCampaigns = campaigns
-        .where((campaign) => campaign.status.toLowerCase() == 'matched')
-        .length;
-    final spentBudget = campaigns
-        .where((campaign) {
-          final status = campaign.status.toLowerCase();
-          return status == 'matched' || status == 'completed';
-        })
-        .fold<num>(0, (total, campaign) => total + campaign.budget);
     final matchingTrend = _buildMatchingTrend(campaigns, _selectedTimeline);
     final spentBudgetTrend = _buildSpentBudgetTrend(
       campaigns,
@@ -991,9 +962,7 @@ class _BrandAnalyticsTrendSectionState
     return SizedBox(
       height: 260,
       child: _TrendCardsCarousel(
-        matchedCampaigns: matchedCampaigns,
         matchingTrendPoints: matchingTrend,
-        spentBudget: spentBudget,
         spentBudgetTrendPoints: spentBudgetTrend,
         selectedTimeline: _selectedTimeline,
         onTimelineChanged: (timeline) {
@@ -1293,17 +1262,13 @@ class _StatCard extends StatelessWidget {
 
 class _TrendCardsCarousel extends StatefulWidget {
   const _TrendCardsCarousel({
-    required this.matchedCampaigns,
     required this.matchingTrendPoints,
-    required this.spentBudget,
     required this.spentBudgetTrendPoints,
     required this.selectedTimeline,
     required this.onTimelineChanged,
   });
 
-  final int matchedCampaigns;
   final List<_TrendPoint> matchingTrendPoints;
-  final num spentBudget;
   final List<_TrendPoint> spentBudgetTrendPoints;
   final _MatchingTimeline selectedTimeline;
   final ValueChanged<_MatchingTimeline> onTimelineChanged;
@@ -1376,13 +1341,11 @@ class _TrendCardsCarouselState extends State<_TrendCardsCarousel> {
             onPageChanged: (index) => setState(() => _pageIndex = index),
             children: [
               _MatchingCard(
-                matchedCampaigns: widget.matchedCampaigns,
                 trendPoints: widget.matchingTrendPoints,
                 selectedTimeline: widget.selectedTimeline,
                 onTimelineChanged: widget.onTimelineChanged,
               ),
               _SpentBudgetCard(
-                totalSpentBudget: widget.spentBudget,
                 trendPoints: widget.spentBudgetTrendPoints,
                 selectedTimeline: widget.selectedTimeline,
                 onTimelineChanged: widget.onTimelineChanged,
@@ -1481,13 +1444,11 @@ class _TrendCardsCarouselState extends State<_TrendCardsCarousel> {
 
 class _MatchingCard extends StatelessWidget {
   const _MatchingCard({
-    required this.matchedCampaigns,
     required this.trendPoints,
     required this.selectedTimeline,
     required this.onTimelineChanged,
   });
 
-  final int matchedCampaigns;
   final List<_TrendPoint> trendPoints;
   final _MatchingTimeline selectedTimeline;
   final ValueChanged<_MatchingTimeline> onTimelineChanged;
@@ -1495,67 +1456,36 @@ class _MatchingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final lastMonthValue = trendPoints.isNotEmpty
-        ? trendPoints.last.value.toInt()
-        : 0;
-    final previousMonthValue = trendPoints.length > 1
-        ? trendPoints[trendPoints.length - 2].value.toInt()
-        : 0;
-    final delta = lastMonthValue - previousMonthValue;
-    final deltaLabel = delta == 0
-        ? 'stabile vs ${selectedTimeline.comparisonLabel}'
-        : '${delta > 0 ? '+' : ''}$delta vs ${selectedTimeline.comparisonLabel}';
 
-    return _GlassPanel(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Matching creator',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Matching creator',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                _TimelineMenuButton(
-                  selectedTimeline: selectedTimeline,
-                  onTimelineChanged: onTimelineChanged,
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(
-              '$matchedCampaigns campagne in matching ora',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Ultimo periodo: $lastMonthValue ($deltaLabel)',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
+              _TimelineMenuButton(
+                selectedTimeline: selectedTimeline,
+                onTimelineChanged: onTimelineChanged,
               ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(child: _MatchingChart(points: trendPoints)),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: _LegendChip(
-                color: theme.colorScheme.primary,
-                label: 'Trend match/completed',
-              ),
-            ),
-          ],
-        ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            height: 1,
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
+          ),
+          const SizedBox(height: 10),
+          Expanded(child: _MatchingChart(points: trendPoints)),
+        ],
       ),
     );
   }
@@ -1563,13 +1493,11 @@ class _MatchingCard extends StatelessWidget {
 
 class _SpentBudgetCard extends StatelessWidget {
   const _SpentBudgetCard({
-    required this.totalSpentBudget,
     required this.trendPoints,
     required this.selectedTimeline,
     required this.onTimelineChanged,
   });
 
-  final num totalSpentBudget;
   final List<_TrendPoint> trendPoints;
   final _MatchingTimeline selectedTimeline;
   final ValueChanged<_MatchingTimeline> onTimelineChanged;
@@ -1577,74 +1505,38 @@ class _SpentBudgetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final lastPeriodSpent = trendPoints.isNotEmpty ? trendPoints.last.value : 0;
-    final previousPeriodSpent = trendPoints.length > 1
-        ? trendPoints[trendPoints.length - 2].value
-        : 0;
-    final delta = lastPeriodSpent - previousPeriodSpent;
-    final deltaLabel = delta == 0
-        ? 'stabile vs ${selectedTimeline.comparisonLabel}'
-        : '${delta > 0 ? '+' : '-'}${_formatBudget(delta.abs())} vs ${selectedTimeline.comparisonLabel}';
 
-    return _GlassPanel(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Budget speso',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Budget speso',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                _TimelineMenuButton(
-                  selectedTimeline: selectedTimeline,
-                  onTimelineChanged: onTimelineChanged,
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Totale speso: ${_formatBudget(totalSpentBudget)}',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Ultimo periodo: ${_formatBudget(lastPeriodSpent)} ($deltaLabel)',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
+              _TimelineMenuButton(
+                selectedTimeline: selectedTimeline,
+                onTimelineChanged: onTimelineChanged,
               ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(child: _MatchingChart(points: trendPoints)),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: _LegendChip(
-                color: theme.colorScheme.primary,
-                label: 'Trend budget speso',
-              ),
-            ),
-          ],
-        ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            height: 1,
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
+          ),
+          const SizedBox(height: 10),
+          Expanded(child: _MatchingChart(points: trendPoints)),
+        ],
       ),
     );
-  }
-
-  String _formatBudget(num value) {
-    if (value == value.roundToDouble()) {
-      return 'EUR ${value.toInt()}';
-    }
-    return 'EUR ${value.toStringAsFixed(2)}';
   }
 }
 
@@ -1827,37 +1719,6 @@ class _TimelineMenuButton extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _LegendChip extends StatelessWidget {
-  const _LegendChip({required this.color, required this.label});
-
-  final Color color;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Flexible(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
-        ),
-      ],
     );
   }
 }
