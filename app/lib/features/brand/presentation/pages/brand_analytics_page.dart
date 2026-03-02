@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../campaigns/presentation/controllers/create_campaign_controller.dart';
@@ -111,7 +112,7 @@ class _AnalyticsMetricRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+            color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.9),
           ),
         ),
       ),
@@ -121,14 +122,14 @@ class _AnalyticsMetricRow extends StatelessWidget {
             child: Text(
               label,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.72),
+                color: AppTheme.colorTextSecondary,
               ),
             ),
           ),
           Text(
             value,
             style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.primary,
+              color: AppTheme.colorAccentPrimary,
               fontWeight: FontWeight.w700,
             ),
           ),

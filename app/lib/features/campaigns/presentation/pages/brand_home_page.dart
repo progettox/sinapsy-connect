@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_confirm_dialog.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
@@ -367,7 +368,7 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
     final state = ref.watch(brandCampaignsControllerProvider);
     final homeState = ref.watch(homeControllerProvider);
     final theme = Theme.of(context);
-    final textTheme = GoogleFonts.plusJakartaSansTextTheme(theme.textTheme);
+    final textTheme = GoogleFonts.interTextTheme(theme.textTheme);
     final campaigns = state.campaigns;
     final activeCampaigns = campaigns
         .where((campaign) => campaign.status.toLowerCase() == 'active')
@@ -405,24 +406,22 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
     return Theme(
       data: theme.copyWith(
         textTheme: textTheme,
-        primaryTextTheme: GoogleFonts.plusJakartaSansTextTheme(
-          theme.primaryTextTheme,
-        ),
+        primaryTextTheme: GoogleFonts.interTextTheme(theme.primaryTextTheme),
         scaffoldBackgroundColor: Colors.transparent,
         appBarTheme: theme.appBarTheme.copyWith(
           backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
-          foregroundColor: const Color(0xFFEAF3FF),
+          foregroundColor: AppTheme.colorTextPrimary,
         ),
         cardTheme: CardThemeData(
-          color: const Color(0xC0162030),
+          color: AppTheme.colorBgCard.withValues(alpha: 0.9),
           elevation: 0,
           margin: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(
-              color: const Color(0xFF9FC8F8).withValues(alpha: 0.16),
+              color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.9),
             ),
           ),
         ),
@@ -523,10 +522,10 @@ class _DashboardHeaderPanel extends StatelessWidget {
                     'Dashboard Brand',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.sora(
+                    style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFFEAF3FF),
+                      color: AppTheme.colorTextPrimary,
                       letterSpacing: -0.2,
                     ),
                   ),
@@ -535,10 +534,10 @@ class _DashboardHeaderPanel extends StatelessWidget {
                     'Sinapsy Connect',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.plusJakartaSans(
+                    style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFFEAF3FF).withValues(alpha: 0.72),
+                      color: AppTheme.colorTextSecondary,
                       letterSpacing: 0.2,
                     ),
                   ),
@@ -576,7 +575,6 @@ class _HeaderActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final isEnabled = onPressed != null;
 
     return Tooltip(
@@ -590,22 +588,22 @@ class _HeaderActionButton extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(
+              color: AppTheme.colorAccentPrimary.withValues(
                 alpha: isEnabled ? 0.16 : 0.08,
               ),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
-                color: theme.colorScheme.primary.withValues(
-                  alpha: isEnabled ? 0.44 : 0.2,
+                color: AppTheme.colorAccentPrimary.withValues(
+                  alpha: isEnabled ? 0.5 : 0.2,
                 ),
               ),
             ),
             child: Icon(
               icon,
               size: 18,
-              color: const Color(
-                0xFFEAF3FF,
-              ).withValues(alpha: isEnabled ? 1 : 0.45),
+              color: AppTheme.colorTextPrimary.withValues(
+                alpha: isEnabled ? 1 : 0.45,
+              ),
             ),
           ),
         ),
@@ -688,8 +686,10 @@ class _QuickStatsSection extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              backgroundColor: const Color(0xFF8EC8FF).withValues(alpha: 0.22),
-              foregroundColor: const Color(0xFFEAF3FF),
+              backgroundColor: AppTheme.colorAccentPrimary.withValues(
+                alpha: 0.2,
+              ),
+              foregroundColor: AppTheme.colorTextPrimary,
             ),
             child: const Text(
               'matched',
@@ -1194,11 +1194,11 @@ class _MiniUserCard extends StatelessWidget {
   Color _roleColor(String rawRole) {
     switch (rawRole.trim().toLowerCase()) {
       case 'brand':
-        return const Color(0xFFFFB762);
+        return AppTheme.colorStatusWarning;
       case 'creator':
-        return const Color(0xFF8EC8FF);
+        return AppTheme.colorAccentPrimary;
       default:
-        return const Color(0xFFB6C5D9);
+        return AppTheme.colorTextSecondary;
     }
   }
 }
@@ -1387,7 +1387,7 @@ class _TrendCardsCarouselState extends State<_TrendCardsCarousel> {
                         child: const Icon(
                           Icons.chevron_left_rounded,
                           size: 18,
-                          color: Color(0xFFEAF3FF),
+                          color: AppTheme.colorTextPrimary,
                         ),
                       ),
                     ),
@@ -1429,7 +1429,7 @@ class _TrendCardsCarouselState extends State<_TrendCardsCarousel> {
                         child: const Icon(
                           Icons.chevron_right_rounded,
                           size: 18,
-                          color: Color(0xFFEAF3FF),
+                          color: AppTheme.colorTextPrimary,
                         ),
                       ),
                     ),
@@ -1559,7 +1559,7 @@ class _MatchingChart extends StatelessWidget {
               values: values,
               lineColor: theme.colorScheme.primary,
               gridColor: theme.colorScheme.outline.withValues(alpha: 0.28),
-              dotColor: const Color(0xFFEAF3FF),
+              dotColor: AppTheme.colorTextPrimary,
               fillTopColor: theme.colorScheme.primary.withValues(alpha: 0.35),
               fillBottomColor: theme.colorScheme.primary.withValues(
                 alpha: 0.02,
@@ -1617,18 +1617,22 @@ class _GlassPanel extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF9FC8F8).withValues(alpha: 0.18),
+          color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.95),
         ),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0x8A1B2638), Color(0x7A111A2A), Color(0x63202A3A)],
+          colors: [
+            AppTheme.colorBgSecondary.withValues(alpha: 0.86),
+            AppTheme.colorBgCard.withValues(alpha: 0.92),
+            AppTheme.colorBgElevated.withValues(alpha: 0.82),
+          ],
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x88040A14),
-            blurRadius: 22,
-            offset: Offset(0, 12),
+            color: Color(0x5A000000),
+            blurRadius: 16,
+            offset: Offset(0, 8),
           ),
         ],
       ),
@@ -1665,18 +1669,18 @@ class _TimelineMenuButton extends StatelessWidget {
     return Theme(
       data: theme.copyWith(
         highlightColor: Colors.transparent,
-        splashColor: const Color(0xFF8EC8FF).withValues(alpha: 0.1),
+        splashColor: AppTheme.colorAccentPrimary.withValues(alpha: 0.1),
         popupMenuTheme: theme.popupMenuTheme.copyWith(
-          color: const Color(0xF0162233),
+          color: AppTheme.colorBgElevated.withValues(alpha: 0.96),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(
-              color: const Color(0xFF9FC8F8).withValues(alpha: 0.22),
+              color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.95),
             ),
           ),
           textStyle: theme.textTheme.bodyMedium?.copyWith(
-            color: const Color(0xFFEAF3FF),
+            color: AppTheme.colorTextPrimary,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -1695,8 +1699,8 @@ class _TimelineMenuButton extends StatelessWidget {
                   timeline.label,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: timeline == selectedTimeline
-                        ? const Color(0xFFB7D8FF)
-                        : const Color(0xFFEAF3FF),
+                        ? AppTheme.colorAccentPrimary
+                        : AppTheme.colorTextPrimary,
                     fontWeight: timeline == selectedTimeline
                         ? FontWeight.w700
                         : FontWeight.w600,
@@ -1872,19 +1876,28 @@ class _SubPageTopBarBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
+    return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xF20B1322), Color(0xC40A1321), Color(0x9E0A1220)],
+          colors: [
+            AppTheme.colorBgPrimary,
+            AppTheme.colorBgPrimary,
+            AppTheme.colorBgPrimary.withValues(alpha: 0.94),
+          ],
         ),
-        border: Border(bottom: BorderSide(color: Color(0x309FC8F8), width: 1)),
+        border: Border(
+          bottom: BorderSide(
+            color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.95),
+            width: 1,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Color(0x66040A14),
-            blurRadius: 16,
-            offset: Offset(0, 8),
+            color: Color(0x4A000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -1959,7 +1972,7 @@ class _ActiveCampaignsPageState extends ConsumerState<ActiveCampaignsPage> {
           elevation: 0,
           shadowColor: Colors.transparent,
           scrolledUnderElevation: 0,
-          foregroundColor: const Color(0xFFEAF3FF),
+          foregroundColor: AppTheme.colorTextPrimary,
           systemOverlayStyle: SystemUiOverlayStyle.light.copyWith(
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.light,
@@ -1973,7 +1986,7 @@ class _ActiveCampaignsPageState extends ConsumerState<ActiveCampaignsPage> {
           flexibleSpace: const _SubPageTopBarBackground(),
           title: Text(
             'Campagne attive',
-            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700),
           ),
         ),
         body: Stack(
@@ -2142,10 +2155,10 @@ class _ActiveCampaignTile extends StatelessWidget {
                     icon: const Icon(Icons.people_outline),
                     label: const Text('Applications'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(
-                        0xFF8EC8FF,
-                      ).withValues(alpha: 0.22),
-                      foregroundColor: const Color(0xFFEAF3FF),
+                      backgroundColor: AppTheme.colorAccentPrimary.withValues(
+                        alpha: 0.2,
+                      ),
+                      foregroundColor: AppTheme.colorTextPrimary,
                     ),
                   ),
                 ),
@@ -2244,7 +2257,7 @@ class _MatchedCampaignsPageState extends ConsumerState<MatchedCampaignsPage> {
           elevation: 0,
           shadowColor: Colors.transparent,
           scrolledUnderElevation: 0,
-          foregroundColor: const Color(0xFFEAF3FF),
+          foregroundColor: AppTheme.colorTextPrimary,
           systemOverlayStyle: SystemUiOverlayStyle.light.copyWith(
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.light,
@@ -2258,7 +2271,7 @@ class _MatchedCampaignsPageState extends ConsumerState<MatchedCampaignsPage> {
           flexibleSpace: const _SubPageTopBarBackground(),
           title: Text(
             'Campagne matched',
-            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700),
           ),
         ),
         body: Stack(
@@ -2427,10 +2440,10 @@ class _MatchedCampaignTile extends StatelessWidget {
                     icon: const Icon(Icons.people_outline),
                     label: const Text('Applications'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(
-                        0xFF8EC8FF,
-                      ).withValues(alpha: 0.22),
-                      foregroundColor: const Color(0xFFEAF3FF),
+                      backgroundColor: AppTheme.colorAccentPrimary.withValues(
+                        alpha: 0.2,
+                      ),
+                      foregroundColor: AppTheme.colorTextPrimary,
                     ),
                   ),
                 ),

@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../data/brand_creator_feed_repository.dart';
@@ -155,10 +156,14 @@ class _BrandDiscoverCreatorsPageState
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xA5101018),
+                        color: AppTheme.colorBgSecondary.withValues(
+                          alpha: 0.86,
+                        ),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.1),
+                          color: AppTheme.colorStrokeSubtle.withValues(
+                            alpha: 0.92,
+                          ),
                         ),
                       ),
                       child: Column(
@@ -347,13 +352,13 @@ class _RoleChip extends StatelessWidget {
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
         color: selected
-            ? theme.colorScheme.primary.withValues(alpha: 0.22)
-            : Colors.white.withValues(alpha: 0.06),
+            ? AppTheme.colorAccentPrimary.withValues(alpha: 0.18)
+            : AppTheme.colorBgElevated.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: selected
-              ? theme.colorScheme.primary.withValues(alpha: 0.42)
-              : Colors.white.withValues(alpha: 0.1),
+              ? AppTheme.colorAccentPrimary.withValues(alpha: 0.55)
+              : AppTheme.colorStrokeSubtle.withValues(alpha: 0.95),
         ),
       ),
       child: InkWell(
@@ -367,8 +372,8 @@ class _RoleChip extends StatelessWidget {
             style: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: selected
-                  ? const Color(0xFFEFF0FF)
-                  : theme.colorScheme.onSurface.withValues(alpha: 0.72),
+                  ? AppTheme.colorTextPrimary
+                  : AppTheme.colorTextSecondary,
             ),
           ),
         ),
@@ -402,9 +407,11 @@ class _CreatorFeedCardTile extends StatelessWidget {
         sigma: 8,
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xB0111119),
+            color: AppTheme.colorBgCard.withValues(alpha: 0.9),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            border: Border.all(
+              color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.9),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -439,7 +446,7 @@ class _CreatorFeedCardTile extends StatelessWidget {
                         child: Text(
                           card.role.trim().isEmpty ? 'Creator' : card.role,
                           style: const TextStyle(
-                            color: Color(0xFFEFF2FF),
+                            color: AppTheme.colorTextPrimary,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -488,9 +495,7 @@ class _CreatorFeedCardTile extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withValues(
-                                alpha: 0.72,
-                              ),
+                              color: AppTheme.colorTextSecondary,
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -551,11 +556,19 @@ class _HeroPlaceholder extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1A2235), Color(0xFF141A29), Color(0xFF1E2535)],
+          colors: [
+            AppTheme.colorBgSecondary,
+            AppTheme.colorBgCard,
+            AppTheme.colorBgElevated,
+          ],
         ),
       ),
       child: const Center(
-        child: Icon(Icons.image_outlined, size: 34, color: Color(0x99EAF3FF)),
+        child: Icon(
+          Icons.image_outlined,
+          size: 34,
+          color: AppTheme.colorTextSecondary,
+        ),
       ),
     );
   }
@@ -591,11 +604,11 @@ class _PortfolioThumbs extends StatelessWidget {
                 fit: BoxFit.cover,
                 filterQuality: FilterQuality.low,
                 errorBuilder: (_, _, _) => Container(
-                  color: const Color(0xFF1B2232),
+                  color: AppTheme.colorBgSecondary,
                   child: const Icon(
                     Icons.broken_image_outlined,
                     size: 18,
-                    color: Color(0x88EAF3FF),
+                    color: AppTheme.colorTextSecondary,
                   ),
                 ),
               ),
@@ -663,7 +676,9 @@ class _SavedButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.32),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+            border: Border.all(
+              color: AppTheme.colorStrokeMedium.withValues(alpha: 0.9),
+            ),
           ),
           child: isSaving
               ? const Padding(
@@ -676,8 +691,8 @@ class _SavedButton extends StatelessWidget {
                       : Icons.bookmark_border_rounded,
                   size: 19,
                   color: isSaved
-                      ? const Color(0xFF8EC8FF)
-                      : const Color(0xFFEAF3FF),
+                      ? AppTheme.colorAccentPrimary
+                      : AppTheme.colorTextPrimary,
                 ),
         ),
       ),
@@ -697,9 +712,11 @@ class _InfoPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: AppTheme.colorBgElevated.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(
+          color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.95),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

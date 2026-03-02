@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../campaigns/presentation/pages/brand_home_page.dart';
 
@@ -102,14 +103,16 @@ class _ProjectStubTile extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xD0141822), Color(0xC911141D)],
+              colors: [AppTheme.colorBgSecondary, AppTheme.colorBgCard],
             ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            border: Border.all(
+              color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.92),
+            ),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x66000000),
-                blurRadius: 16,
-                offset: Offset(0, 8),
+                blurRadius: 14,
+                offset: Offset(0, 6),
               ),
             ],
           ),
@@ -119,13 +122,13 @@ class _ProjectStubTile extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.18),
+                  color: AppTheme.colorAccentPrimary.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.34),
+                    color: AppTheme.colorAccentPrimary.withValues(alpha: 0.42),
                   ),
                 ),
-                child: Icon(icon, size: 22, color: theme.colorScheme.primary),
+                child: Icon(icon, size: 22, color: AppTheme.colorAccentPrimary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -133,14 +136,14 @@ class _ProjectStubTile extends StatelessWidget {
                   title,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.95),
+                    color: AppTheme.colorTextPrimary,
                   ),
                 ),
               ),
               Icon(
                 Icons.chevron_right_rounded,
                 size: 20,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                color: AppTheme.colorTextTertiary,
               ),
             ],
           ),

@@ -31,15 +31,20 @@ class PremiumBrandBottomNav extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xC0101018), Color(0xB00B0B0F)],
+          colors: [
+            Color(0xD9222229), // elevated surface
+            Color(0xBF18181F), // secondary surface
+          ],
         ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(
+          color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.85),
+        ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: const [
           BoxShadow(
             color: Color(0x66000000),
-            blurRadius: 24,
-            offset: Offset(0, 10),
+            blurRadius: 18,
+            offset: Offset(0, 8),
           ),
         ],
       ),
@@ -151,7 +156,7 @@ class _ProfileNavItem extends StatelessWidget {
               ),
               child: CircleAvatar(
                 radius: 15,
-                backgroundColor: const Color(0xFF1A1A22),
+                backgroundColor: AppTheme.colorBgCard,
                 backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
                 child: hasAvatar
                     ? null
@@ -160,7 +165,7 @@ class _ProfileNavItem extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFFEDEDF8),
+                          color: AppTheme.colorTextPrimary,
                         ),
                       ),
               ),
@@ -201,7 +206,7 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final baseColor = Theme.of(context).colorScheme.onSurface;
     final contentColor = active
-        ? const Color(0xFFF3F3F9)
+        ? AppTheme.colorTextPrimary
         : baseColor.withValues(alpha: 0.6);
 
     return InkWell(
