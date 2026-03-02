@@ -481,6 +481,7 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
                           matchingTrend: matchingTrend,
                           spentBudgetTrend: spentBudgetTrend,
                           selectedTimeline: _selectedTimeline,
+                          showTrendChart: false,
                           onOpenActive: _openActiveCampaigns,
                           onOpenMatched: _openMatchedCampaigns,
                           onTimelineChanged: (timeline) {
@@ -528,45 +529,31 @@ class _DashboardHeaderPanel extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SinapsyLogoLoader(size: 34),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    height: 40,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Sinapsy',
-                            maxLines: 1,
-                            style: GoogleFonts.sora(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFFEAF3FF),
-                              letterSpacing: -0.2,
-                              height: 1,
-                            ),
-                          ),
-                          Transform.translate(
-                            offset: const Offset(46, -0.4),
-                            child: Text(
-                              'Connect',
-                              maxLines: 1,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFFC9E0FF),
-                                letterSpacing: 0.84,
-                                height: 1,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                  Text(
+                    'Dashboard Brand',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.sora(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFEAF3FF),
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Sinapsy Connect',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFEAF3FF).withValues(alpha: 0.72),
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ],
@@ -630,9 +617,9 @@ class _HeaderActionButton extends StatelessWidget {
             child: Icon(
               icon,
               size: 18,
-              color: const Color(0xFFEAF3FF).withValues(
-                alpha: isEnabled ? 1 : 0.45,
-              ),
+              color: const Color(
+                0xFFEAF3FF,
+              ).withValues(alpha: isEnabled ? 1 : 0.45),
             ),
           ),
         ),
@@ -649,6 +636,7 @@ class _QuickStatsSection extends StatelessWidget {
     required this.matchingTrend,
     required this.spentBudgetTrend,
     required this.selectedTimeline,
+    this.showTrendChart = true,
     required this.onOpenActive,
     required this.onOpenMatched,
     required this.onTimelineChanged,
@@ -660,6 +648,7 @@ class _QuickStatsSection extends StatelessWidget {
   final List<_TrendPoint> matchingTrend;
   final List<_TrendPoint> spentBudgetTrend;
   final _MatchingTimeline selectedTimeline;
+  final bool showTrendChart;
   final VoidCallback onOpenActive;
   final VoidCallback onOpenMatched;
   final ValueChanged<_MatchingTimeline> onTimelineChanged;
@@ -669,6 +658,20 @@ class _QuickStatsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (showTrendChart) ...[
+          SizedBox(
+            height: 260,
+            child: _TrendCardsCarousel(
+              matchedCampaigns: matchedCampaigns,
+              matchingTrendPoints: matchingTrend,
+              spentBudget: spentBudget,
+              spentBudgetTrendPoints: spentBudgetTrend,
+              selectedTimeline: selectedTimeline,
+              onTimelineChanged: onTimelineChanged,
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         SizedBox(
           height: 124,
           child: Row(
@@ -691,18 +694,6 @@ class _QuickStatsSection extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 260,
-          child: _TrendCardsCarousel(
-            matchedCampaigns: matchedCampaigns,
-            matchingTrendPoints: matchingTrend,
-            spentBudget: spentBudget,
-            spentBudgetTrendPoints: spentBudgetTrend,
-            selectedTimeline: selectedTimeline,
-            onTimelineChanged: onTimelineChanged,
           ),
         ),
         const SizedBox(height: 12),
@@ -733,6 +724,283 @@ class _QuickStatsSection extends StatelessWidget {
       return 'EUR ${value.toInt()}';
     }
     return 'EUR ${value.toStringAsFixed(2)}';
+  }
+}
+
+class BrandAnalyticsTrendSection extends StatefulWidget {
+  const BrandAnalyticsTrendSection({required this.campaigns, super.key});
+
+  final List<CampaignModel> campaigns;
+
+  @override
+  State<BrandAnalyticsTrendSection> createState() =>
+      _BrandAnalyticsTrendSectionState();
+}
+
+class _BrandAnalyticsTrendSectionState
+    extends State<BrandAnalyticsTrendSection> {
+  _MatchingTimeline _selectedTimeline = _MatchingTimeline.sixMonths;
+
+  List<_TrendPoint> _buildMatchingTrend(
+    List<CampaignModel> campaigns,
+    _MatchingTimeline timeline,
+  ) {
+    switch (timeline) {
+      case _MatchingTimeline.lastWeek:
+        return _buildDailyTrend(campaigns, days: 7);
+      case _MatchingTimeline.lastMonth:
+        return _buildWeeklyTrend(campaigns, weeks: 4);
+      case _MatchingTimeline.sixMonths:
+        return _buildMonthlyTrend(campaigns, months: 6);
+      case _MatchingTimeline.lastYear:
+        return _buildMonthlyTrend(campaigns, months: 12);
+    }
+  }
+
+  List<_TrendPoint> _buildSpentBudgetTrend(
+    List<CampaignModel> campaigns,
+    _MatchingTimeline timeline,
+  ) {
+    switch (timeline) {
+      case _MatchingTimeline.lastWeek:
+        return _buildDailyBudgetTrend(campaigns, days: 7);
+      case _MatchingTimeline.lastMonth:
+        return _buildWeeklyBudgetTrend(campaigns, weeks: 4);
+      case _MatchingTimeline.sixMonths:
+        return _buildMonthlyBudgetTrend(campaigns, months: 6);
+      case _MatchingTimeline.lastYear:
+        return _buildMonthlyBudgetTrend(campaigns, months: 12);
+    }
+  }
+
+  List<_TrendPoint> _buildDailyTrend(
+    List<CampaignModel> campaigns, {
+    required int days,
+  }) {
+    final today = DateTime.now();
+    final dayAnchors = List<DateTime>.generate(
+      days,
+      (index) =>
+          DateTime(today.year, today.month, today.day - (days - 1 - index)),
+    );
+
+    return dayAnchors
+        .map((dayStart) {
+          final dayEnd = dayStart.add(const Duration(days: 1));
+          return _TrendPoint(
+            label: _weekdayLabel(dayStart),
+            value: _countMatchesInRange(campaigns, dayStart, dayEnd).toDouble(),
+          );
+        })
+        .toList(growable: false);
+  }
+
+  List<_TrendPoint> _buildWeeklyTrend(
+    List<CampaignModel> campaigns, {
+    required int weeks,
+  }) {
+    final now = DateTime.now();
+    final endBoundary = DateTime(now.year, now.month, now.day + 1);
+
+    return List<_TrendPoint>.generate(weeks, (index) {
+      final offset = weeks - 1 - index;
+      final intervalEnd = endBoundary.subtract(Duration(days: offset * 7));
+      final intervalStart = intervalEnd.subtract(const Duration(days: 7));
+      return _TrendPoint(
+        label: _dayMonthLabel(intervalStart),
+        value: _countMatchesInRange(
+          campaigns,
+          intervalStart,
+          intervalEnd,
+        ).toDouble(),
+      );
+    });
+  }
+
+  List<_TrendPoint> _buildDailyBudgetTrend(
+    List<CampaignModel> campaigns, {
+    required int days,
+  }) {
+    final today = DateTime.now();
+    final dayAnchors = List<DateTime>.generate(
+      days,
+      (index) =>
+          DateTime(today.year, today.month, today.day - (days - 1 - index)),
+    );
+
+    return dayAnchors
+        .map((dayStart) {
+          final dayEnd = dayStart.add(const Duration(days: 1));
+          return _TrendPoint(
+            label: _weekdayLabel(dayStart),
+            value: _sumSpentBudgetInRange(campaigns, dayStart, dayEnd),
+          );
+        })
+        .toList(growable: false);
+  }
+
+  List<_TrendPoint> _buildWeeklyBudgetTrend(
+    List<CampaignModel> campaigns, {
+    required int weeks,
+  }) {
+    final now = DateTime.now();
+    final endBoundary = DateTime(now.year, now.month, now.day + 1);
+
+    return List<_TrendPoint>.generate(weeks, (index) {
+      final offset = weeks - 1 - index;
+      final intervalEnd = endBoundary.subtract(Duration(days: offset * 7));
+      final intervalStart = intervalEnd.subtract(const Duration(days: 7));
+      return _TrendPoint(
+        label: _dayMonthLabel(intervalStart),
+        value: _sumSpentBudgetInRange(campaigns, intervalStart, intervalEnd),
+      );
+    });
+  }
+
+  List<_TrendPoint> _buildMonthlyTrend(
+    List<CampaignModel> campaigns, {
+    required int months,
+  }) {
+    final now = DateTime.now();
+    final monthAnchors = List<DateTime>.generate(
+      months,
+      (index) => DateTime(now.year, now.month - (months - 1 - index), 1),
+    );
+
+    return monthAnchors
+        .map((monthStart) {
+          final monthEnd = DateTime(monthStart.year, monthStart.month + 1, 1);
+          return _TrendPoint(
+            label: _monthLabel(monthStart),
+            value: _countMatchesInRange(
+              campaigns,
+              monthStart,
+              monthEnd,
+            ).toDouble(),
+          );
+        })
+        .toList(growable: false);
+  }
+
+  List<_TrendPoint> _buildMonthlyBudgetTrend(
+    List<CampaignModel> campaigns, {
+    required int months,
+  }) {
+    final now = DateTime.now();
+    final monthAnchors = List<DateTime>.generate(
+      months,
+      (index) => DateTime(now.year, now.month - (months - 1 - index), 1),
+    );
+
+    return monthAnchors
+        .map((monthStart) {
+          final monthEnd = DateTime(monthStart.year, monthStart.month + 1, 1);
+          return _TrendPoint(
+            label: _monthLabel(monthStart),
+            value: _sumSpentBudgetInRange(campaigns, monthStart, monthEnd),
+          );
+        })
+        .toList(growable: false);
+  }
+
+  int _countMatchesInRange(
+    List<CampaignModel> campaigns,
+    DateTime start,
+    DateTime end,
+  ) {
+    return campaigns.where((campaign) {
+      final createdAt = campaign.createdAt;
+      if (createdAt == null) return false;
+      final status = campaign.status.toLowerCase();
+      if (status != 'matched' && status != 'completed') return false;
+      return !createdAt.isBefore(start) && createdAt.isBefore(end);
+    }).length;
+  }
+
+  double _sumSpentBudgetInRange(
+    List<CampaignModel> campaigns,
+    DateTime start,
+    DateTime end,
+  ) {
+    return campaigns
+        .where((campaign) {
+          final createdAt = campaign.createdAt;
+          if (createdAt == null) return false;
+          final status = campaign.status.toLowerCase();
+          if (status != 'matched' && status != 'completed') return false;
+          return !createdAt.isBefore(start) && createdAt.isBefore(end);
+        })
+        .fold<double>(0, (sum, campaign) => sum + campaign.budget.toDouble());
+  }
+
+  String _weekdayLabel(DateTime date) {
+    const shortWeekdays = <String>[
+      'Lun',
+      'Mar',
+      'Mer',
+      'Gio',
+      'Ven',
+      'Sab',
+      'Dom',
+    ];
+    return shortWeekdays[date.weekday - 1];
+  }
+
+  String _monthLabel(DateTime date) {
+    const shortMonths = <String>[
+      'Gen',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mag',
+      'Giu',
+      'Lug',
+      'Ago',
+      'Set',
+      'Ott',
+      'Nov',
+      'Dic',
+    ];
+    return shortMonths[date.month - 1];
+  }
+
+  String _dayMonthLabel(DateTime date) {
+    final dd = date.day.toString().padLeft(2, '0');
+    final mm = date.month.toString().padLeft(2, '0');
+    return '$dd/$mm';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final campaigns = widget.campaigns;
+    final matchedCampaigns = campaigns
+        .where((campaign) => campaign.status.toLowerCase() == 'matched')
+        .length;
+    final spentBudget = campaigns
+        .where((campaign) {
+          final status = campaign.status.toLowerCase();
+          return status == 'matched' || status == 'completed';
+        })
+        .fold<num>(0, (total, campaign) => total + campaign.budget);
+    final matchingTrend = _buildMatchingTrend(campaigns, _selectedTimeline);
+    final spentBudgetTrend = _buildSpentBudgetTrend(
+      campaigns,
+      _selectedTimeline,
+    );
+
+    return SizedBox(
+      height: 260,
+      child: _TrendCardsCarousel(
+        matchedCampaigns: matchedCampaigns,
+        matchingTrendPoints: matchingTrend,
+        spentBudget: spentBudget,
+        spentBudgetTrendPoints: spentBudgetTrend,
+        selectedTimeline: _selectedTimeline,
+        onTimelineChanged: (timeline) {
+          setState(() => _selectedTimeline = timeline);
+        },
+      ),
+    );
   }
 }
 
@@ -1737,9 +2005,7 @@ class _SubPageTopBarBackground extends StatelessWidget {
           end: Alignment.bottomCenter,
           colors: [Color(0xF20B1322), Color(0xC40A1321), Color(0x9E0A1220)],
         ),
-        border: Border(
-          bottom: BorderSide(color: Color(0x309FC8F8), width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0x309FC8F8), width: 1)),
         boxShadow: [
           BoxShadow(
             color: Color(0x66040A14),

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
 import 'core/router/app_router.dart';
+import 'core/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,21 +22,13 @@ class SinapsyConnectApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final darkTheme = ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: Colors.blue,
-        brightness: Brightness.dark,
-      ),
-    );
-
     return MaterialApp.router(
       title: 'Sinapsy Connect',
       debugShowCheckedModeBanner: false,
       routerConfig: ref.watch(goRouterProvider),
       themeMode: ThemeMode.dark,
-      theme: ThemeData(colorSchemeSeed: Colors.blue, useMaterial3: true),
-      darkTheme: darkTheme,
+      theme: AppTheme.dark(),
+      darkTheme: AppTheme.dark(),
     );
   }
 }
