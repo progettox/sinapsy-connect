@@ -32,9 +32,24 @@ class _SinapsyAnimatedLogoState extends State<SinapsyAnimatedLogo>
       builder: (context, child) {
         return CustomPaint(
           size: Size.square(widget.size),
-          painter: _AtomLogoPainter(progress: _controller.value),
+          painter: AtomLogoPainter(progress: _controller.value),
         );
       },
+    );
+  }
+}
+
+/// Static Sinapsy atom logo for places where motion is not desired.
+class SinapsyStaticLogo extends StatelessWidget {
+  const SinapsyStaticLogo({super.key, required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: Size.square(size),
+      painter: const AtomLogoPainter(progress: 0),
     );
   }
 }
@@ -54,8 +69,8 @@ class SinapsyLogoLoader extends StatelessWidget {
   }
 }
 
-class _AtomLogoPainter extends CustomPainter {
-  const _AtomLogoPainter({required this.progress});
+class AtomLogoPainter extends CustomPainter {
+  const AtomLogoPainter({required this.progress});
 
   final double progress;
 
@@ -179,7 +194,7 @@ class _AtomLogoPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _AtomLogoPainter oldDelegate) {
+  bool shouldRepaint(covariant AtomLogoPainter oldDelegate) {
     return oldDelegate.progress != progress;
   }
 }

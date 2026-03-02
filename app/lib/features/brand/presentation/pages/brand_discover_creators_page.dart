@@ -137,6 +137,8 @@ class _BrandDiscoverCreatorsPageState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       body: Stack(
         children: [
@@ -145,26 +147,38 @@ class _BrandDiscoverCreatorsPageState
           ),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   _AdaptiveGlass(
-                    borderRadius: BorderRadius.circular(16),
-                    sigma: 10,
+                    borderRadius: BorderRadius.circular(24),
+                    sigma: 8,
                     child: Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
                       decoration: BoxDecoration(
-                        color: AppTheme.colorBgSecondary.withValues(
-                          alpha: 0.86,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppTheme.colorBgSecondary.withValues(alpha: 0.95),
+                            AppTheme.colorBgCard.withValues(alpha: 0.92),
+                          ],
                         ),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(24),
                         border: Border.all(
                           color: AppTheme.colorStrokeSubtle.withValues(
                             alpha: 0.92,
                           ),
                         ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x48000000),
+                            blurRadius: 20,
+                            offset: Offset(0, 8),
+                          ),
+                        ],
                       ),
                       child: Column(
                         children: [
@@ -247,15 +261,44 @@ class _BrandDiscoverCreatorsPageState
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 12),
                           TextField(
                             controller: _queryController,
                             decoration: InputDecoration(
                               isDense: true,
-                              prefixIcon: const Icon(Icons.search_rounded),
+                              prefixIcon: Icon(
+                                Icons.search_rounded,
+                                color: AppTheme.colorTextSecondary,
+                              ),
                               hintText: 'Filtro manuale username/localita',
+                              hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                                color: AppTheme.colorTextSecondary,
+                              ),
+                              filled: true,
+                              fillColor: AppTheme.colorBgPrimary,
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: AppTheme.colorStrokeSubtle.withValues(
+                                    alpha: 0.95,
+                                  ),
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: AppTheme.colorStrokeSubtle.withValues(
+                                    alpha: 0.95,
+                                  ),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: AppTheme.colorAccentPrimary.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -306,16 +349,32 @@ class _BrandDiscoverCreatorsPageState
 
                         return ListView.separated(
                           cacheExtent: 320,
+                          padding: const EdgeInsets.only(top: 16, bottom: 110),
                           itemCount: cards.length,
                           separatorBuilder: (_, _) =>
-                              const SizedBox(height: 14),
+                              const SizedBox(height: 18),
                           itemBuilder: (context, index) {
                             final card = cards[index];
-                            return RepaintBoundary(
-                              child: _CreatorFeedCardTile(
-                                card: card,
-                                isSaving: _savingIds.contains(card.id),
-                                onToggleSaved: () => _toggleSaved(card),
+                            final duration = 220 + (index * 22).clamp(0, 220);
+                            return TweenAnimationBuilder<double>(
+                              duration: Duration(milliseconds: duration),
+                              curve: Curves.easeOutCubic,
+                              tween: Tween<double>(begin: 0, end: 1),
+                              builder: (context, value, child) {
+                                return Opacity(
+                                  opacity: value,
+                                  child: Transform.translate(
+                                    offset: Offset(0, (1 - value) * 16),
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: RepaintBoundary(
+                                child: _CreatorFeedCardTile(
+                                  card: card,
+                                  isSaving: _savingIds.contains(card.id),
+                                  onToggleSaved: () => _toggleSaved(card),
+                                ),
                               ),
                             );
                           },
@@ -351,13 +410,23 @@ class _RoleChip extends StatelessWidget {
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
+        gradient: selected
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppTheme.colorAccentPrimary.withValues(alpha: 0.32),
+                  AppTheme.colorAccentSecondary.withValues(alpha: 0.24),
+                ],
+              )
+            : null,
         color: selected
-            ? AppTheme.colorAccentPrimary.withValues(alpha: 0.18)
+            ? null
             : AppTheme.colorBgElevated.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: selected
-              ? AppTheme.colorAccentPrimary.withValues(alpha: 0.55)
+              ? AppTheme.colorAccentPrimary.withValues(alpha: 0.65)
               : AppTheme.colorStrokeSubtle.withValues(alpha: 0.95),
         ),
       ),
@@ -365,7 +434,7 @@ class _RoleChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           child: Text(
             label,
             textAlign: TextAlign.center,
@@ -400,127 +469,147 @@ class _CreatorFeedCardTile extends StatelessWidget {
         ? 'Localita non indicata'
         : card.location.trim();
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: _AdaptiveGlass(
-        borderRadius: BorderRadius.circular(18),
-        sigma: 8,
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppTheme.colorBgCard.withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.9),
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.colorBgCard,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.92),
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x59000000),
+            blurRadius: 24,
+            offset: Offset(0, 10),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _HeroImage(imageUrl: card.heroImageUrl),
-                    Positioned(
-                      top: 10,
-                      right: 10,
-                      child: _SavedButton(
-                        isSaved: card.isSaved,
-                        isSaving: isSaving,
-                        onTap: onToggleSaved,
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AspectRatio(
+              aspectRatio: 4 / 3,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _HeroImage(imageUrl: card.heroImageUrl),
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0x00000000), Color(0xB3000000)],
                       ),
                     ),
-                    Positioned(
-                      left: 10,
-                      bottom: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                  ),
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: _SavedButton(
+                      isSaved: card.isSaved,
+                      isSaving: isSaving,
+                      onTap: onToggleSaved,
+                    ),
+                  ),
+                  Positioned(
+                    left: 12,
+                    bottom: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.42),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.15),
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          card.role.trim().isEmpty ? 'Creator' : card.role,
-                          style: const TextStyle(
-                            color: AppTheme.colorTextPrimary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      ),
+                      child: Text(
+                        card.role.trim().isEmpty ? 'Creator' : card.role,
+                        style: const TextStyle(
+                          color: AppTheme.colorTextPrimary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              _PortfolioThumbs(urls: card.portfolioThumbUrls),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundImage: card.avatarUrl?.isNotEmpty == true
-                          ? NetworkImage(card.avatarUrl!)
-                          : null,
-                      child: card.avatarUrl?.isNotEmpty == true
-                          ? null
-                          : Text(
-                              card.username.isEmpty
-                                  ? '?'
-                                  : card.username[0].toUpperCase(),
-                            ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            card.displayName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleMedium?.copyWith(
+            ),
+            const SizedBox(height: 10),
+            _PortfolioThumbs(urls: card.portfolioThumbUrls),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: AppTheme.colorBgElevated,
+                    backgroundImage: card.avatarUrl?.isNotEmpty == true
+                        ? NetworkImage(card.avatarUrl!)
+                        : null,
+                    child: card.avatarUrl?.isNotEmpty == true
+                        ? null
+                        : Text(
+                            card.username.isEmpty
+                                ? '?'
+                                : card.username[0].toUpperCase(),
+                            style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '@${card.username}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: AppTheme.colorTextSecondary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          card.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.colorTextPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '@${card.username}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.colorTextSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _InfoPill(
+                              icon: Icons.category_rounded,
+                              text: card.category,
                             ),
-                          ),
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 6,
-                            children: [
-                              _InfoPill(
-                                icon: Icons.category_rounded,
-                                text: card.category,
-                              ),
-                              _InfoPill(
-                                icon: Icons.location_on_outlined,
-                                text: location,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                            _InfoPill(
+                              icon: Icons.location_on_outlined,
+                              text: location,
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -587,18 +676,18 @@ class _PortfolioThumbs extends StatelessWidget {
     }
 
     return SizedBox(
-      height: 58,
+      height: 70,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         scrollDirection: Axis.horizontal,
         itemCount: thumbs.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           return ClipRRect(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             child: SizedBox(
-              width: 58,
-              height: 58,
+              width: 70,
+              height: 70,
               child: Image.network(
                 thumbs[index],
                 fit: BoxFit.cover,
@@ -671,8 +760,8 @@ class _SavedButton extends StatelessWidget {
         onTap: isSaving ? null : onTap,
         borderRadius: BorderRadius.circular(999),
         child: Ink(
-          width: 34,
-          height: 34,
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.32),
             borderRadius: BorderRadius.circular(999),
@@ -689,7 +778,7 @@ class _SavedButton extends StatelessWidget {
                   isSaved
                       ? Icons.bookmark_rounded
                       : Icons.bookmark_border_rounded,
-                  size: 19,
+                  size: 21,
                   color: isSaved
                       ? AppTheme.colorAccentPrimary
                       : AppTheme.colorTextPrimary,
@@ -723,7 +812,7 @@ class _InfoPill extends StatelessWidget {
         children: [
           Icon(
             icon,
-            size: 13,
+            size: 14,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.78),
           ),
           const SizedBox(width: 5),

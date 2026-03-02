@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../domain/models/auth_user_model.dart';
@@ -21,6 +22,8 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _emailFocusNode = FocusNode();
+
+  bool _showWelcome = true;
 
   @override
   void dispose() {
@@ -79,6 +82,14 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     );
   }
 
+  void _openEmailAuth() {
+    setState(() => _showWelcome = false);
+  }
+
+  void _socialNotAvailable(String provider) {
+    _showSnack('$provider non disponibile al momento');
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(authControllerProvider);
@@ -100,6 +111,14 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         context.go(AppRouter.splashPath);
       });
     });
+
+    if (_showWelcome) {
+      return _AuthWelcomeIntro(
+        onAppleTap: () => _socialNotAvailable('Accesso Apple'),
+        onGoogleTap: () => _socialNotAvailable('Accesso Google'),
+        onEmailTap: _openEmailAuth,
+      );
+    }
 
     return Scaffold(
       body: Stack(
@@ -170,6 +189,286 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                   ),
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuthWelcomeIntro extends StatelessWidget {
+  const _AuthWelcomeIntro({
+    required this.onAppleTap,
+    required this.onGoogleTap,
+    required this.onEmailTap,
+  });
+
+  final VoidCallback onAppleTap;
+  final VoidCallback onGoogleTap;
+  final VoidCallback onEmailTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Scaffold(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const LuxuryNeonBackdrop(),
+          SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 390),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Spacer(flex: 7),
+                      const Center(
+                        // Keep logo size aligned with the email auth screen.
+                        child: SinapsyAnimatedLogo(size: 122),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'Sinapsy Connect',
+                        textAlign: TextAlign.center,
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.colorTextSecondary,
+                          letterSpacing: 0.25,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Benvenuto',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          fontSize: 40,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          letterSpacing: -0.3,
+                          height: 1.08,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Accedi per iniziare',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.colorTextSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 34),
+                      _WelcomePrimaryButton(
+                        label: 'Continua con Apple',
+                        icon: Icons.apple_rounded,
+                        onTap: onAppleTap,
+                      ),
+                      const SizedBox(height: 12),
+                      _WelcomeSecondaryButton(
+                        label: 'Continua con Google',
+                        leading: Text(
+                          'G',
+                          style: GoogleFonts.inter(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            height: 1,
+                          ),
+                        ),
+                        onTap: onGoogleTap,
+                      ),
+                      const SizedBox(height: 22),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              height: 1,
+                              color: AppTheme.colorStrokeSubtle.withValues(
+                                alpha: 0.9,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'oppure',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppTheme.colorTextTertiary,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Container(
+                              height: 1,
+                              color: AppTheme.colorStrokeSubtle.withValues(
+                                alpha: 0.9,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton.icon(
+                        onPressed: onEmailTap,
+                        icon: const Icon(
+                          Icons.mail_outline_rounded,
+                          size: 20,
+                          color: AppTheme.colorTextSecondary,
+                        ),
+                        label: Text(
+                          'Continua con Email',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.colorTextSecondary,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.colorTextSecondary,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppTheme.colorTextTertiary,
+                                height: 1.35,
+                              ),
+                              children: [
+                                const TextSpan(
+                                  text: 'Continuando accetti i nostri ',
+                                ),
+                                TextSpan(
+                                  text: 'Termini di Servizio',
+                                  style: const TextStyle(
+                                    color: AppTheme.colorAccentPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const TextSpan(text: ' e la '),
+                                TextSpan(
+                                  text: 'Privacy Policy',
+                                  style: const TextStyle(
+                                    color: AppTheme.colorAccentPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Spacer(flex: 8),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WelcomePrimaryButton extends StatelessWidget {
+  const _WelcomePrimaryButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0xFF9B4EFF), Color(0xFF9E53EA)],
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x66281A4A),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          minimumSize: const Size.fromHeight(56),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        icon: Icon(icon, size: 20),
+        label: Text(
+          label,
+          style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+}
+
+class _WelcomeSecondaryButton extends StatelessWidget {
+  const _WelcomeSecondaryButton({
+    required this.label,
+    required this.leading,
+    required this.onTap,
+  });
+
+  final String label;
+  final Widget leading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(56),
+        side: BorderSide(
+          color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.95),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          leading,
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
             ),
           ),
         ],
