@@ -136,145 +136,125 @@ class _BrandDiscoverCreatorsPageState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned.fill(child: LuxuryNeonBackdrop()),
+          const Positioned.fill(
+            child: RepaintBoundary(child: LuxuryNeonBackdrop()),
+          ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'Scopri Creator',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
                   const SizedBox(height: 4),
-                  Text(
-                    'Feed creator con hero, portfolio e wishlist',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(
-                        alpha: 0.66,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ClipRRect(
+                  _AdaptiveGlass(
                     borderRadius: BorderRadius.circular(16),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xA5101018),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.1),
-                          ),
+                    sigma: 10,
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xA5101018),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.1),
                         ),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _RoleChip(
-                                    label: 'Creator',
-                                    selected:
-                                        _selectedRole ==
-                                        _DiscoverRoleFilter.creator,
-                                    onTap: () {
-                                      if (_selectedRole ==
-                                          _DiscoverRoleFilter.creator) {
-                                        return;
-                                      }
-                                      setState(() {
-                                        _selectedRole =
-                                            _DiscoverRoleFilter.creator;
-                                      });
-                                      _loadCreators();
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _RoleChip(
-                                    label: 'Brand',
-                                    selected:
-                                        _selectedRole ==
-                                        _DiscoverRoleFilter.brand,
-                                    onTap: () {
-                                      if (_selectedRole ==
-                                          _DiscoverRoleFilter.brand) {
-                                        return;
-                                      }
-                                      setState(() {
-                                        _selectedRole =
-                                            _DiscoverRoleFilter.brand;
-                                      });
-                                      _loadCreators();
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _RoleChip(
-                                    label: 'Tutti',
-                                    selected:
-                                        _selectedRole ==
-                                        _DiscoverRoleFilter.all,
-                                    onTap: () {
-                                      if (_selectedRole ==
-                                          _DiscoverRoleFilter.all) {
-                                        return;
-                                      }
-                                      setState(() {
-                                        _selectedRole = _DiscoverRoleFilter.all;
-                                      });
-                                      _loadCreators();
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _RoleChip(
-                                    label: 'Salvati',
-                                    selected:
-                                        _selectedRole ==
-                                        _DiscoverRoleFilter.saved,
-                                    onTap: () {
-                                      if (_selectedRole ==
-                                          _DiscoverRoleFilter.saved) {
-                                        return;
-                                      }
-                                      setState(() {
-                                        _selectedRole =
-                                            _DiscoverRoleFilter.saved;
-                                      });
-                                      _loadCreators();
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            TextField(
-                              controller: _queryController,
-                              decoration: InputDecoration(
-                                isDense: true,
-                                prefixIcon: const Icon(Icons.search_rounded),
-                                hintText: 'Filtro manuale username/localita',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _RoleChip(
+                                  label: 'Creator',
+                                  selected:
+                                      _selectedRole ==
+                                      _DiscoverRoleFilter.creator,
+                                  onTap: () {
+                                    if (_selectedRole ==
+                                        _DiscoverRoleFilter.creator) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _selectedRole =
+                                          _DiscoverRoleFilter.creator;
+                                    });
+                                    _loadCreators();
+                                  },
                                 ),
                               ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _RoleChip(
+                                  label: 'Brand',
+                                  selected:
+                                      _selectedRole ==
+                                      _DiscoverRoleFilter.brand,
+                                  onTap: () {
+                                    if (_selectedRole ==
+                                        _DiscoverRoleFilter.brand) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _selectedRole = _DiscoverRoleFilter.brand;
+                                    });
+                                    _loadCreators();
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _RoleChip(
+                                  label: 'Tutti',
+                                  selected:
+                                      _selectedRole == _DiscoverRoleFilter.all,
+                                  onTap: () {
+                                    if (_selectedRole ==
+                                        _DiscoverRoleFilter.all) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _selectedRole = _DiscoverRoleFilter.all;
+                                    });
+                                    _loadCreators();
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _RoleChip(
+                                  label: 'Salvati',
+                                  selected:
+                                      _selectedRole ==
+                                      _DiscoverRoleFilter.saved,
+                                  onTap: () {
+                                    if (_selectedRole ==
+                                        _DiscoverRoleFilter.saved) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _selectedRole = _DiscoverRoleFilter.saved;
+                                    });
+                                    _loadCreators();
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: _queryController,
+                            decoration: InputDecoration(
+                              isDense: true,
+                              prefixIcon: const Icon(Icons.search_rounded),
+                              hintText: 'Filtro manuale username/localita',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -320,15 +300,18 @@ class _BrandDiscoverCreatorsPageState
                         }
 
                         return ListView.separated(
+                          cacheExtent: 320,
                           itemCount: cards.length,
                           separatorBuilder: (_, _) =>
                               const SizedBox(height: 14),
                           itemBuilder: (context, index) {
                             final card = cards[index];
-                            return _CreatorFeedCardTile(
-                              card: card,
-                              isSaving: _savingIds.contains(card.id),
-                              onToggleSaved: () => _toggleSaved(card),
+                            return RepaintBoundary(
+                              child: _CreatorFeedCardTile(
+                                card: card,
+                                isSaving: _savingIds.contains(card.id),
+                                onToggleSaved: () => _toggleSaved(card),
+                              ),
                             );
                           },
                         );
@@ -414,8 +397,9 @@ class _CreatorFeedCardTile extends StatelessWidget {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+      child: _AdaptiveGlass(
+        borderRadius: BorderRadius.circular(18),
+        sigma: 8,
         child: Container(
           decoration: BoxDecoration(
             color: const Color(0xB0111119),
@@ -549,6 +533,7 @@ class _HeroImage extends StatelessWidget {
       return Image.network(
         imageUrl!,
         fit: BoxFit.cover,
+        filterQuality: FilterQuality.low,
         errorBuilder: (_, _, _) => const _HeroPlaceholder(),
       );
     }
@@ -604,6 +589,7 @@ class _PortfolioThumbs extends StatelessWidget {
               child: Image.network(
                 thumbs[index],
                 fit: BoxFit.cover,
+                filterQuality: FilterQuality.low,
                 errorBuilder: (_, _, _) => Container(
                   color: const Color(0xFF1B2232),
                   child: const Icon(
@@ -616,6 +602,38 @@ class _PortfolioThumbs extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _AdaptiveGlass extends StatelessWidget {
+  const _AdaptiveGlass({
+    required this.borderRadius,
+    required this.child,
+    this.sigma = 10,
+  });
+
+  final BorderRadius borderRadius;
+  final Widget child;
+  final double sigma;
+
+  @override
+  Widget build(BuildContext context) {
+    final platform = Theme.of(context).platform;
+    final useRealBlur =
+        platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
+
+    // Android prefers fake glass (gradient + border) to avoid blur jank.
+    if (!useRealBlur) {
+      return child;
+    }
+
+    return ClipRRect(
+      borderRadius: borderRadius,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+        child: child,
       ),
     );
   }

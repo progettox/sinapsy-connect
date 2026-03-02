@@ -43,7 +43,9 @@ class _BrandAnalyticsPageState extends ConsumerState<BrandAnalyticsPage> {
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned.fill(child: LuxuryNeonBackdrop()),
+          const Positioned.fill(
+            child: RepaintBoundary(child: LuxuryNeonBackdrop()),
+          ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),

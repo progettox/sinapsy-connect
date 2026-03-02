@@ -41,7 +41,9 @@ class BrandProjectsPage extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned.fill(child: LuxuryNeonBackdrop()),
+          const Positioned.fill(
+            child: RepaintBoundary(child: LuxuryNeonBackdrop()),
+          ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),

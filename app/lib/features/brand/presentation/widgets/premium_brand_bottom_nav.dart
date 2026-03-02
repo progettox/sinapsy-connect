@@ -20,74 +20,82 @@ class PremiumBrandBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final platform = Theme.of(context).platform;
+    final useRealBlur =
+        platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
+
+    final navSurface = Container(
+      height: 82,
+      // Glass effect: semi-transparent surface + soft gradient + subtle border.
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xC0101018), Color(0xB00B0B0F)],
+        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _NavItem(
+              icon: Icons.home_rounded,
+              active: currentIndex == 0,
+              onTap: () => onTap(0),
+            ),
+          ),
+          Expanded(
+            child: _NavItem(
+              icon: Icons.people_alt_rounded,
+              active: currentIndex == 1,
+              onTap: () => onTap(1),
+            ),
+          ),
+          Expanded(
+            child: _ProfileNavItem(
+              active: currentIndex == 2,
+              avatarUrl: profileAvatarUrl,
+              profileInitial: profileInitial,
+              onTap: () => onTap(2),
+            ),
+          ),
+          Expanded(
+            child: _NavItem(
+              icon: Icons.near_me_outlined,
+              active: currentIndex == 3,
+              onTap: () => onTap(3),
+            ),
+          ),
+          Expanded(
+            child: _NavItem(
+              icon: Icons.insights_rounded,
+              active: currentIndex == 4,
+              onTap: () => onTap(4),
+            ),
+          ),
+        ],
+      ),
+    );
+
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.fromLTRB(14, 0, 14, 12),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: Container(
-            height: 82,
-            // Glass effect: semi-transparent surface + soft gradient + subtle border.
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xC0101018), Color(0xB00B0B0F)],
-              ),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x66000000),
-                  blurRadius: 24,
-                  offset: Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _NavItem(
-                    icon: Icons.home_rounded,
-                    active: currentIndex == 0,
-                    onTap: () => onTap(0),
-                  ),
-                ),
-                Expanded(
-                  child: _NavItem(
-                    icon: Icons.people_alt_rounded,
-                    active: currentIndex == 1,
-                    onTap: () => onTap(1),
-                  ),
-                ),
-                Expanded(
-                  child: _ProfileNavItem(
-                    active: currentIndex == 2,
-                    avatarUrl: profileAvatarUrl,
-                    profileInitial: profileInitial,
-                    onTap: () => onTap(2),
-                  ),
-                ),
-                Expanded(
-                  child: _NavItem(
-                    icon: Icons.near_me_outlined,
-                    active: currentIndex == 3,
-                    onTap: () => onTap(3),
-                  ),
-                ),
-                Expanded(
-                  child: _NavItem(
-                    icon: Icons.insights_rounded,
-                    active: currentIndex == 4,
-                    onTap: () => onTap(4),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        child: useRealBlur
+            ? BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: navSurface,
+              )
+            : navSurface,
       ),
     );
   }

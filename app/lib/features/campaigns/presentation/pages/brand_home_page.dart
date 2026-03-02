@@ -430,7 +430,9 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
       child: Scaffold(
         body: Stack(
           children: [
-            const Positioned.fill(child: LuxuryNeonBackdrop()),
+            const Positioned.fill(
+              child: RepaintBoundary(child: LuxuryNeonBackdrop()),
+            ),
             SafeArea(
               child: Builder(
                 builder: (context) {
@@ -1607,31 +1609,42 @@ class _GlassPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final platform = Theme.of(context).platform;
+    final useRealBlur =
+        platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
+
+    final panel = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF9FC8F8).withValues(alpha: 0.18),
+        ),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x8A1B2638), Color(0x7A111A2A), Color(0x63202A3A)],
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x88040A14),
+            blurRadius: 22,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: child,
+    );
+
+    if (!useRealBlur) {
+      // Android fallback: keep visual style but avoid expensive per-frame blur.
+      return panel;
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: const Color(0xFF9FC8F8).withValues(alpha: 0.18),
-            ),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0x8A1B2638), Color(0x7A111A2A), Color(0x63202A3A)],
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x88040A14),
-                blurRadius: 22,
-                offset: Offset(0, 12),
-              ),
-            ],
-          ),
-          child: child,
-        ),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: panel,
       ),
     );
   }
@@ -1965,7 +1978,9 @@ class _ActiveCampaignsPageState extends ConsumerState<ActiveCampaignsPage> {
         ),
         body: Stack(
           children: [
-            const Positioned.fill(child: LuxuryNeonBackdrop()),
+            const Positioned.fill(
+              child: RepaintBoundary(child: LuxuryNeonBackdrop()),
+            ),
             SafeArea(
               top: false,
               child: Builder(
@@ -2248,7 +2263,9 @@ class _MatchedCampaignsPageState extends ConsumerState<MatchedCampaignsPage> {
         ),
         body: Stack(
           children: [
-            const Positioned.fill(child: LuxuryNeonBackdrop()),
+            const Positioned.fill(
+              child: RepaintBoundary(child: LuxuryNeonBackdrop()),
+            ),
             SafeArea(
               top: false,
               child: Builder(

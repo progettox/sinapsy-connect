@@ -20,14 +20,7 @@ class _BrandShellState extends ConsumerState<BrandShell> {
   // Nav index follows the 5-tab order: Home, Creator, Profile, Projects, Analytics.
   int _currentNavIndex = 0;
   late final PageController _pageController;
-
-  static const List<Widget> _pages = <Widget>[
-    BrandDashboardPage(),
-    BrandDiscoverCreatorsPage(),
-    ProfilePage(),
-    BrandProjectsPage(),
-    BrandAnalyticsPage(),
-  ];
+  final Map<int, Widget> _pageCache = <int, Widget>{};
 
   @override
   void initState() {
@@ -49,7 +42,7 @@ class _BrandShellState extends ConsumerState<BrandShell> {
     if (index == _currentNavIndex) return;
     _pageController.animateToPage(
       index,
-      duration: const Duration(milliseconds: 280),
+      duration: const Duration(milliseconds: 210),
       curve: Curves.easeOutCubic,
     );
   }
@@ -59,19 +52,52 @@ class _BrandShellState extends ConsumerState<BrandShell> {
     setState(() => _currentNavIndex = index);
   }
 
+  Widget _buildPage(int index) {
+    return _pageCache.putIfAbsent(index, () {
+      switch (index) {
+        case 0:
+          return const RepaintBoundary(child: BrandDashboardPage());
+        case 1:
+          return const RepaintBoundary(child: BrandDiscoverCreatorsPage());
+        case 2:
+          return const RepaintBoundary(child: ProfilePage());
+        case 3:
+          return const RepaintBoundary(child: BrandProjectsPage());
+        case 4:
+        default:
+          return const RepaintBoundary(child: BrandAnalyticsPage());
+      }
+    });
+  }
+
+  bool _isTickingPage(int index) {
+    // Keep animations active only on the current page and immediate neighbor
+    // to reduce frame work during horizontal gestures.
+    return (_currentNavIndex - index).abs() <= 1;
+  }
+
   @override
   Widget build(BuildContext context) {
     final profileState = ref.watch(profileControllerProvider);
     final username = profileState.profile?.username.trim() ?? '';
     final avatar = profileState.profile?.avatarUrl?.trim();
+    final platform = Theme.of(context).platform;
+    final pagePhysics = platform == TargetPlatform.iOS
+        ? const BouncingScrollPhysics(parent: PageScrollPhysics())
+        : const PageScrollPhysics(parent: ClampingScrollPhysics());
 
     return Scaffold(
-      body: PageView(
+      body: PageView.builder(
         controller: _pageController,
+        itemCount: 5,
+        itemBuilder: (context, index) => TickerMode(
+          enabled: _isTickingPage(index),
+          child: _buildPage(index),
+        ),
         onPageChanged: _handlePageChanged,
-        // Smooth iOS-like feel for manual horizontal swipes.
-        physics: const BouncingScrollPhysics(),
-        children: _pages,
+        // Android uses clamping for smoother performance; iOS keeps bounce.
+        physics: pagePhysics,
+        allowImplicitScrolling: false,
       ),
       extendBody: true,
       bottomNavigationBar: PremiumBrandBottomNav(
