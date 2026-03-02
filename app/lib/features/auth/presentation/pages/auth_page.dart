@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/app_router.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
@@ -116,48 +117,55 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                       constraints: BoxConstraints(
                         maxWidth: isWide ? 1080 : 460,
                       ),
-                      child: isWide
-                          ? Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                const Expanded(
-                                  flex: 11,
-                                  child: _HeroLogoBlock(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const _OnboardingTopHeader(),
+                          SizedBox(height: isWide ? 24 : 18),
+                          isWide
+                              ? Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    const Expanded(
+                                      flex: 11,
+                                      child: _HeroLogoBlock(),
+                                    ),
+                                    const SizedBox(width: 24),
+                                    Expanded(
+                                      flex: 9,
+                                      child: _AuthCard(
+                                        formKey: _formKey,
+                                        emailController: _emailController,
+                                        passwordController: _passwordController,
+                                        emailFocusNode: _emailFocusNode,
+                                        isLoading: state.isLoading,
+                                        onSignIn: _signInWithEmail,
+                                        onSignUp: _signUpWithEmail,
+                                        validateEmail: _validateEmail,
+                                        validatePassword: _validatePassword,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  children: [
+                                    const _HeroLogoBlock(compact: true),
+                                    const SizedBox(height: 18),
+                                    _AuthCard(
+                                      formKey: _formKey,
+                                      emailController: _emailController,
+                                      passwordController: _passwordController,
+                                      emailFocusNode: _emailFocusNode,
+                                      isLoading: state.isLoading,
+                                      onSignIn: _signInWithEmail,
+                                      onSignUp: _signUpWithEmail,
+                                      validateEmail: _validateEmail,
+                                      validatePassword: _validatePassword,
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 24),
-                                Expanded(
-                                  flex: 9,
-                                  child: _AuthCard(
-                                    formKey: _formKey,
-                                    emailController: _emailController,
-                                    passwordController: _passwordController,
-                                    emailFocusNode: _emailFocusNode,
-                                    isLoading: state.isLoading,
-                                    onSignIn: _signInWithEmail,
-                                    onSignUp: _signUpWithEmail,
-                                    validateEmail: _validateEmail,
-                                    validatePassword: _validatePassword,
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Column(
-                              children: [
-                                const _HeroLogoBlock(compact: true),
-                                const SizedBox(height: 18),
-                                _AuthCard(
-                                  formKey: _formKey,
-                                  emailController: _emailController,
-                                  passwordController: _passwordController,
-                                  emailFocusNode: _emailFocusNode,
-                                  isLoading: state.isLoading,
-                                  onSignIn: _signInWithEmail,
-                                  onSignUp: _signUpWithEmail,
-                                  validateEmail: _validateEmail,
-                                  validatePassword: _validatePassword,
-                                ),
-                              ],
-                            ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -177,24 +185,52 @@ class _HeroLogoBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textSize = compact ? 12.0 : 14.0;
-    final logoSize = compact ? 108.0 : 148.0;
+    final logoSize = compact ? 122.0 : 164.0;
 
     return Padding(
       padding: EdgeInsets.symmetric(vertical: compact ? 6 : 12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        children: [SinapsyAnimatedLogo(size: logoSize)],
+      ),
+    );
+  }
+}
+
+class _OnboardingTopHeader extends StatelessWidget {
+  const _OnboardingTopHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          SinapsyAnimatedLogo(size: logoSize),
-          SizedBox(height: compact ? 8 : 10),
           Text(
-            'Benvenuti su Sinapsy Connect',
+            'Sinapsy',
+            maxLines: 1,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: textSize,
-              fontWeight: FontWeight.w400,
-              letterSpacing: 0.5,
-              color: const Color(0xFFE7EFFF).withValues(alpha: 0.86),
+            style: GoogleFonts.sora(
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFFEAF3FF),
+              letterSpacing: -0.15,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            'Connect',
+            maxLines: 1,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFFC9E0FF),
+              letterSpacing: 0.74,
+              height: 1,
             ),
           ),
         ],
