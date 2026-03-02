@@ -727,8 +727,6 @@ class BrandAnalyticsTrendSection extends StatefulWidget {
 
 class _BrandAnalyticsTrendSectionState
     extends State<BrandAnalyticsTrendSection> {
-  _MatchingTimeline _selectedTimeline = _MatchingTimeline.sixMonths;
-
   List<_TrendPoint> _buildMatchingTrend(
     List<CampaignModel> campaigns,
     _MatchingTimeline timeline,
@@ -742,22 +740,6 @@ class _BrandAnalyticsTrendSectionState
         return _buildMonthlyTrend(campaigns, months: 6);
       case _MatchingTimeline.lastYear:
         return _buildMonthlyTrend(campaigns, months: 12);
-    }
-  }
-
-  List<_TrendPoint> _buildSpentBudgetTrend(
-    List<CampaignModel> campaigns,
-    _MatchingTimeline timeline,
-  ) {
-    switch (timeline) {
-      case _MatchingTimeline.lastWeek:
-        return _buildDailyBudgetTrend(campaigns, days: 7);
-      case _MatchingTimeline.lastMonth:
-        return _buildWeeklyBudgetTrend(campaigns, weeks: 4);
-      case _MatchingTimeline.sixMonths:
-        return _buildMonthlyBudgetTrend(campaigns, months: 6);
-      case _MatchingTimeline.lastYear:
-        return _buildMonthlyBudgetTrend(campaigns, months: 12);
     }
   }
 
@@ -805,46 +787,6 @@ class _BrandAnalyticsTrendSectionState
     });
   }
 
-  List<_TrendPoint> _buildDailyBudgetTrend(
-    List<CampaignModel> campaigns, {
-    required int days,
-  }) {
-    final today = DateTime.now();
-    final dayAnchors = List<DateTime>.generate(
-      days,
-      (index) =>
-          DateTime(today.year, today.month, today.day - (days - 1 - index)),
-    );
-
-    return dayAnchors
-        .map((dayStart) {
-          final dayEnd = dayStart.add(const Duration(days: 1));
-          return _TrendPoint(
-            label: _weekdayLabel(dayStart),
-            value: _sumSpentBudgetInRange(campaigns, dayStart, dayEnd),
-          );
-        })
-        .toList(growable: false);
-  }
-
-  List<_TrendPoint> _buildWeeklyBudgetTrend(
-    List<CampaignModel> campaigns, {
-    required int weeks,
-  }) {
-    final now = DateTime.now();
-    final endBoundary = DateTime(now.year, now.month, now.day + 1);
-
-    return List<_TrendPoint>.generate(weeks, (index) {
-      final offset = weeks - 1 - index;
-      final intervalEnd = endBoundary.subtract(Duration(days: offset * 7));
-      final intervalStart = intervalEnd.subtract(const Duration(days: 7));
-      return _TrendPoint(
-        label: _dayMonthLabel(intervalStart),
-        value: _sumSpentBudgetInRange(campaigns, intervalStart, intervalEnd),
-      );
-    });
-  }
-
   List<_TrendPoint> _buildMonthlyTrend(
     List<CampaignModel> campaigns, {
     required int months,
@@ -870,27 +812,6 @@ class _BrandAnalyticsTrendSectionState
         .toList(growable: false);
   }
 
-  List<_TrendPoint> _buildMonthlyBudgetTrend(
-    List<CampaignModel> campaigns, {
-    required int months,
-  }) {
-    final now = DateTime.now();
-    final monthAnchors = List<DateTime>.generate(
-      months,
-      (index) => DateTime(now.year, now.month - (months - 1 - index), 1),
-    );
-
-    return monthAnchors
-        .map((monthStart) {
-          final monthEnd = DateTime(monthStart.year, monthStart.month + 1, 1);
-          return _TrendPoint(
-            label: _monthLabel(monthStart),
-            value: _sumSpentBudgetInRange(campaigns, monthStart, monthEnd),
-          );
-        })
-        .toList(growable: false);
-  }
-
   int _countMatchesInRange(
     List<CampaignModel> campaigns,
     DateTime start,
@@ -903,22 +824,6 @@ class _BrandAnalyticsTrendSectionState
       if (status != 'matched' && status != 'completed') return false;
       return !createdAt.isBefore(start) && createdAt.isBefore(end);
     }).length;
-  }
-
-  double _sumSpentBudgetInRange(
-    List<CampaignModel> campaigns,
-    DateTime start,
-    DateTime end,
-  ) {
-    return campaigns
-        .where((campaign) {
-          final createdAt = campaign.createdAt;
-          if (createdAt == null) return false;
-          final status = campaign.status.toLowerCase();
-          if (status != 'matched' && status != 'completed') return false;
-          return !createdAt.isBefore(start) && createdAt.isBefore(end);
-        })
-        .fold<double>(0, (sum, campaign) => sum + campaign.budget.toDouble());
   }
 
   String _weekdayLabel(DateTime date) {
@@ -961,22 +866,26 @@ class _BrandAnalyticsTrendSectionState
   @override
   Widget build(BuildContext context) {
     final campaigns = widget.campaigns;
-    final matchingTrend = _buildMatchingTrend(campaigns, _selectedTimeline);
-    final spentBudgetTrend = _buildSpentBudgetTrend(
+    final monthlyMatches = _buildMatchingTrend(
       campaigns,
-      _selectedTimeline,
+      _MatchingTimeline.lastYear,
     );
+    final totalMatches = monthlyMatches.fold<int>(
+      0,
+      (sum, point) => sum + point.value.round(),
+    );
+    final averageMatches = monthlyMatches.isEmpty
+        ? 0.0
+        : totalMatches / monthlyMatches.length;
+    final peakMatches = monthlyMatches.isEmpty
+        ? 0
+        : monthlyMatches.map((point) => point.value).reduce(math.max).round();
 
-    return SizedBox(
-      height: 260,
-      child: _TrendCardsCarousel(
-        matchingTrendPoints: matchingTrend,
-        spentBudgetTrendPoints: spentBudgetTrend,
-        selectedTimeline: _selectedTimeline,
-        onTimelineChanged: (timeline) {
-          setState(() => _selectedTimeline = timeline);
-        },
-      ),
+    return _MonthlyMatchesOverviewCard(
+      points: monthlyMatches,
+      totalMatches: totalMatches,
+      averageMatchesPerMonth: averageMatches,
+      peakMatches: peakMatches,
     );
   }
 }
@@ -1598,6 +1507,312 @@ class _MatchingChart extends StatelessWidget {
     if (points.length <= 6) return points[index].label;
     if (index.isEven) return points[index].label;
     return '';
+  }
+}
+
+class _MonthlyMatchesOverviewCard extends StatelessWidget {
+  const _MonthlyMatchesOverviewCard({
+    required this.points,
+    required this.totalMatches,
+    required this.averageMatchesPerMonth,
+    required this.peakMatches,
+  });
+
+  final List<_TrendPoint> points;
+  final int totalMatches;
+  final double averageMatchesPerMonth;
+  final int peakMatches;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF6030B3).withValues(alpha: 0.9),
+        ),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF080C24), Color(0xFF11163B), Color(0xFF0A0E2A)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6E31CC).withValues(alpha: 0.24),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'MATCH MENSILI',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: const Color(0xFFE7D4FF),
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1C1A45),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xFF8F56FF).withValues(alpha: 0.56),
+                  ),
+                ),
+                child: Text(
+                  'Peak: $peakMatches',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: const Color(0xFFE8D5FF),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$totalMatches',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              height: 1.0,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Media: ${_formatAverage(averageMatchesPerMonth)} match/mese',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: const Color(0xFFD497FF),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 188,
+            child: _MonthlyMatchesBarsChart(points: points),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatAverage(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toInt().toString();
+    }
+    return value.toStringAsFixed(1);
+  }
+}
+
+class _MonthlyMatchesBarsChart extends StatelessWidget {
+  const _MonthlyMatchesBarsChart({required this.points});
+
+  final List<_TrendPoint> points;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final values = points.map((point) => point.value).toList(growable: false);
+    final peakValue = values.isEmpty ? 0.0 : values.reduce(math.max);
+    final step = _axisStepForPeak(peakValue);
+    final axisMax = step * 4;
+    final axisLabels = List<int>.generate(
+      5,
+      (index) => (axisMax - (step * index)).round(),
+      growable: false,
+    );
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 28,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (final label in axisLabels)
+                Text(
+                  '$label',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: const Color(0xFFA6A1D7),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10.2,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            children: [
+              Expanded(
+                child: CustomPaint(
+                  painter: _MonthlyBarsChartPainter(
+                    values: values,
+                    axisMax: axisMax,
+                    gridColor: const Color(0xFF8A7AC9).withValues(alpha: 0.2),
+                  ),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  for (final point in points)
+                    Expanded(
+                      child: Text(
+                        point.label,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        softWrap: false,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: const Color(0xFFB9B2E8),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10.4,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  double _axisStepForPeak(double peak) {
+    if (peak <= 0) return 1;
+    final targetStep = peak / 4;
+    if (targetStep <= 1) return 1;
+
+    final magnitude = math
+        .pow(10, (math.log(targetStep) / math.ln10).floor())
+        .toDouble();
+    final normalized = targetStep / magnitude;
+
+    if (normalized <= 1) return 1 * magnitude;
+    if (normalized <= 2) return 2 * magnitude;
+    if (normalized <= 5) return 5 * magnitude;
+    return 10 * magnitude;
+  }
+}
+
+class _MonthlyBarsChartPainter extends CustomPainter {
+  const _MonthlyBarsChartPainter({
+    required this.values,
+    required this.axisMax,
+    required this.gridColor,
+  });
+
+  final List<double> values;
+  final double axisMax;
+  final Color gridColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (values.isEmpty || size.width <= 0 || size.height <= 0) return;
+
+    final chartRect = Offset.zero & size;
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+
+    for (var i = 0; i <= 4; i++) {
+      final y = chartRect.bottom - ((chartRect.height / 4) * i);
+      _drawDashedLine(
+        canvas,
+        Offset(chartRect.left, y),
+        Offset(chartRect.right, y),
+        gridPaint,
+      );
+    }
+
+    final slotWidth = chartRect.width / values.length;
+    final barWidth = math.min(22.0, slotWidth * 0.62);
+
+    for (var i = 0; i < values.length; i++) {
+      final value = values[i].clamp(0, axisMax);
+      var barHeight = axisMax <= 0 ? 0.0 : (chartRect.height * value / axisMax);
+      if (value > 0 && barHeight < 2) {
+        barHeight = 2;
+      }
+      if (barHeight <= 0) continue;
+
+      final left =
+          chartRect.left + (slotWidth * i) + ((slotWidth - barWidth) / 2);
+      final rect = Rect.fromLTWH(
+        left,
+        chartRect.bottom - barHeight,
+        barWidth,
+        barHeight,
+      );
+      final rRect = RRect.fromRectAndRadius(rect, const Radius.circular(8));
+
+      final glowPaint = Paint()
+        ..color = const Color(0xFF9F62FF).withValues(alpha: 0.22)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+      canvas.drawRRect(rRect.shift(const Offset(0, 1.5)), glowPaint);
+
+      final barPaint = Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFD3A8FF), Color(0xFFAF69FF), Color(0xFF7A34E7)],
+          stops: [0.0, 0.46, 1.0],
+        ).createShader(rect);
+      canvas.drawRRect(rRect, barPaint);
+
+      final highlightHeight = math.min(8.0, rect.height);
+      final highlightRect = Rect.fromLTWH(
+        rect.left,
+        rect.top,
+        rect.width,
+        highlightHeight,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndCorners(
+          highlightRect,
+          topLeft: const Radius.circular(8),
+          topRight: const Radius.circular(8),
+        ),
+        Paint()..color = Colors.white.withValues(alpha: 0.18),
+      );
+    }
+  }
+
+  void _drawDashedLine(Canvas canvas, Offset start, Offset end, Paint paint) {
+    const dash = 4.0;
+    const gap = 5.0;
+    var x = start.dx;
+    while (x < end.dx) {
+      final nextX = math.min(x + dash, end.dx);
+      canvas.drawLine(Offset(x, start.dy), Offset(nextX, end.dy), paint);
+      x += dash + gap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MonthlyBarsChartPainter oldDelegate) {
+    return oldDelegate.values != values ||
+        oldDelegate.axisMax != axisMax ||
+        oldDelegate.gridColor != gridColor;
   }
 }
 
