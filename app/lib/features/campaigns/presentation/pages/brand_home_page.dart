@@ -90,13 +90,13 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
 
   Future<void> _openActiveCampaigns() async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => const _ActiveCampaignsPage()),
+      MaterialPageRoute<void>(builder: (_) => const ActiveCampaignsPage()),
     );
   }
 
   Future<void> _openMatchedCampaigns() async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => const _MatchedCampaignsPage()),
+      MaterialPageRoute<void>(builder: (_) => const MatchedCampaignsPage()),
     );
   }
 
@@ -1879,15 +1879,15 @@ class _SubPageTopBarBackground extends StatelessWidget {
   }
 }
 
-class _ActiveCampaignsPage extends ConsumerStatefulWidget {
-  const _ActiveCampaignsPage();
+class ActiveCampaignsPage extends ConsumerStatefulWidget {
+  const ActiveCampaignsPage({super.key});
 
   @override
-  ConsumerState<_ActiveCampaignsPage> createState() =>
+  ConsumerState<ActiveCampaignsPage> createState() =>
       _ActiveCampaignsPageState();
 }
 
-class _ActiveCampaignsPageState extends ConsumerState<_ActiveCampaignsPage> {
+class _ActiveCampaignsPageState extends ConsumerState<ActiveCampaignsPage> {
   @override
   void initState() {
     super.initState();
@@ -2162,15 +2162,15 @@ class _ActiveCampaignTile extends StatelessWidget {
   }
 }
 
-class _MatchedCampaignsPage extends ConsumerStatefulWidget {
-  const _MatchedCampaignsPage();
+class MatchedCampaignsPage extends ConsumerStatefulWidget {
+  const MatchedCampaignsPage({super.key});
 
   @override
-  ConsumerState<_MatchedCampaignsPage> createState() =>
+  ConsumerState<MatchedCampaignsPage> createState() =>
       _MatchedCampaignsPageState();
 }
 
-class _MatchedCampaignsPageState extends ConsumerState<_MatchedCampaignsPage> {
+class _MatchedCampaignsPageState extends ConsumerState<MatchedCampaignsPage> {
   @override
   void initState() {
     super.initState();

@@ -72,7 +72,7 @@ class PremiumBrandBottomNav extends StatelessWidget {
                 ),
                 Expanded(
                   child: _NavItem(
-                    icon: Icons.chat_bubble_rounded,
+                    icon: Icons.near_me_outlined,
                     active: currentIndex == 3,
                     onTap: () => onTap(3),
                   ),
