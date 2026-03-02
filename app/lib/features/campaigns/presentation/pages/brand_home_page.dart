@@ -5,17 +5,15 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_confirm_dialog.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../applications/presentation/pages/brand_applications_page.dart';
+import '../../../brand/presentation/pages/brand_notifications_page.dart';
 import '../../../home/data/user_search_repository.dart';
-import '../../../home/presentation/controllers/home_controller.dart';
 import '../../data/campaign_model.dart';
 import '../controllers/create_campaign_controller.dart';
 import 'create_campaign_page.dart';
@@ -101,10 +99,10 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
     );
   }
 
-  Future<void> _logout() async {
-    final ok = await ref.read(homeControllerProvider.notifier).logout();
-    if (!mounted || !ok) return;
-    context.go(AppRouter.authPath);
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const BrandNotificationsPage()),
+    );
   }
 
   Future<void> _loadCommunityUsers() async {
@@ -366,7 +364,6 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(brandCampaignsControllerProvider);
-    final homeState = ref.watch(homeControllerProvider);
     final theme = Theme.of(context);
     final textTheme = GoogleFonts.interTextTheme(theme.textTheme);
     final campaigns = state.campaigns;
@@ -395,14 +392,6 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
         ref.read(brandCampaignsControllerProvider.notifier).clearError();
       }
     });
-    ref.listen<HomeUiState>(homeControllerProvider, (previous, next) {
-      if (next.errorMessage != null &&
-          next.errorMessage != previous?.errorMessage) {
-        _showSnack(next.errorMessage!);
-        ref.read(homeControllerProvider.notifier).clearError();
-      }
-    });
-
     return Theme(
       data: theme.copyWith(
         textTheme: textTheme,
@@ -452,12 +441,9 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
                       children: [
                         _DashboardHeaderPanel(
                           canCreateCampaign:
-                              !state.isLoading &&
-                              !state.isRemoving &&
-                              !homeState.isLoading,
-                          canLogout: !homeState.isLoading,
+                              !state.isLoading && !state.isRemoving,
                           onCreateCampaign: _openCreateCampaign,
-                          onLogout: _logout,
+                          onOpenNotifications: _openNotifications,
                         ),
                         const SizedBox(height: 12),
                         _QuickStatsSection(
@@ -496,80 +482,86 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
 class _DashboardHeaderPanel extends StatelessWidget {
   const _DashboardHeaderPanel({
     required this.canCreateCampaign,
-    required this.canLogout,
     required this.onCreateCampaign,
-    required this.onLogout,
+    required this.onOpenNotifications,
   });
 
   final bool canCreateCampaign;
-  final bool canLogout;
   final VoidCallback onCreateCampaign;
-  final VoidCallback onLogout;
+  final VoidCallback onOpenNotifications;
 
   @override
   Widget build(BuildContext context) {
-    return _GlassPanel(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Dashboard Brand',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.colorTextPrimary,
-                      letterSpacing: -0.2,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+      child: Row(
+        children: [
+          const Spacer(),
+          _NotificationActionButton(onPressed: onOpenNotifications),
+          const SizedBox(width: 10),
+          _CreateCampaignActionButton(
+            tooltip: 'Nuova campagna',
+            onPressed: canCreateCampaign ? onCreateCampaign : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NotificationActionButton extends StatelessWidget {
+  const _NotificationActionButton({this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return Tooltip(
+      message: 'Centro notifiche',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(999),
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  Icons.notifications_none_rounded,
+                  size: 21,
+                  color: Colors.white.withValues(alpha: enabled ? 0.92 : 0.45),
+                ),
+                Positioned(
+                  right: 6.5,
+                  top: 6.0,
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(
+                        0xFFB35AFF,
+                      ).withValues(alpha: enabled ? 1 : 0.5),
+                      border: Border.all(color: const Color(0xFF090A12)),
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'Sinapsy Connect',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.colorTextSecondary,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            _HeaderActionButton(
-              icon: Icons.add_rounded,
-              tooltip: 'Nuova campagna',
-              onPressed: canCreateCampaign ? onCreateCampaign : null,
-            ),
-            const SizedBox(width: 8),
-            _HeaderActionButton(
-              icon: Icons.logout_rounded,
-              tooltip: 'Logout',
-              onPressed: canLogout ? onLogout : null,
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _HeaderActionButton extends StatelessWidget {
-  const _HeaderActionButton({
-    required this.icon,
-    required this.tooltip,
-    this.onPressed,
-  });
+class _CreateCampaignActionButton extends StatelessWidget {
+  const _CreateCampaignActionButton({required this.tooltip, this.onPressed});
 
-  final IconData icon;
   final String tooltip;
   final VoidCallback? onPressed;
 
@@ -588,22 +580,36 @@ class _HeaderActionButton extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: AppTheme.colorAccentPrimary.withValues(
-                alpha: isEnabled ? 0.16 : 0.08,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: isEnabled
+                    ? const [Color(0xFFAA63FF), Color(0xFF934DFF)]
+                    : [
+                        const Color(0xFFAA63FF).withValues(alpha: 0.4),
+                        const Color(0xFF934DFF).withValues(alpha: 0.4),
+                      ],
               ),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
-                color: AppTheme.colorAccentPrimary.withValues(
-                  alpha: isEnabled ? 0.5 : 0.2,
-                ),
+                color: const Color(
+                  0xFFCBA3FF,
+                ).withValues(alpha: isEnabled ? 0.5 : 0.2),
               ),
+              boxShadow: isEnabled
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF9B4EFF).withValues(alpha: 0.34),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
             ),
             child: Icon(
-              icon,
-              size: 18,
-              color: AppTheme.colorTextPrimary.withValues(
-                alpha: isEnabled ? 1 : 0.45,
-              ),
+              Icons.add_rounded,
+              size: 20,
+              color: Colors.white.withValues(alpha: isEnabled ? 0.98 : 0.6),
             ),
           ),
         ),

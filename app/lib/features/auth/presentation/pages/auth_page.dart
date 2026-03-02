@@ -954,7 +954,7 @@ class _OnboardingTopHeader extends StatelessWidget {
             style: GoogleFonts.sora(
               fontSize: 28,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFFEAF3FF),
+              color: const Color(0xFFF2E7FF),
               letterSpacing: -0.15,
               height: 1,
             ),
@@ -967,7 +967,7 @@ class _OnboardingTopHeader extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFFC9E0FF),
+              color: const Color(0xFFCEAEFF),
               letterSpacing: 0.74,
               height: 1,
             ),

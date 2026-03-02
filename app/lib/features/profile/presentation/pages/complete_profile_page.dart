@@ -1,5 +1,5 @@
-import 'dart:ui';
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -559,16 +559,6 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                                 color: const Color(0xFFEAF3FF),
                               ),
                             ),
-                            const SizedBox(height: 10),
-                            Text(
-                              'Seleziona Brand o Creator per continuare.',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.plusJakartaSans(
-                                color: const Color(0xB7D6E8FF),
-                                fontSize: 14,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
                             const SizedBox(height: 26),
                             Column(
                               children: [
@@ -899,14 +889,7 @@ class _RoleCard extends StatelessWidget {
                             border: Border.all(
                               color: Colors.white.withValues(alpha: 0.24),
                             ),
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.white.withValues(alpha: 0.16),
-                                const Color(0x1A87B8F2),
-                              ],
-                            ),
+                            gradient: _iconGradientForRole(role),
                             boxShadow: [
                               BoxShadow(
                                 color: accent.withValues(
@@ -971,9 +954,26 @@ class _RoleCard extends StatelessWidget {
   IconData _iconForRole(ProfileRole role) {
     switch (role) {
       case ProfileRole.brand:
-        return Icons.storefront_rounded;
+        return Icons.work_outline_rounded;
       case ProfileRole.creator:
-        return Icons.auto_awesome_rounded;
+        return Icons.photo_camera_outlined;
+    }
+  }
+
+  Gradient _iconGradientForRole(ProfileRole role) {
+    switch (role) {
+      case ProfileRole.brand:
+        return const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF16C4FF), Color(0xFF2F74FF)],
+        );
+      case ProfileRole.creator:
+        return const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFB35AFF), Color(0xFFFF3DA8)],
+        );
     }
   }
 }

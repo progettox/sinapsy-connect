@@ -91,8 +91,8 @@ class AtomLogoPainter extends CustomPainter {
     final haloPaint = Paint()
       ..shader = RadialGradient(
         colors: [
-          const Color(0xFF76A9FF).withValues(alpha: 0.2 * pulse),
-          const Color(0xFF76A9FF).withValues(alpha: 0.0),
+          const Color(0xFF9E63FF).withValues(alpha: 0.26 * pulse),
+          const Color(0xFF9E63FF).withValues(alpha: 0.0),
         ],
       ).createShader(Rect.fromCircle(center: center, radius: minSide * 0.48));
     canvas.drawCircle(center, minSide * 0.48, haloPaint);
@@ -100,7 +100,7 @@ class AtomLogoPainter extends CustomPainter {
     final orbitGlowPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = orbitStroke * 1.9
-      ..color = const Color(0xFF7DAFFF).withValues(alpha: 0.24)
+      ..color = const Color(0xFFA56BFF).withValues(alpha: 0.28)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
 
     final orbitPaint = Paint()
@@ -110,7 +110,7 @@ class AtomLogoPainter extends CustomPainter {
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFFF5FAFF), Color(0xFFD3E7FF), Color(0xFF74A8FF)],
+        colors: [Color(0xFFF6F0FF), Color(0xFFD8C2FF), Color(0xFF9E63FF)],
       ).createShader(Rect.fromCircle(center: center, radius: orbitA));
 
     for (int i = 0; i < orbitAngles.length; i++) {
@@ -141,7 +141,7 @@ class AtomLogoPainter extends CustomPainter {
         rotation: rotation,
       );
       final electronGlow = Paint()
-        ..color = const Color(0xFFDCEAFF).withValues(alpha: 0.88)
+        ..color = const Color(0xFFE5D6FF).withValues(alpha: 0.9)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
       canvas.drawCircle(electron, electronRadius * 1.6, electronGlow);
       canvas.drawCircle(
@@ -152,7 +152,7 @@ class AtomLogoPainter extends CustomPainter {
     }
 
     final coreDotGlow = Paint()
-      ..color = const Color(0xFFDCEAFF).withValues(alpha: 0.45)
+      ..color = const Color(0xFFDAC4FF).withValues(alpha: 0.55)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
     final coreDot = Paint()
       ..color = const Color(0xFFF8FBFF).withValues(alpha: 0.95);

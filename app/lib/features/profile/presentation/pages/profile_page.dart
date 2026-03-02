@@ -4,10 +4,13 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/router/app_router.dart';
 import '../../../../core/storage/storage_service.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
+import '../../../../core/widgets/sinapsy_confirm_dialog.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../auth/data/auth_repository.dart';
 import '../../data/profile_model.dart';
@@ -24,6 +27,7 @@ class ProfilePage extends ConsumerStatefulWidget {
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   Uint8List? _pendingAvatarBytes;
   bool _isUploadingAvatar = false;
+  bool _isLoggingOut = false;
 
   @override
   void initState() {
@@ -79,7 +83,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       _isUploadingAvatar = true;
     });
 
-    final userId = ref.read(authRepositoryProvider).currentUser?.id ?? profile.id;
+    final userId =
+        ref.read(authRepositoryProvider).currentUser?.id ?? profile.id;
     try {
       final avatarUrl = await ref
           .read(storageServiceProvider)
@@ -117,6 +122,38 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         _pendingAvatarBytes = null;
       });
       _showSnack('Errore caricamento foto profilo: $error');
+    }
+  }
+
+  Future<void> _confirmAndLogout() async {
+    if (_isLoggingOut) return;
+
+    final shouldLogout = await showSinapsyConfirmDialog(
+      context: context,
+      title: 'Esci dall\'account?',
+      message:
+          'Sei sicuro di voler uscire dal tuo account su questo dispositivo?',
+      cancelLabel: 'Annulla',
+      confirmLabel: 'Esci',
+      icon: Icons.logout_rounded,
+    );
+    if (!shouldLogout || !mounted) return;
+
+    setState(() => _isLoggingOut = true);
+    try {
+      await ref.read(authRepositoryProvider).signOut();
+      if (!mounted) return;
+      context.go(AppRouter.authPath);
+    } catch (error) {
+      _showSnack('Errore durante il logout: $error');
+      if (mounted) {
+        setState(() => _isLoggingOut = false);
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() => _isLoggingOut = false);
     }
   }
 
@@ -158,6 +195,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     });
 
     final profile = state.profile;
+    final isBusy = state.isLoading || _isUploadingAvatar || _isLoggingOut;
 
     return Theme(
       data: pageTheme,
@@ -190,7 +228,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                     const SizedBox(height: 12),
                                     ElevatedButton(
                                       onPressed: () => ref
-                                          .read(profileControllerProvider.notifier)
+                                          .read(
+                                            profileControllerProvider.notifier,
+                                          )
                                           .loadMyProfile(),
                                       child: const Text('Ricarica'),
                                     ),
@@ -205,13 +245,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               child: Padding(
                                 padding: const EdgeInsets.all(20),
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
                                     _ProfileAvatarEditor(
                                       profile: profile,
                                       pendingAvatarBytes: _pendingAvatarBytes,
                                       isUploading: _isUploadingAvatar,
-                                      onTap: state.isLoading || _isUploadingAvatar
+                                      onTap:
+                                          state.isLoading || _isUploadingAvatar
                                           ? null
                                           : () => _changeAvatar(profile),
                                     ),
@@ -252,18 +294,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                       width: double.infinity,
                                       height: 40,
                                       child: OutlinedButton(
-                                        onPressed:
-                                            state.isLoading || _isUploadingAvatar
+                                        onPressed: isBusy
                                             ? null
                                             : () => _openEdit(profile),
                                         style: OutlinedButton.styleFrom(
                                           backgroundColor: Colors.transparent,
-                                          foregroundColor: theme.colorScheme
+                                          foregroundColor: theme
+                                              .colorScheme
                                               .onSurface
                                               .withValues(alpha: 0.9),
-                                          disabledForegroundColor:
-                                              theme.colorScheme.onSurface
-                                                  .withValues(alpha: 0.4),
+                                          disabledForegroundColor: theme
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.4),
                                           side: BorderSide(
                                             color: const Color(
                                               0xFF9FC8F8,
@@ -280,6 +323,66 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                               ),
                                         ),
                                         child: const Text('Modifica'),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 48,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          gradient: const LinearGradient(
+                                            begin: Alignment.centerLeft,
+                                            end: Alignment.centerRight,
+                                            colors: [
+                                              Color(0xFF9B4EFF),
+                                              Color(0xFF9E53EA),
+                                            ],
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(
+                                                0xFF9B4EFF,
+                                              ).withValues(alpha: 0.32),
+                                              blurRadius: 16,
+                                              offset: const Offset(0, 8),
+                                            ),
+                                          ],
+                                        ),
+                                        child: TextButton(
+                                          onPressed: isBusy
+                                              ? null
+                                              : _confirmAndLogout,
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                            ),
+                                            textStyle: theme
+                                                .textTheme
+                                                .titleSmall
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                          child: _isLoggingOut
+                                              ? const Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    SinapsyLogoLoader(size: 16),
+                                                    SizedBox(width: 8),
+                                                    Text('Uscita in corso...'),
+                                                  ],
+                                                )
+                                              : const Text(
+                                                  'Esci dall\'account',
+                                                ),
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -350,10 +453,7 @@ class _ProfileAvatarEditor extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: const Color(0x261A2E49),
-                border: Border.all(
-                  color: const Color(0x90A8CCF2),
-                  width: 1.2,
-                ),
+                border: Border.all(color: const Color(0x90A8CCF2), width: 1.2),
               ),
               child: ClipOval(child: Center(child: avatar)),
             ),

@@ -101,7 +101,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.4,
-                      color: Color(0xE6EAF3FF),
+                      color: Color(0xEBE6D8FF),
                     ),
                   ),
                 ],
