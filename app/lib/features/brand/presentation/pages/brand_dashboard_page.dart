@@ -1,10 +1,12 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../data/brand_creator_feed_repository.dart';
+import '../controllers/brand_notifications_badge_controller.dart';
 import '../pages/brand_notifications_page.dart';
 import '../../../campaigns/presentation/controllers/create_campaign_controller.dart';
 import '../../../campaigns/presentation/pages/create_campaign_page.dart';
@@ -19,6 +21,7 @@ class BrandDashboardPage extends ConsumerStatefulWidget {
 class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
   List<CreatorFeedCard> _recommendedCreators = const <CreatorFeedCard>[];
   final Set<String> _savingCreatorIds = <String>{};
+  int _activeCreatorIndex = 0;
   bool _isLoadingCreators = true;
   String? _creatorsError;
 
@@ -26,6 +29,7 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
   void initState() {
     super.initState();
     Future<void>.microtask(() async {
+      await ref.read(brandNotificationsBadgeControllerProvider.notifier).init();
       await Future.wait<void>([
         ref.read(brandCampaignsControllerProvider.notifier).loadMyCampaigns(),
         _loadRecommendedCreators(),
@@ -49,6 +53,10 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
   }
 
   Future<void> _openNotifications() async {
+    await ref
+        .read(brandNotificationsBadgeControllerProvider.notifier)
+        .markAllSeen();
+    if (!mounted) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const BrandNotificationsPage()),
     );
@@ -66,14 +74,21 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
           .read(brandCreatorFeedRepositoryProvider)
           .listCreatorCards(role: 'creator', limit: 200);
       if (!mounted) return;
+      final nextActiveIndex = creators.isEmpty
+          ? 0
+          : (_activeCreatorIndex >= creators.length
+                ? creators.length - 1
+                : _activeCreatorIndex);
       setState(() {
         _recommendedCreators = creators;
+        _activeCreatorIndex = nextActiveIndex;
         _isLoadingCreators = false;
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _recommendedCreators = const <CreatorFeedCard>[];
+        _activeCreatorIndex = 0;
         _isLoadingCreators = false;
         _creatorsError = 'Errore caricamento creator consigliati: $error';
       });
@@ -171,6 +186,9 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(brandCampaignsControllerProvider);
     final canCreateCampaign = !state.isLoading && !state.isRemoving;
+    final badgeState = ref.watch(brandNotificationsBadgeControllerProvider);
+    final hasNotifications = badgeState.hasUnread;
+    final heroImageUrl = _resolveHeroImageUrl();
 
     ref.listen<BrandCampaignsState>(brandCampaignsControllerProvider, (
       previous,
@@ -181,41 +199,54 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
         _showSnack(next.errorMessage!);
         ref.read(brandCampaignsControllerProvider.notifier).clearError();
       }
+      ref
+          .read(brandNotificationsBadgeControllerProvider.notifier)
+          .syncFromCampaigns(next.campaigns);
     });
 
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const LuxuryNeonBackdrop(),
+          _DashboardHeroBackdrop(imageUrl: heroImageUrl),
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                return RefreshIndicator(
-                  onRefresh: () => ref
-                      .read(brandCampaignsControllerProvider.notifier)
-                      .loadMyCampaigns()
-                      .then((_) => _loadRecommendedCreators()),
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(14, 34, 14, 16),
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 420),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: constraints.maxHeight - 30,
-                          ),
-                          child: IntrinsicHeight(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
+                const bottomNavClearance = 18.0;
+                final preferredBlockHeight = (constraints.maxHeight * 0.58)
+                    .clamp(280.0, 460.0)
+                    .toDouble();
+                final maxAllowedBlockHeight =
+                    (constraints.maxHeight - bottomNavClearance - 88.0)
+                        .clamp(220.0, 460.0)
+                        .toDouble();
+                final creatorsBlockHeight =
+                    preferredBlockHeight > maxAllowedBlockHeight
+                    ? maxAllowedBlockHeight
+                    : preferredBlockHeight;
+
+                return Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: SizedBox(
+                      height: constraints.maxHeight,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              top: 18,
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: Row(
                                   children: [
                                     const Spacer(),
                                     _NotificationActionButton(
                                       onPressed: _openNotifications,
+                                      showBadge: hasNotifications,
                                     ),
                                     const SizedBox(width: 10),
                                     _CreateCampaignActionButton(
@@ -226,26 +257,51 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 20),
-                                if (state.isLoading && state.campaigns.isEmpty)
-                                  const Expanded(
-                                    child: Center(child: SinapsyLogoLoader()),
-                                  )
-                                else ...[
-                                  const Spacer(),
-                                  _RecommendedCreatorsSection(
-                                    creators: _recommendedCreators,
-                                    isLoading: _isLoadingCreators,
-                                    errorMessage: _creatorsError,
-                                    savingCreatorIds: _savingCreatorIds,
-                                    onRetry: _loadRecommendedCreators,
-                                    onToggleSaved: _toggleSavedCreator,
-                                  ),
-                                  const SizedBox(height: 92),
-                                ],
-                              ],
+                              ),
                             ),
-                          ),
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: bottomNavClearance,
+                              child: SizedBox(
+                                height: creatorsBlockHeight,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    const Text(
+                                      'Creator consigliati per te oggi',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFFF1E9FF),
+                                        height: 1,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    Expanded(
+                                      child: _RecommendedCreatorsSection(
+                                        creators: _recommendedCreators,
+                                        isLoading: _isLoadingCreators,
+                                        errorMessage: _creatorsError,
+                                        savingCreatorIds: _savingCreatorIds,
+                                        onRetry: _loadRecommendedCreators,
+                                        onToggleSaved: _toggleSavedCreator,
+                                        onPageChanged: (index) {
+                                          if (_activeCreatorIndex == index) {
+                                            return;
+                                          }
+                                          setState(
+                                            () => _activeCreatorIndex = index,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -254,87 +310,129 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
               },
             ),
           ),
-          SafeArea(
-            top: false,
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: _PrimaryCreateCampaignButton(
-                    enabled: canCreateCampaign,
-                    onPressed: _openCreateCampaign,
-                  ),
+        ],
+      ),
+    );
+  }
+
+  String? _resolveHeroImageUrl() {
+    if (_recommendedCreators.isEmpty) return null;
+    final safeIndex = _activeCreatorIndex >= _recommendedCreators.length
+        ? _recommendedCreators.length - 1
+        : _activeCreatorIndex;
+    final creator = _recommendedCreators[safeIndex];
+    final candidates = <String>[
+      creator.heroImageUrl ?? '',
+      ...creator.portfolioThumbUrls,
+      creator.avatarUrl ?? '',
+    ];
+    for (final url in candidates) {
+      final clean = url.trim();
+      if (clean.isNotEmpty) return clean;
+    }
+    return null;
+  }
+}
+
+class _DashboardHeroBackdrop extends StatelessWidget {
+  const _DashboardHeroBackdrop({required this.imageUrl});
+
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = (imageUrl ?? '').trim().isNotEmpty;
+
+    return SafeArea(
+      bottom: false,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: SizedBox(
+              height: 430,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (hasImage)
+                      Image.network(
+                        imageUrl!,
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
+                        filterQuality: FilterQuality.medium,
+                        errorBuilder: (_, _, _) => const _HeroFallback(),
+                      )
+                    else
+                      const _HeroFallback(),
+                    if (hasImage)
+                      ShaderMask(
+                        blendMode: BlendMode.dstIn,
+                        shaderCallback: (rect) => LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black,
+                            Colors.black.withValues(alpha: 0.92),
+                            Colors.black.withValues(alpha: 0.38),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.30, 0.68, 0.98],
+                        ).createShader(rect),
+                        child: ImageFiltered(
+                          imageFilter: ImageFilter.blur(
+                            sigmaX: 10.0,
+                            sigmaY: 10.0,
+                          ),
+                          child: Image.network(
+                            imageUrl!,
+                            fit: BoxFit.cover,
+                            alignment: Alignment.topCenter,
+                            filterQuality: FilterQuality.medium,
+                            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                          ),
+                        ),
+                      ),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.1),
+                            const Color(0xFF0D0916).withValues(alpha: 0.54),
+                            const Color(0xFF05040A).withValues(alpha: 0.95),
+                          ],
+                          stops: const [0.0, 0.5, 0.76, 1.0],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _PrimaryCreateCampaignButton extends StatelessWidget {
-  const _PrimaryCreateCampaignButton({
-    required this.enabled,
-    required this.onPressed,
-  });
-
-  final bool enabled;
-  final VoidCallback onPressed;
+class _HeroFallback extends StatelessWidget {
+  const _HeroFallback();
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: enabled
-                ? [
-                    const Color(0xFFAA63FF).withValues(alpha: 0.26),
-                    const Color(0xFF6D30DA).withValues(alpha: 0.16),
-                  ]
-                : [
-                    const Color(0xFFAA63FF).withValues(alpha: 0.12),
-                    const Color(0xFF6D30DA).withValues(alpha: 0.08),
-                  ],
-          ),
-          border: Border.all(
-            color: const Color(
-              0xFFB97BFF,
-            ).withValues(alpha: enabled ? 0.62 : 0.28),
-          ),
-        ),
-        child: ElevatedButton.icon(
-          onPressed: enabled ? onPressed : null,
-          icon: const Icon(Icons.add_rounded, size: 19),
-          label: const Text(
-            'Nuova Campagna',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.2,
-              fontSize: 15,
-            ),
-          ),
-          style: ElevatedButton.styleFrom(
-            elevation: 0,
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            foregroundColor: const Color(0xFFE7D7FF),
-            disabledForegroundColor: const Color(
-              0xFFE7D7FF,
-            ).withValues(alpha: 0.55),
-            disabledBackgroundColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF251B33), Color(0xFF130E1E), Color(0xFF08070D)],
         ),
       ),
     );
@@ -349,6 +447,7 @@ class _RecommendedCreatorsSection extends StatefulWidget {
     required this.savingCreatorIds,
     required this.onRetry,
     required this.onToggleSaved,
+    required this.onPageChanged,
   });
 
   final List<CreatorFeedCard> creators;
@@ -357,6 +456,7 @@ class _RecommendedCreatorsSection extends StatefulWidget {
   final Set<String> savingCreatorIds;
   final Future<void> Function() onRetry;
   final Future<void> Function(CreatorFeedCard creator) onToggleSaved;
+  final ValueChanged<int> onPageChanged;
 
   @override
   State<_RecommendedCreatorsSection> createState() =>
@@ -379,11 +479,15 @@ class _RecommendedCreatorsSectionState
     super.didUpdateWidget(oldWidget);
     final maxIndex = widget.creators.length - 1;
     if (maxIndex < 0) {
-      if (_pageIndex != 0) setState(() => _pageIndex = 0);
+      if (_pageIndex != 0) {
+        setState(() => _pageIndex = 0);
+        widget.onPageChanged(0);
+      }
       return;
     }
     if (_pageIndex > maxIndex) {
       setState(() => _pageIndex = maxIndex);
+      widget.onPageChanged(maxIndex);
     }
   }
 
@@ -396,94 +500,117 @@ class _RecommendedCreatorsSectionState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final hasCreators = widget.creators.isNotEmpty;
+        final hasError = (widget.errorMessage ?? '').isNotEmpty;
+        final showIndicators = hasCreators && !widget.isLoading && !hasError;
+        final indicatorsHeight = showIndicators && widget.creators.length > 1
+            ? 16.0
+            : 0.0;
+        final boundedHeight = constraints.hasBoundedHeight
+            ? constraints.maxHeight
+            : 378.0;
+        final panelHeight = (boundedHeight - indicatorsHeight).clamp(
+          250.0,
+          378.0,
+        );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Creator consigliati per te oggi',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: Colors.white.withValues(alpha: 0.96),
-          ),
-        ),
-        const SizedBox(height: 10),
-        if (widget.isLoading)
-          const SizedBox(height: 360, child: Center(child: SinapsyLogoLoader()))
-        else if ((widget.errorMessage ?? '').isNotEmpty)
-          _CreatorPanelFrame(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    widget.errorMessage!,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.isLoading)
+              SizedBox(
+                height: panelHeight,
+                child: const Center(child: SinapsyLogoLoader()),
+              )
+            else if (hasError)
+              SizedBox(
+                height: panelHeight,
+                child: _CreatorPanelFrame(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton(
+                          onPressed: widget.onRetry,
+                          child: const Text('Riprova'),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: widget.onRetry,
-                    child: const Text('Riprova'),
+                ),
+              )
+            else if (!hasCreators)
+              SizedBox(
+                height: panelHeight,
+                child: _CreatorPanelFrame(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'Nessun creator disponibile al momento.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium,
+                    ),
                   ),
-                ],
-              ),
-            ),
-          )
-        else if (widget.creators.isEmpty)
-          _CreatorPanelFrame(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Nessun creator disponibile al momento.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium,
-              ),
-            ),
-          )
-        else ...[
-          SizedBox(
-            height: 378,
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: widget.creators.length,
-              onPageChanged: (index) => setState(() => _pageIndex = index),
-              itemBuilder: (context, index) {
-                final creator = widget.creators[index];
-                return _CreatorRecommendationCard(
-                  creator: creator,
-                  isSaving: widget.savingCreatorIds.contains(creator.id),
-                  onToggleSaved: () {
-                    widget.onToggleSaved(creator);
+                ),
+              )
+            else ...[
+              SizedBox(
+                height: panelHeight,
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: widget.creators.length,
+                  onPageChanged: (index) {
+                    setState(() => _pageIndex = index);
+                    widget.onPageChanged(index);
                   },
-                );
-              },
-            ),
-          ),
-          if (widget.creators.length > 1) ...[
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List<Widget>.generate(widget.creators.length, (index) {
-                final active = index == _pageIndex;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 170),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: active ? 18 : 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(99),
-                    color: active
-                        ? const Color(0xFFB468FF)
-                        : const Color(0xFF6A5E8F).withValues(alpha: 0.7),
-                  ),
-                );
-              }),
-            ),
+                  itemBuilder: (context, index) {
+                    final creator = widget.creators[index];
+                    return _CreatorRecommendationCard(
+                      creator: creator,
+                      isSaving: widget.savingCreatorIds.contains(creator.id),
+                      onToggleSaved: () {
+                        widget.onToggleSaved(creator);
+                      },
+                    );
+                  },
+                ),
+              ),
+              if (widget.creators.length > 1) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List<Widget>.generate(widget.creators.length, (
+                    index,
+                  ) {
+                    final active = index == _pageIndex;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 170),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: active ? 18 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(99),
+                        color: active
+                            ? const Color(0xFFB468FF)
+                            : const Color(0xFF6A5E8F).withValues(alpha: 0.7),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ],
           ],
-        ],
-      ],
+        );
+      },
     );
   }
 }
@@ -497,27 +624,27 @@ class _CreatorPanelFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: const Color(0xFF6C31D6).withValues(alpha: 0.9),
+          color: const Color(0xFF6E39D7).withValues(alpha: 0.7),
         ),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1A0933), Color(0xFF120621)],
+          colors: [Color(0xFF1B0F35), Color(0xFF140B27)],
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF9B4EFF).withValues(alpha: 0.16),
-            blurRadius: 26,
-            spreadRadius: -6,
-            offset: const Offset(0, 8),
+            color: const Color(0xFF9B4EFF).withValues(alpha: 0.12),
+            blurRadius: 30,
+            spreadRadius: -8,
+            offset: const Offset(0, 12),
           ),
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.28),
+            color: Colors.black.withValues(alpha: 0.34),
             blurRadius: 14,
-            spreadRadius: -4,
-            offset: const Offset(0, 6),
+            spreadRadius: -6,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -577,17 +704,29 @@ class _CreatorRecommendationCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        creator.displayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFEDE4FF),
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              creator.displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFEDE4FF),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.verified_rounded,
+                            size: 20,
+                            color: Color(0xFF3C82F6),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 5),
                       _CreatorCategoryChip(label: creator.category),
                     ],
                   ),
@@ -600,14 +739,14 @@ class _CreatorRecommendationCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 14,
               runSpacing: 8,
               children: [
                 _CreatorStatChip(
                   icon: Icons.person_outline_rounded,
-                  label: '${_formatCompactNumber(followers)} follower',
+                  label: '${_formatNumberWithCommas(followers)} follower',
                 ),
                 _CreatorStatChip(
                   icon: Icons.work_outline_rounded,
@@ -690,17 +829,17 @@ class _CreatorRecommendationCard extends StatelessWidget {
     return output;
   }
 
-  static String _formatCompactNumber(int value) {
-    if (value <= 0) return '0';
-    if (value >= 1000000) {
-      final v = value / 1000000;
-      return '${v.toStringAsFixed(v >= 10 ? 0 : 1)}M'.replaceAll('.0M', 'M');
+  static String _formatNumberWithCommas(int value) {
+    final raw = value.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < raw.length; i++) {
+      final reverseIndex = raw.length - i;
+      buffer.write(raw[i]);
+      if (reverseIndex > 1 && reverseIndex % 3 == 1) {
+        buffer.write(',');
+      }
     }
-    if (value >= 1000) {
-      final v = value / 1000;
-      return '${v.toStringAsFixed(v >= 10 ? 0 : 1)}k'.replaceAll('.0k', 'k');
-    }
-    return '$value';
+    return buffer.toString();
   }
 }
 
@@ -766,21 +905,21 @@ class _CreatorFavoriteButton extends StatelessWidget {
         onTap: isSaving ? null : onTap,
         borderRadius: BorderRadius.circular(999),
         child: Ink(
-          width: 100,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          height: 36,
+          width: 126,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          height: 42,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFF6D2BDA).withValues(alpha: 0.95),
-                const Color(0xFF9B4EFF).withValues(alpha: 0.9),
+                const Color(0xFF7A4ED1).withValues(alpha: 0.95),
+                const Color(0xFF6441B7).withValues(alpha: 0.9),
               ],
             ),
             border: Border.all(
-              color: const Color(0xFFC89EFF).withValues(alpha: 0.55),
+              color: const Color(0xFFD2B4FF).withValues(alpha: 0.58),
             ),
           ),
           child: isSaving
@@ -788,26 +927,15 @@ class _CreatorFavoriteButton extends StatelessWidget {
                   padding: EdgeInsets.all(8),
                   child: Center(child: SinapsyLogoLoader(size: 14)),
                 )
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isFollowing
-                          ? Icons.person_remove_alt_1_rounded
-                          : Icons.person_add_alt_1_rounded,
-                      size: 18,
-                      color: const Color(0xFFEBD9FF),
+              : Center(
+                  child: Text(
+                    isFollowing ? 'Segui gia' : 'Segui',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFF2EAFF),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isFollowing ? 'Seguito' : 'Segui',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFEBD9FF),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
         ),
       ),
@@ -842,9 +970,10 @@ class _CreatorStatChip extends StatelessWidget {
 }
 
 class _NotificationActionButton extends StatelessWidget {
-  const _NotificationActionButton({this.onPressed});
+  const _NotificationActionButton({this.onPressed, this.showBadge = false});
 
   final VoidCallback? onPressed;
+  final bool showBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -855,10 +984,10 @@ class _NotificationActionButton extends StatelessWidget {
         onTap: onPressed,
         behavior: HitTestBehavior.opaque,
         child: Container(
-          width: 46,
-          height: 46,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(14),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -894,29 +1023,30 @@ class _NotificationActionButton extends StatelessWidget {
             children: [
               Icon(
                 Icons.notifications_none_rounded,
-                size: 23,
+                size: 21,
                 color: const Color(
                   0xFFF7F4FF,
                 ).withValues(alpha: enabled ? 0.95 : 0.46),
               ),
-              Positioned(
-                right: 9.5,
-                top: 8.5,
-                child: Container(
-                  width: 9,
-                  height: 9,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(
-                      0xFFAF63FF,
-                    ).withValues(alpha: enabled ? 1 : 0.5),
-                    border: Border.all(
-                      color: const Color(0xFF151626),
-                      width: 1.2,
+              if (showBadge)
+                Positioned(
+                  right: 7,
+                  top: 6,
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(
+                        0xFFFF4D6D,
+                      ).withValues(alpha: enabled ? 1 : 0.5),
+                      border: Border.all(
+                        color: const Color(0xFF151626),
+                        width: 1.2,
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -941,8 +1071,8 @@ class _CreateCampaignActionButton extends StatelessWidget {
         onTap: onPressed,
         behavior: HitTestBehavior.opaque,
         child: Container(
-          width: 46,
-          height: 46,
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
@@ -964,7 +1094,7 @@ class _CreateCampaignActionButton extends StatelessWidget {
           alignment: Alignment.center,
           child: Icon(
             Icons.add_rounded,
-            size: 23,
+            size: 24,
             color: const Color(
               0xFFF9F6FF,
             ).withValues(alpha: isEnabled ? 0.98 : 0.6),

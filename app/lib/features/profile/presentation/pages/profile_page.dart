@@ -13,6 +13,9 @@ import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_confirm_dialog.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../auth/data/auth_repository.dart';
+import '../../../brand/presentation/controllers/brand_notifications_badge_controller.dart';
+import '../../../brand/presentation/pages/brand_notifications_page.dart';
+import '../../../campaigns/presentation/pages/create_campaign_page.dart';
 import '../../data/profile_model.dart';
 import '../controllers/profile_controller.dart';
 import 'edit_profile_page.dart';
@@ -35,6 +38,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     Future<void>.microtask(() async {
       ref.read(profileControllerProvider.notifier).watchMyProfile();
       await ref.read(profileControllerProvider.notifier).loadMyProfile();
+      await ref.read(brandNotificationsBadgeControllerProvider.notifier).init();
     });
   }
 
@@ -53,6 +57,31 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
     if (!mounted) return;
     await ref.read(profileControllerProvider.notifier).loadMyProfile();
+  }
+
+  Future<void> _openPrimaryAction(ProfileModel profile) async {
+    if (profile.role == ProfileRole.brand) {
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(builder: (_) => const CreateCampaignPage()),
+      );
+      return;
+    }
+    await _openEdit(profile);
+  }
+
+  Future<void> _openNotifications(ProfileModel profile) async {
+    if (profile.role != ProfileRole.brand) {
+      _showSnack('Centro notifiche disponibile per il profilo Brand.');
+      return;
+    }
+
+    await ref
+        .read(brandNotificationsBadgeControllerProvider.notifier)
+        .markAllSeen();
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const BrandNotificationsPage()),
+    );
   }
 
   Future<void> _changeAvatar(ProfileModel profile) async {
@@ -142,6 +171,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     setState(() => _isLoggingOut = true);
     try {
       await ref.read(authRepositoryProvider).signOut();
+      ref.read(profileControllerProvider.notifier).reset();
       if (!mounted) return;
       context.go(AppRouter.authPath);
     } catch (error) {
@@ -160,6 +190,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(profileControllerProvider);
+    final badgeState = ref.watch(brandNotificationsBadgeControllerProvider);
     final theme = Theme.of(context);
     final pageTheme = theme.copyWith(
       textTheme: GoogleFonts.plusJakartaSansTextTheme(theme.textTheme),
@@ -167,23 +198,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         theme.primaryTextTheme,
       ),
       scaffoldBackgroundColor: Colors.transparent,
-      appBarTheme: theme.appBarTheme.copyWith(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: const Color(0xFFEAF3FF),
-      ),
-      cardTheme: CardThemeData(
-        color: const Color(0xC0162030),
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: const Color(0xFF9FC8F8).withValues(alpha: 0.16),
-          ),
-        ),
-      ),
     );
 
     ref.listen<ProfileUiState>(profileControllerProvider, (previous, next) {
@@ -204,196 +218,162 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           children: [
             const Positioned.fill(child: LuxuryNeonBackdrop()),
             SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-                child: Column(
-                  children: [
-                    const _ProfileHeaderPanel(),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: Builder(
-                        builder: (context) {
-                          if (state.isLoading && profile == null) {
-                            return const Center(child: SinapsyLogoLoader());
-                          }
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Builder(
+                    builder: (context) {
+                      if (state.isLoading && profile == null) {
+                        return const Center(child: SinapsyLogoLoader());
+                      }
 
-                          if (profile == null) {
-                            return Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Text('Profilo non trovato.'),
-                                    const SizedBox(height: 12),
-                                    ElevatedButton(
-                                      onPressed: () => ref
-                                          .read(
-                                            profileControllerProvider.notifier,
-                                          )
-                                          .loadMyProfile(),
-                                      child: const Text('Ricarica'),
-                                    ),
-                                  ],
+                      if (profile == null) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('Profilo non trovato.'),
+                                const SizedBox(height: 12),
+                                ElevatedButton(
+                                  onPressed: () => ref
+                                      .read(profileControllerProvider.notifier)
+                                      .loadMyProfile(),
+                                  child: const Text('Ricarica'),
                                 ),
-                              ),
-                            );
-                          }
+                              ],
+                            ),
+                          ),
+                        );
+                      }
 
-                          return SingleChildScrollView(
-                            child: _GlassPanel(
-                              child: Padding(
-                                padding: const EdgeInsets.all(20),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    _ProfileAvatarEditor(
-                                      profile: profile,
-                                      pendingAvatarBytes: _pendingAvatarBytes,
-                                      isUploading: _isUploadingAvatar,
-                                      onTap:
-                                          state.isLoading || _isUploadingAvatar
-                                          ? null
-                                          : () => _changeAvatar(profile),
-                                    ),
-                                    const SizedBox(height: 20),
-                                    _ProfileRow(label: 'ID', value: profile.id),
-                                    _ProfileRow(
-                                      label: 'Username',
-                                      value: profile.username,
-                                    ),
-                                    _ProfileRow(
-                                      label: 'Ruolo',
-                                      value: profile.role?.label ?? '-',
-                                    ),
-                                    _ProfileRow(
-                                      label: 'Bio',
-                                      value: profile.bio.trim().isEmpty
-                                          ? '-'
-                                          : profile.bio,
-                                    ),
-                                    _ProfileRow(
-                                      label: 'Sede',
-                                      value: profile.location,
-                                    ),
-                                    _ProfileRow(
-                                      label: 'Avatar URL',
-                                      value: profile.avatarUrl ?? '-',
-                                    ),
-                                    _ProfileRow(
-                                      label: 'Creato il',
-                                      value: _formatDate(profile.createdAt),
-                                    ),
-                                    _ProfileRow(
-                                      label: 'Aggiornato il',
-                                      value: _formatDate(profile.updatedAt),
-                                    ),
-                                    const SizedBox(height: 20),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      height: 40,
-                                      child: OutlinedButton(
-                                        onPressed: isBusy
+                      final specialization = _profileSpecialization(profile);
+                      final bioText = _profileBioText(profile);
+                      final displayName = _displayName(profile);
+                      final location = profile.location.trim().isEmpty
+                          ? 'Italia'
+                          : profile.location.trim();
+                      final followers = profile.followersCount ?? 15210;
+                      final followersBase = profile.followersCount ?? 37;
+                      final works = followersBase > 0
+                          ? (followersBase % 80 + 12)
+                          : 37;
+                      final portfolioUrls = _portfolioUrlsForProfile(profile);
+
+                      return SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Stack(
+                              children: [
+                                GestureDetector(
+                                  onLongPress: isBusy
+                                      ? null
+                                      : () => _changeAvatar(profile),
+                                  child: _ProfileHeroBackdrop(
+                                    profile: profile,
+                                    pendingAvatarBytes: _pendingAvatarBytes,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 12,
+                                  right: 12,
+                                  child: Row(
+                                    children: [
+                                      _TopActionIconButton(
+                                        icon: Icons.notifications_none_rounded,
+                                        showBadge:
+                                            profile.role == ProfileRole.brand &&
+                                            badgeState.hasUnread,
+                                        onTap: () =>
+                                            _openNotifications(profile),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _TopActionIconButton(
+                                        icon: Icons.add_rounded,
+                                        primary: true,
+                                        onTap: () =>
+                                            _openPrimaryAction(profile),
+                                        onLongPress: _confirmAndLogout,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Positioned(
+                                  left: 14,
+                                  right: 14,
+                                  bottom: 14,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              displayName,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 34,
+                                                fontWeight: FontWeight.w800,
+                                                color: Color(0xFFF2EBFF),
+                                                height: 1,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          const Icon(
+                                            Icons.verified_rounded,
+                                            size: 21,
+                                            color: Color(0xFF3E86FF),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _RoleTagChip(label: specialization),
+                                      const SizedBox(height: 10),
+                                      _ProfileInfoCard(
+                                        location: location,
+                                        bioText: bioText,
+                                        specialization: specialization,
+                                        rating: '4.8',
+                                        works: '$works',
+                                        quality: '96%',
+                                        followers:
+                                            '${followers.toString()} follower',
+                                        onMainAction: isBusy
                                             ? null
                                             : () => _openEdit(profile),
-                                        style: OutlinedButton.styleFrom(
-                                          backgroundColor: Colors.transparent,
-                                          foregroundColor: theme
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.9),
-                                          disabledForegroundColor: theme
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.4),
-                                          side: BorderSide(
-                                            color: const Color(
-                                              0xFF9FC8F8,
-                                            ).withValues(alpha: 0.24),
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          textStyle: theme.textTheme.titleSmall
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                        ),
-                                        child: const Text('Modifica'),
                                       ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      height: 48,
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            14,
-                                          ),
-                                          gradient: const LinearGradient(
-                                            begin: Alignment.centerLeft,
-                                            end: Alignment.centerRight,
-                                            colors: [
-                                              Color(0xFF9B4EFF),
-                                              Color(0xFF9E53EA),
-                                            ],
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: const Color(
-                                                0xFF9B4EFF,
-                                              ).withValues(alpha: 0.32),
-                                              blurRadius: 16,
-                                              offset: const Offset(0, 8),
-                                            ),
-                                          ],
-                                        ),
-                                        child: TextButton(
-                                          onPressed: isBusy
-                                              ? null
-                                              : _confirmAndLogout,
-                                          style: TextButton.styleFrom(
-                                            foregroundColor: Colors.white,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(14),
-                                            ),
-                                            textStyle: theme
-                                                .textTheme
-                                                .titleSmall
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                          ),
-                                          child: _isLoggingOut
-                                              ? const Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: [
-                                                    SinapsyLogoLoader(size: 16),
-                                                    SizedBox(width: 8),
-                                                    Text('Uscita in corso...'),
-                                                  ],
-                                                )
-                                              : const Text(
-                                                  'Esci dall\'account',
-                                                ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Portfolio',
+                              style: TextStyle(
+                                fontSize: 21,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFEDE5FF),
                               ),
                             ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                            const SizedBox(height: 8),
+                            _PortfolioGrid(
+                              profileId: profile.id,
+                              urls: portfolioUrls,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -403,190 +383,542 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
-  String _formatDate(DateTime? date) {
-    if (date == null) return '-';
-    return date.toLocal().toString();
+  String _displayName(ProfileModel profile) {
+    final full = [
+      (profile.firstName ?? '').trim(),
+      (profile.lastName ?? '').trim(),
+    ].where((part) => part.isNotEmpty).join(' ');
+    if (full.isNotEmpty) return full;
+    return profile.username.trim().isEmpty
+        ? 'Creator'
+        : profile.username.trim();
+  }
+
+  String _profileSpecialization(ProfileModel profile) {
+    final bio = profile.bio.trim();
+    if (bio.isEmpty) {
+      return profile.role == ProfileRole.brand ? 'Brand' : 'Creator';
+    }
+    final direct = RegExp(
+      r'(Specializzazione|Tipologia|Categoria|Category):\s*\n?([^\n]+)',
+      caseSensitive: false,
+    ).firstMatch(bio);
+    final value = (direct?.group(2) ?? '').trim();
+    if (value.isNotEmpty) return value;
+    return profile.role == ProfileRole.brand ? 'Brand' : 'Creator';
+  }
+
+  String _profileBioText(ProfileModel profile) {
+    final raw = profile.bio.trim();
+    if (raw.isEmpty) {
+      final place = profile.location.trim().isEmpty
+          ? 'Italia'
+          : profile.location.trim();
+      return 'Professionista di $place. Specializzato in contenuti visual e collaborazioni di qualita.';
+    }
+    final chunks = raw
+        .split(RegExp(r'\n{2,}'))
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .where((item) {
+          final lower = item.toLowerCase();
+          return !(lower.startsWith('specializzazione:') ||
+              lower.startsWith('tipologia:') ||
+              lower.startsWith('categoria:') ||
+              lower.startsWith('category:'));
+        })
+        .toList(growable: false);
+    return chunks.isEmpty ? raw : chunks.join('\n\n');
+  }
+
+  List<String> _portfolioUrlsForProfile(ProfileModel profile) {
+    final avatar = (profile.avatarUrl ?? '').trim();
+    if (avatar.isEmpty) return const <String>[];
+    return List<String>.filled(6, avatar);
   }
 }
 
-class _ProfileAvatarEditor extends StatelessWidget {
-  const _ProfileAvatarEditor({
+class _ProfileHeroBackdrop extends StatelessWidget {
+  const _ProfileHeroBackdrop({
     required this.profile,
     required this.pendingAvatarBytes,
-    required this.isUploading,
-    this.onTap,
   });
 
   final ProfileModel profile;
   final Uint8List? pendingAvatarBytes;
-  final bool isUploading;
-  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final avatar = pendingAvatarBytes != null
-        ? Image.memory(
-            pendingAvatarBytes!,
-            fit: BoxFit.cover,
-            width: 88,
-            height: 88,
-          )
-        : profile.avatarUrl != null
-        ? Image.network(
-            profile.avatarUrl!,
-            fit: BoxFit.cover,
-            width: 88,
-            height: 88,
-            errorBuilder: (_, _, _) => const Icon(Icons.person, size: 36),
-          )
-        : const Icon(Icons.person, size: 36);
+    final imageUrl = (profile.avatarUrl ?? '').trim();
 
-    return Column(
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: SizedBox(
+        height: 492,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Container(
-              width: 88,
-              height: 88,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0x261A2E49),
-                border: Border.all(color: const Color(0x90A8CCF2), width: 1.2),
+            if (pendingAvatarBytes != null)
+              Image.memory(
+                pendingAvatarBytes!,
+                key: ValueKey<String>('profile-hero-bytes-${profile.id}'),
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+              )
+            else if (imageUrl.isNotEmpty)
+              Image.network(
+                imageUrl,
+                key: ValueKey<String>('profile-hero-${profile.id}-$imageUrl'),
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                gaplessPlayback: false,
+                errorBuilder: (_, _, _) => const _ProfileHeroFallback(),
+              )
+            else
+              const _ProfileHeroFallback(),
+            if (pendingAvatarBytes != null || imageUrl.isNotEmpty)
+              ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (rect) => LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Colors.black,
+                    Colors.black.withValues(alpha: 0.94),
+                    Colors.black.withValues(alpha: 0.38),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.3, 0.68, 0.98],
+                ).createShader(rect),
+                child: ImageFiltered(
+                  imageFilter: ImageFilter.blur(sigmaX: 9.0, sigmaY: 9.0),
+                  child: pendingAvatarBytes != null
+                      ? Image.memory(
+                          pendingAvatarBytes!,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                        )
+                      : Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                          gaplessPlayback: false,
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                        ),
+                ),
               ),
-              child: ClipOval(child: Center(child: avatar)),
-            ),
-            Positioned(
-              right: -2,
-              bottom: -2,
-              child: GestureDetector(
-                onTap: onTap,
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: theme.colorScheme.primary,
-                    border: Border.all(
-                      color: const Color(0xFF0B1626),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt_rounded,
-                    size: 16,
-                    color: Color(0xFF07111C),
-                  ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.06),
+                    Colors.black.withValues(alpha: 0.12),
+                    const Color(0xFF0F0A19).withValues(alpha: 0.56),
+                    const Color(0xFF06050C).withValues(alpha: 0.95),
+                  ],
+                  stops: const [0, 0.44, 0.72, 1],
                 ),
               ),
             ),
-            if (isUploading)
-              Positioned.fill(
-                child: ClipOval(
-                  child: Container(
-                    color: const Color(0x88040A14),
-                    child: const Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: SinapsyLogoLoader(size: 16),
-                      ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TopActionIconButton extends StatelessWidget {
+  const _TopActionIconButton({
+    required this.icon,
+    required this.onTap,
+    this.onLongPress,
+    this.primary = false,
+    this.showBadge = false,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final bool primary;
+  final bool showBadge;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: primary
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFB16DFF), Color(0xFF7C49EF)],
+                )
+              : const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF201D2F), Color(0xFF121221)],
+                ),
+          border: Border.all(
+            color: primary
+                ? const Color(0xFFE7D8FF).withValues(alpha: 0.24)
+                : const Color(0xFF6F648A).withValues(alpha: 0.3),
+          ),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(icon, size: primary ? 27 : 23, color: const Color(0xFFF3EEFF)),
+            if (showBadge)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFFF4E6E),
+                    border: Border.all(
+                      color: const Color(0xFF171522),
+                      width: 1,
                     ),
                   ),
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RoleTagChip extends StatelessWidget {
+  const _RoleTagChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0x5A8D4AFF), Color(0x3A4E2B8A)],
+          ),
+          border: Border.all(
+            color: const Color(0xFFBE91FF).withValues(alpha: 0.5),
+          ),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFFE7DCFF),
+            height: 1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileInfoCard extends StatelessWidget {
+  const _ProfileInfoCard({
+    required this.location,
+    required this.bioText,
+    required this.specialization,
+    required this.rating,
+    required this.works,
+    required this.quality,
+    required this.followers,
+    this.onMainAction,
+  });
+
+  final String location;
+  final String bioText;
+  final String specialization;
+  final String rating;
+  final String works;
+  final String quality;
+  final String followers;
+  final VoidCallback? onMainAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFF7A4CDD).withValues(alpha: 0.42),
+        ),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xD81B1230), Color(0xCC100B22)],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              _HeaderStat(icon: Icons.star_rounded, text: rating),
+              const SizedBox(width: 12),
+              _HeaderStat(icon: Icons.work_outline_rounded, text: works),
+              const SizedBox(width: 12),
+              _HeaderStat(icon: Icons.bolt_rounded, text: quality),
+              const Spacer(),
+              _PrimaryPillButton(text: 'Modifica', onTap: onMainAction),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            followers,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFFCEBDEF),
+            ),
+          ),
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              Icon(
+                Icons.location_on_rounded,
+                size: 15,
+                color: const Color(0xFFB57EFF).withValues(alpha: 0.95),
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  location,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFFE3D9F8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            bioText,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFFCCBFE9),
+              height: 1.26,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Divider(
+            color: const Color(0xFF8F5BE8).withValues(alpha: 0.28),
+            height: 1,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text(
+                'Bio',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFF2EAFF),
+                ),
+              ),
+              const SizedBox(width: 10),
+              _RoleTagChip(label: specialization),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderStat extends StatelessWidget {
+  const _HeaderStat({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: const Color(0xFFD1A1FF)),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: const TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFFEEE5FF),
+            height: 1,
+          ),
         ),
       ],
     );
   }
 }
 
-class _ProfileHeaderPanel extends StatelessWidget {
-  const _ProfileHeaderPanel();
+class _PrimaryPillButton extends StatelessWidget {
+  const _PrimaryPillButton({required this.text, this.onTap});
+
+  final String text;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return _GlassPanel(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Profilo',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
+    return SizedBox(
+      height: 34,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: onTap == null
+                ? [
+                    const Color(0xFF7C5AB4).withValues(alpha: 0.34),
+                    const Color(0xFF5D4388).withValues(alpha: 0.34),
+                  ]
+                : const [Color(0xFF8D5BFF), Color(0xFF6E41DA)],
+          ),
+          border: Border.all(
+            color: const Color(0xFFE6D9FF).withValues(alpha: 0.24),
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(999),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              child: Center(
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(
+                      0xFFF7F2FF,
+                    ).withValues(alpha: onTap == null ? 0.6 : 1),
+                    height: 1,
+                  ),
                 ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _GlassPanel extends StatelessWidget {
-  const _GlassPanel({required this.child});
+class _PortfolioGrid extends StatelessWidget {
+  const _PortfolioGrid({required this.profileId, required this.urls});
 
-  final Widget child;
+  final String profileId;
+  final List<String> urls;
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: const Color(0xFF9FC8F8).withValues(alpha: 0.18),
-            ),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0x8A1B2638), Color(0x7A111A2A), Color(0x63202A3A)],
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x88040A14),
-                blurRadius: 22,
-                offset: Offset(0, 12),
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFF7040CF).withValues(alpha: 0.3),
+        ),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xB1150E29), Color(0xAA0F0A1E)],
+        ),
+      ),
+      child: GridView.builder(
+        itemCount: 6,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 6,
+          mainAxisSpacing: 6,
+          childAspectRatio: 1.06,
+        ),
+        itemBuilder: (context, index) {
+          final url = index < urls.length ? urls[index] : null;
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF2B1D45), Color(0xFF19132A)],
+                ),
               ),
-            ],
-          ),
-          child: child,
-        ),
+              child: (url ?? '').trim().isEmpty
+                  ? Icon(
+                      Icons.image_outlined,
+                      size: 20,
+                      color: const Color(0xFFD1C2F2).withValues(alpha: 0.8),
+                    )
+                  : Image.network(
+                      url!,
+                      key: ValueKey<String>('portfolio-$profileId-$index-$url'),
+                      fit: BoxFit.cover,
+                      gaplessPlayback: false,
+                      filterQuality: FilterQuality.low,
+                      errorBuilder: (_, _, _) => Icon(
+                        Icons.broken_image_outlined,
+                        size: 20,
+                        color: const Color(0xFFD1C2F2).withValues(alpha: 0.8),
+                      ),
+                    ),
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-class _ProfileRow extends StatelessWidget {
-  const _ProfileRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
+class _ProfileHeroFallback extends StatelessWidget {
+  const _ProfileHeroFallback();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 2),
-          Text(value),
-        ],
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF2A203A), Color(0xFF150F24), Color(0xFF07070C)],
+        ),
       ),
     );
   }

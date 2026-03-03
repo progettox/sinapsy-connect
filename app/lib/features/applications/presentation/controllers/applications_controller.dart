@@ -100,6 +100,8 @@ class ApplicationItem {
     required this.status,
     this.createdAt,
     this.creatorUsername,
+    this.creatorRole,
+    this.creatorCategory,
     this.campaignTitle,
     this.campaignStatus,
     this.chatId,
@@ -112,6 +114,8 @@ class ApplicationItem {
   final String status;
   final DateTime? createdAt;
   final String? creatorUsername;
+  final String? creatorRole;
+  final String? creatorCategory;
   final String? campaignTitle;
   final String? campaignStatus;
   final String? chatId;
@@ -125,6 +129,8 @@ class ApplicationItem {
     String? brandId,
     String? status,
     String? creatorUsername,
+    String? creatorRole,
+    String? creatorCategory,
     String? campaignTitle,
     String? campaignStatus,
     String? chatId,
@@ -138,6 +144,8 @@ class ApplicationItem {
       status: status ?? this.status,
       createdAt: createdAt,
       creatorUsername: creatorUsername ?? this.creatorUsername,
+      creatorRole: creatorRole ?? this.creatorRole,
+      creatorCategory: creatorCategory ?? this.creatorCategory,
       campaignTitle: campaignTitle ?? this.campaignTitle,
       campaignStatus: campaignStatus ?? this.campaignStatus,
       chatId: clearChatId ? null : (chatId ?? this.chatId),
@@ -612,7 +620,7 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
         .where((e) => e.isNotEmpty)
         .toSet();
 
-    final usernames = await _loadCreatorUsernames(creatorIds);
+    final creatorMetaById = await _loadCreatorMeta(creatorIds);
     final campaignTitles = await _loadCampaignTitles(campaignIds);
     final campaignOwners = await _loadCampaignOwners(campaignIds);
     final campaignStatuses = await _loadCampaignStatuses(campaignIds);
@@ -621,7 +629,9 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
         .map(
           (item) => item.copyWith(
             brandId: campaignOwners[item.campaignId],
-            creatorUsername: usernames[item.creatorId],
+            creatorUsername: creatorMetaById[item.creatorId]?.username,
+            creatorRole: creatorMetaById[item.creatorId]?.roleLabel,
+            creatorCategory: creatorMetaById[item.creatorId]?.categoryLabel,
             campaignTitle: campaignTitles[item.campaignId],
             campaignStatus: campaignStatuses[item.campaignId],
           ),
@@ -629,45 +639,155 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
         .toList();
   }
 
-  Future<Map<String, String>> _loadCreatorUsernames(
+  Future<Map<String, _CreatorProfileMeta>> _loadCreatorMeta(
     Set<String> creatorIds,
   ) async {
-    if (creatorIds.isEmpty) return const <String, String>{};
+    if (creatorIds.isEmpty) return const <String, _CreatorProfileMeta>{};
 
-    try {
-      final rows = await _client
-          .from('profiles')
-          .select('id,username')
-          .inFilter('id', creatorIds.toList());
-      return _rowsToMaps(rows).fold<Map<String, String>>(<String, String>{}, (
-        acc,
-        row,
-      ) {
-        final id = _string(row['id']);
-        final username = _string(row['username']);
-        if (id != null && username != null) {
-          acc[id] = username;
-        }
-        return acc;
-      });
-    } on PostgrestException catch (error) {
-      if (!_isColumnError(error)) rethrow;
+    final canonicalIdRows = await _queryCreatorMetaRows(
+      idColumn: 'id',
+      creatorIds: creatorIds,
+      selectVariants: const <String>[
+        'id,username,role,category,bio',
+        'id,username,role,bio',
+        'id,username,role',
+        'id,username',
+      ],
+    );
+    if (canonicalIdRows != null) {
+      return _mapCreatorMetaRows(canonicalIdRows, idColumn: 'id');
+    }
 
-      final rows = await _client
-          .from('profiles')
-          .select('user_id,username')
-          .inFilter('user_id', creatorIds.toList());
-      return _rowsToMaps(rows).fold<Map<String, String>>(<String, String>{}, (
-        acc,
-        row,
-      ) {
-        final id = _string(row['user_id']);
+    final legacyIdRows = await _queryCreatorMetaRows(
+      idColumn: 'user_id',
+      creatorIds: creatorIds,
+      selectVariants: const <String>[
+        'user_id,username,role,category,bio',
+        'user_id,username,role,bio',
+        'user_id,username,role',
+        'user_id,username',
+      ],
+    );
+    if (legacyIdRows != null) {
+      return _mapCreatorMetaRows(legacyIdRows, idColumn: 'user_id');
+    }
+
+    return const <String, _CreatorProfileMeta>{};
+  }
+
+  Future<List<Map<String, dynamic>>?> _queryCreatorMetaRows({
+    required String idColumn,
+    required Set<String> creatorIds,
+    required List<String> selectVariants,
+  }) async {
+    PostgrestException? lastColumnError;
+    for (final fields in selectVariants) {
+      try {
+        final rows = await _client
+            .from('profiles')
+            .select(fields)
+            .inFilter(idColumn, creatorIds.toList());
+        return _rowsToMaps(rows);
+      } on PostgrestException catch (error) {
+        if (!_isColumnError(error)) rethrow;
+        lastColumnError = error;
+      }
+    }
+    if (lastColumnError != null) return null;
+    return null;
+  }
+
+  Map<String, _CreatorProfileMeta> _mapCreatorMetaRows(
+    List<Map<String, dynamic>> rows, {
+    required String idColumn,
+  }) {
+    return rows.fold<Map<String, _CreatorProfileMeta>>(
+      <String, _CreatorProfileMeta>{},
+      (acc, row) {
+        final id = _string(row[idColumn]);
+        if (id == null) return acc;
+
         final username = _string(row['username']);
-        if (id != null && username != null) {
-          acc[id] = username;
-        }
+        final rawRole = _string(row['role']) ?? '';
+        final normalizedRole = _normalizeRole(rawRole);
+        final roleLabel = _roleLabel(normalizedRole, fallback: rawRole);
+        final explicitCategory =
+            _string(
+              row['category'] ??
+                  row['creator_category'] ??
+                  row['specialization'] ??
+                  row['service_type'],
+            ) ??
+            '';
+        final bio = _string(row['bio']) ?? '';
+        final categoryLabel = _resolveCategoryLabel(
+          explicitCategory: explicitCategory,
+          bio: bio,
+          normalizedRole: normalizedRole,
+        );
+
+        acc[id] = _CreatorProfileMeta(
+          username: username,
+          roleLabel: roleLabel,
+          categoryLabel: categoryLabel,
+        );
         return acc;
-      });
+      },
+    );
+  }
+
+  String _resolveCategoryLabel({
+    required String explicitCategory,
+    required String bio,
+    required String normalizedRole,
+  }) {
+    final direct = explicitCategory.trim();
+    if (direct.isNotEmpty) return direct;
+
+    final extracted = _extractCategoryFromBio(bio);
+    if (extracted.isNotEmpty) return extracted;
+
+    if (normalizedRole == 'brand') return 'Brand';
+    return 'Creator';
+  }
+
+  String _extractCategoryFromBio(String rawBio) {
+    final bio = rawBio.trim();
+    if (bio.isEmpty) return '';
+
+    final patterns = <RegExp>[
+      RegExp(r'Specializzazione:\s*\n?([^\n]+)', caseSensitive: false),
+      RegExp(r'Categoria:\s*\n?([^\n]+)', caseSensitive: false),
+      RegExp(r'Tipologia:\s*\n?([^\n]+)', caseSensitive: false),
+      RegExp(r'Category:\s*\n?([^\n]+)', caseSensitive: false),
+    ];
+
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(bio);
+      final value = match?.group(1)?.trim() ?? '';
+      if (value.isNotEmpty) return value;
+    }
+    return '';
+  }
+
+  String _normalizeRole(String rawRole) {
+    final role = rawRole.trim().toLowerCase();
+    if (role.isEmpty) return '';
+    if (role == 'service') return 'creator';
+    if (role.contains('creator')) return 'creator';
+    if (role.contains('brand')) return 'brand';
+    return role;
+  }
+
+  String _roleLabel(String normalizedRole, {required String fallback}) {
+    switch (normalizedRole) {
+      case 'creator':
+        return 'Creator';
+      case 'brand':
+        return 'Brand';
+      default:
+        final cleanFallback = fallback.trim();
+        return cleanFallback.isEmpty ? 'Creator' : cleanFallback;
     }
   }
 
@@ -1199,4 +1319,16 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     if (!kDebugMode) return;
     debugPrint('[ApplicationsController] $message');
   }
+}
+
+class _CreatorProfileMeta {
+  const _CreatorProfileMeta({
+    required this.username,
+    required this.roleLabel,
+    required this.categoryLabel,
+  });
+
+  final String? username;
+  final String roleLabel;
+  final String categoryLabel;
 }

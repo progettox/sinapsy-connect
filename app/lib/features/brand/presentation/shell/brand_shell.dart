@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../auth/data/auth_repository.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../pages/brand_analytics_page.dart';
@@ -78,9 +79,17 @@ class _BrandShellState extends ConsumerState<BrandShell> {
 
   @override
   Widget build(BuildContext context) {
+    final authUserId = ref.watch(authRepositoryProvider).currentUser?.id.trim();
     final profileState = ref.watch(profileControllerProvider);
-    final username = profileState.profile?.username.trim() ?? '';
-    final avatar = profileState.profile?.avatarUrl?.trim();
+    final sameAccountProfile =
+        authUserId != null &&
+            authUserId.isNotEmpty &&
+            profileState.profile?.id.trim() == authUserId
+        ? profileState.profile
+        : null;
+    final username = sameAccountProfile?.username.trim() ?? '';
+    final avatar = sameAccountProfile?.avatarUrl?.trim();
+    final profileUserId = sameAccountProfile?.id.trim();
     final platform = Theme.of(context).platform;
     final pagePhysics = platform == TargetPlatform.iOS
         ? const BouncingScrollPhysics(parent: PageScrollPhysics())
@@ -102,6 +111,9 @@ class _BrandShellState extends ConsumerState<BrandShell> {
       extendBody: true,
       bottomNavigationBar: PremiumBrandBottomNav(
         currentIndex: _currentNavIndex,
+        profileUserId: (profileUserId?.isNotEmpty ?? false)
+            ? profileUserId
+            : null,
         profileAvatarUrl: (avatar?.isNotEmpty ?? false) ? avatar : null,
         profileInitial: username.isNotEmpty ? username.substring(0, 1) : null,
         onTap: _handleBottomTap,

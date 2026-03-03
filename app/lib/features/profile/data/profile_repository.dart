@@ -24,6 +24,8 @@ class ProfileRepository {
   final SupabaseClient _client;
   final AuthRepository _authRepository;
 
+  String? get currentUserId => _authRepository.currentUser?.id;
+
   Future<ProfileModel?> getMyProfile() async {
     final userId = _authRepository.currentUser?.id;
     if (userId == null) return null;

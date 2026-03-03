@@ -240,7 +240,12 @@ class _BrandApplicationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final creatorLabel = item.creatorUsername?.trim().isNotEmpty == true
         ? '@${item.creatorUsername!}'
-        : item.creatorId;
+        : 'Creator';
+    final creatorTag = item.creatorCategory?.trim().isNotEmpty == true
+        ? item.creatorCategory!.trim()
+        : (item.creatorRole?.trim().isNotEmpty == true
+              ? item.creatorRole!.trim()
+              : 'Creator');
 
     return _GlassCard(
       child: Padding(
@@ -272,8 +277,8 @@ class _BrandApplicationCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 _ApplicationMetaPill(
-                  icon: Icons.perm_identity_rounded,
-                  text: 'Creator ID ${item.creatorId}',
+                  icon: Icons.category_rounded,
+                  text: creatorTag,
                 ),
                 if (item.createdAt != null)
                   _ApplicationMetaPill(

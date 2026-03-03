@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../campaigns/presentation/controllers/create_campaign_controller.dart';
+import '../controllers/brand_notifications_badge_controller.dart';
 import '../../../campaigns/presentation/pages/brand_home_page.dart';
 import 'brand_candidatures_page.dart';
 
@@ -22,10 +23,15 @@ class _BrandNotificationsPageState
   @override
   void initState() {
     super.initState();
-    Future<void>.microtask(
-      () =>
-          ref.read(brandCampaignsControllerProvider.notifier).loadMyCampaigns(),
-    );
+    Future<void>.microtask(() async {
+      await ref.read(brandNotificationsBadgeControllerProvider.notifier).init();
+      await ref
+          .read(brandNotificationsBadgeControllerProvider.notifier)
+          .markAllSeen();
+      await ref
+          .read(brandCampaignsControllerProvider.notifier)
+          .loadMyCampaigns();
+    });
   }
 
   Future<void> _openActiveCampaigns() async {
