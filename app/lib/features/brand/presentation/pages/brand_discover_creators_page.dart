@@ -649,11 +649,6 @@ class _CreatorFeedCardTile extends StatelessWidget {
                                   '${_formatCompactNumber(card.followersCount ?? 0)} follower',
                             ),
                             _InfoPill(
-                              icon: Icons.group_outlined,
-                              text:
-                                  'segue ${_formatCompactNumber(card.followingCount ?? 0)}',
-                            ),
-                            _InfoPill(
                               icon: Icons.category_rounded,
                               text: card.category,
                             ),

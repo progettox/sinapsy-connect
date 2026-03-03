@@ -627,7 +627,6 @@ class _CreatorRecommendationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final mediaUrls = _collectMediaUrls(creator);
     final followers = creator.followersCount ?? 0;
-    final following = creator.followingCount ?? 0;
     final completedWorks =
         creator.completedWorksCount ??
         creator.portfolioThumbUrls.length +
@@ -661,27 +660,15 @@ class _CreatorRecommendationCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          creator.displayName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFEDE4FF),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.verified_rounded,
-                        size: 18,
-                        color: Color(0xFF31D89D),
-                      ),
-                    ],
+                  child: Text(
+                    creator.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFEDE4FF),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -700,10 +687,6 @@ class _CreatorRecommendationCard extends StatelessWidget {
                 _CreatorStatChip(
                   icon: Icons.person_outline_rounded,
                   label: '${_formatCompactNumber(followers)} follower',
-                ),
-                _CreatorStatChip(
-                  icon: Icons.group_outlined,
-                  label: 'segue ${_formatCompactNumber(following)}',
                 ),
                 _CreatorStatChip(
                   icon: Icons.work_outline_rounded,
