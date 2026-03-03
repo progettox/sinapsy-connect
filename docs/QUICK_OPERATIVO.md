@@ -34,7 +34,6 @@ Da cartella `app`:
 
 APK release output:
 - `app/build/app/outputs/flutter-apk/app-release.apk`
-
 ## Cosa puoi ignorare per ora
 - Documenti legali/compliance se stai lavorando solo su feature.
 - Documenti su webhook/notifiche se non stai toccando backend eventi.

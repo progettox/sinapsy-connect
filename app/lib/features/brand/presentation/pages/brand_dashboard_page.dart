@@ -506,11 +506,18 @@ class _CreatorPanelFrame extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [Color(0xFF1A0933), Color(0xFF120621)],
         ),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x73370E86),
-            blurRadius: 20,
-            offset: Offset(0, 8),
+            color: const Color(0xFF9B4EFF).withValues(alpha: 0.16),
+            blurRadius: 26,
+            spreadRadius: -6,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.28),
+            blurRadius: 14,
+            spreadRadius: -4,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
