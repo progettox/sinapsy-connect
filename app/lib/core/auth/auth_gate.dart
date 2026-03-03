@@ -89,24 +89,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
           fit: StackFit.expand,
           children: [
             LuxuryNeonBackdrop(),
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SinapsyAnimatedLogo(size: 86),
-                  SizedBox(height: 18),
-                  Text(
-                    'Sinapsy Connect',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.4,
-                      color: Color(0xEBE6D8FF),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            Center(child: SinapsyLogoLoader(size: 46)),
           ],
         ),
       );

@@ -54,17 +54,82 @@ class SinapsyStaticLogo extends StatelessWidget {
   }
 }
 
-class SinapsyLogoLoader extends StatelessWidget {
-  const SinapsyLogoLoader({super.key, this.size = 24});
+class SinapsyLogoLoader extends StatefulWidget {
+  const SinapsyLogoLoader({
+    super.key,
+    this.size = 24,
+    this.color = const Color(0xFF9B4EFF),
+  });
 
   final double size;
+  final Color color;
+
+  @override
+  State<SinapsyLogoLoader> createState() => _SinapsyLogoLoaderState();
+}
+
+class _SinapsyLogoLoaderState extends State<SinapsyLogoLoader>
+    with SingleTickerProviderStateMixin {
+  static const _dotCount = 3;
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 980),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final dotSize = widget.size * 0.22;
+    final spacing = widget.size * 0.12;
+
     return SizedBox(
-      width: size,
-      height: size,
-      child: SinapsyAnimatedLogo(size: size),
+      width: dotSize * _dotCount + spacing * (_dotCount - 1),
+      height: widget.size,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List<Widget>.generate(_dotCount, (index) {
+              final phaseShift = index * 0.17;
+              final phase = (_controller.value + phaseShift) % 1;
+              final wave =
+                  (math.sin((phase * math.pi * 2) - (math.pi / 2)) + 1) / 2;
+              final scale = 0.72 + (wave * 0.36);
+              final opacity = 0.36 + (wave * 0.64);
+              final translateY = (1 - wave) * 3.8;
+
+              return Padding(
+                padding: EdgeInsets.only(
+                  right: index == _dotCount - 1 ? 0 : spacing,
+                ),
+                child: Transform.translate(
+                  offset: Offset(0, translateY),
+                  child: Opacity(
+                    opacity: opacity,
+                    child: Transform.scale(
+                      scale: scale,
+                      child: Container(
+                        width: dotSize,
+                        height: dotSize,
+                        decoration: BoxDecoration(
+                          color: widget.color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          );
+        },
+      ),
     );
   }
 }

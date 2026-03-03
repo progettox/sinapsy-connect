@@ -491,7 +491,7 @@ class _ProfileAvatarEditor extends StatelessWidget {
                       child: SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2.2),
+                        child: SinapsyLogoLoader(size: 16),
                       ),
                     ),
                   ),

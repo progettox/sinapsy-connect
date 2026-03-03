@@ -839,7 +839,7 @@ class _CreatorFavoriteButton extends StatelessWidget {
           child: isSaving
               ? const Padding(
                   padding: EdgeInsets.all(8),
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: Center(child: SinapsyLogoLoader(size: 14)),
                 )
               : Row(
                   mainAxisSize: MainAxisSize.min,
