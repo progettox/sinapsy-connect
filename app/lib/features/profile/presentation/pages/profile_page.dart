@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'dart:typed_data';
 
@@ -6,9 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/router/app_router.dart';
 import '../../../../core/storage/storage_service.dart';
+import '../../../../core/supabase/supabase_client_provider.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_confirm_dialog.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
@@ -31,6 +34,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   Uint8List? _pendingAvatarBytes;
   bool _isUploadingAvatar = false;
   bool _isLoggingOut = false;
+  bool _isLoadingPortfolio = false;
+  String? _portfolioError;
+  String? _loadedPortfolioProfileId;
+  List<_PortfolioTileData> _portfolioTiles = const <_PortfolioTileData>[];
 
   @override
   void initState() {
@@ -206,6 +213,26 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         _showSnack(next.errorMessage!);
         ref.read(profileControllerProvider.notifier).clearError();
       }
+
+      final nextProfile = next.profile;
+      final previousProfileId = previous?.profile?.id;
+      if (nextProfile == null) {
+        if (_loadedPortfolioProfileId != null ||
+            _portfolioTiles.isNotEmpty ||
+            _portfolioError != null ||
+            _isLoadingPortfolio) {
+          setState(() {
+            _loadedPortfolioProfileId = null;
+            _portfolioTiles = const <_PortfolioTileData>[];
+            _portfolioError = null;
+            _isLoadingPortfolio = false;
+          });
+        }
+        return;
+      }
+      if (previousProfileId != nextProfile.id) {
+        unawaited(_loadPortfolioForProfile(nextProfile, force: true));
+      }
     });
 
     final profile = state.profile;
@@ -260,7 +287,23 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       final works = followersBase > 0
                           ? (followersBase % 80 + 12)
                           : 37;
-                      final portfolioUrls = _portfolioUrlsForProfile(profile);
+
+                      if (_loadedPortfolioProfileId != profile.id &&
+                          !_isLoadingPortfolio) {
+                        Future<void>.microtask(() {
+                          if (!mounted) return;
+                          final latestProfile = ref
+                              .read(profileControllerProvider)
+                              .profile;
+                          if (latestProfile == null) return;
+                          unawaited(
+                            _loadPortfolioForProfile(
+                              latestProfile,
+                              force: true,
+                            ),
+                          );
+                        });
+                      }
 
                       return SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
@@ -367,7 +410,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             const SizedBox(height: 8),
                             _PortfolioGrid(
                               profileId: profile.id,
-                              urls: portfolioUrls,
+                              tiles: _portfolioTiles,
+                              isLoading: _isLoadingPortfolio,
+                              errorText: _portfolioError,
+                              isBrandProfile: profile.role == ProfileRole.brand,
+                              onCampaignTap: _openCampaignDetails,
                             ),
                           ],
                         ),
@@ -431,10 +478,233 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     return chunks.isEmpty ? raw : chunks.join('\n\n');
   }
 
-  List<String> _portfolioUrlsForProfile(ProfileModel profile) {
-    final avatar = (profile.avatarUrl ?? '').trim();
-    if (avatar.isEmpty) return const <String>[];
-    return List<String>.filled(6, avatar);
+  Future<void> _loadPortfolioForProfile(
+    ProfileModel profile, {
+    bool force = false,
+  }) async {
+    final profileId = profile.id.trim();
+    if (profileId.isEmpty) return;
+
+    if (!force &&
+        _loadedPortfolioProfileId == profileId &&
+        !_isLoadingPortfolio) {
+      return;
+    }
+    if (_isLoadingPortfolio && _loadedPortfolioProfileId == profileId) {
+      return;
+    }
+
+    setState(() {
+      _loadedPortfolioProfileId = profileId;
+      _portfolioError = null;
+      _portfolioTiles = const <_PortfolioTileData>[];
+      _isLoadingPortfolio = true;
+    });
+
+    try {
+      final tiles = profile.role == ProfileRole.brand
+          ? await _fetchBrandCampaignPortfolioTiles(profileId)
+          : await _fetchCreatorPortfolioTiles(profileId);
+      if (!mounted) return;
+      final activeProfileId = ref
+          .read(profileControllerProvider)
+          .profile
+          ?.id
+          .trim();
+      if (activeProfileId == null || activeProfileId != profileId) {
+        return;
+      }
+      setState(() {
+        _portfolioTiles = tiles;
+        _portfolioError = null;
+        _isLoadingPortfolio = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      final activeProfileId = ref
+          .read(profileControllerProvider)
+          .profile
+          ?.id
+          .trim();
+      if (activeProfileId == null || activeProfileId != profileId) {
+        return;
+      }
+      setState(() {
+        _portfolioTiles = const <_PortfolioTileData>[];
+        _portfolioError = 'Portfolio non disponibile al momento.';
+        _isLoadingPortfolio = false;
+      });
+    }
+  }
+
+  Future<List<_PortfolioTileData>> _fetchCreatorPortfolioTiles(
+    String profileId,
+  ) async {
+    final client = ref.read(supabaseClientProvider);
+    dynamic raw;
+
+    try {
+      raw = await client
+          .from('creator_media')
+          .select('creator_id, image_url, is_featured, sort_order, created_at')
+          .eq('creator_id', profileId)
+          .order('is_featured', ascending: false)
+          .order('sort_order')
+          .order('created_at', ascending: false)
+          .limit(12);
+    } on PostgrestException catch (error) {
+      if (_isMissingTable(error)) return const <_PortfolioTileData>[];
+      if (!_isColumnError(error)) rethrow;
+
+      raw = await client
+          .from('creator_media')
+          .select('creatorId, imageUrl, sortOrder, createdAt')
+          .eq('creatorId', profileId)
+          .order('sortOrder')
+          .order('createdAt', ascending: false)
+          .limit(12);
+    }
+
+    final rows = List<Map<String, dynamic>>.from(raw as List);
+    return _extractImageTiles(
+      rows,
+      keys: const ['image_url', 'imageUrl'],
+      max: 6,
+    );
+  }
+
+  Future<List<_PortfolioTileData>> _fetchBrandCampaignPortfolioTiles(
+    String profileId,
+  ) async {
+    final client = ref.read(supabaseClientProvider);
+    final rows = await _fetchBrandCampaignRows(client, profileId);
+    return _extractCampaignTiles(rows, max: 6);
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchBrandCampaignRows(
+    SupabaseClient client,
+    String profileId,
+  ) async {
+    const snakeSelectVariants = <String>[
+      'id, title, description, category, cash_offer, product_benefit, deadline, min_followers, location_required, cover_image_url, status, applicants_count, brand_id, created_at, updated_at',
+      'id, title, description, category, cash_offer, deadline, min_followers, location_required, cover_image_url, status, applicants_count, brand_id, created_at',
+      'id, title, description, category, cash_offer, cover_image_url, status, applicants_count, brand_id, created_at',
+      'id, title, category, cash_offer, cover_image_url, status, brand_id, created_at',
+      'id, title, cover_image_url, status, brand_id, created_at',
+    ];
+    const camelSelectVariants = <String>[
+      'id, title, description, category, cashOffer, productBenefit, deadline, minFollowers, locationRequiredCity, coverImageUrl, status, applicantsCount, brandId, createdAt, updatedAt',
+      'id, title, description, category, cashOffer, deadline, minFollowers, locationRequiredCity, coverImageUrl, status, applicantsCount, brandId, createdAt',
+      'id, title, description, category, cashOffer, coverImageUrl, status, applicantsCount, brandId, createdAt',
+      'id, title, category, cashOffer, coverImageUrl, status, brandId, createdAt',
+      'id, title, coverImageUrl, status, brandId, createdAt',
+    ];
+
+    PostgrestException? lastColumnError;
+
+    for (final fields in snakeSelectVariants) {
+      try {
+        final raw = await client
+            .from('campaigns')
+            .select(fields)
+            .eq('brand_id', profileId)
+            .inFilter('status', const ['active', 'matched', 'completed'])
+            .order('created_at', ascending: false)
+            .limit(24);
+        return List<Map<String, dynamic>>.from(raw as List);
+      } on PostgrestException catch (error) {
+        if (_isMissingTable(error)) return const <Map<String, dynamic>>[];
+        if (!_isColumnError(error)) rethrow;
+        lastColumnError = error;
+      }
+    }
+
+    for (final fields in camelSelectVariants) {
+      try {
+        final raw = await client
+            .from('campaigns')
+            .select(fields)
+            .eq('brandId', profileId)
+            .inFilter('status', const ['active', 'matched', 'completed'])
+            .order('createdAt', ascending: false)
+            .limit(24);
+        return List<Map<String, dynamic>>.from(raw as List);
+      } on PostgrestException catch (error) {
+        if (_isMissingTable(error)) return const <Map<String, dynamic>>[];
+        if (!_isColumnError(error)) rethrow;
+        lastColumnError = error;
+      }
+    }
+
+    if (lastColumnError != null) throw lastColumnError;
+    return const <Map<String, dynamic>>[];
+  }
+
+  List<_PortfolioTileData> _extractImageTiles(
+    List<Map<String, dynamic>> rows, {
+    required List<String> keys,
+    required int max,
+  }) {
+    final tiles = <_PortfolioTileData>[];
+    final seen = <String>{};
+    for (final row in rows) {
+      String imageUrl = '';
+      for (final key in keys) {
+        final value = (row[key] ?? '').toString().trim();
+        if (value.isNotEmpty) {
+          imageUrl = value;
+          break;
+        }
+      }
+      if (imageUrl.isEmpty || !seen.add(imageUrl)) continue;
+      tiles.add(_PortfolioTileData(imageUrl: imageUrl));
+      if (tiles.length == max) break;
+    }
+    return tiles;
+  }
+
+  List<_PortfolioTileData> _extractCampaignTiles(
+    List<Map<String, dynamic>> rows, {
+    required int max,
+  }) {
+    final tiles = <_PortfolioTileData>[];
+    for (final row in rows) {
+      if (tiles.length == max) break;
+      final title = (row['title'] ?? 'Campagna').toString().trim();
+      final imageUrl = (row['cover_image_url'] ?? row['coverImageUrl'] ?? '')
+          .toString();
+      final detail = _CampaignPortfolioDetail.fromMap(row);
+      tiles.add(
+        _PortfolioTileData(
+          imageUrl: imageUrl.trim().isEmpty ? null : imageUrl.trim(),
+          title: title.isEmpty ? 'Campagna' : title,
+          campaign: detail.id.trim().isEmpty ? null : detail,
+        ),
+      );
+    }
+    return tiles;
+  }
+
+  void _openCampaignDetails(_CampaignPortfolioDetail campaign) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => _CampaignDetailsPage(campaign: campaign),
+      ),
+    );
+  }
+
+  bool _isColumnError(PostgrestException error) {
+    final message = error.message.toLowerCase();
+    return error.code == '42703' ||
+        error.code == 'PGRST204' ||
+        (message.contains('column') && message.contains('does not exist'));
+  }
+
+  bool _isMissingTable(PostgrestException error) {
+    final message = error.message.toLowerCase();
+    return error.code == '42P01' ||
+        error.code == 'PGRST205' ||
+        (message.contains('relation') && message.contains('does not exist'));
   }
 }
 
@@ -839,13 +1109,26 @@ class _PrimaryPillButton extends StatelessWidget {
 }
 
 class _PortfolioGrid extends StatelessWidget {
-  const _PortfolioGrid({required this.profileId, required this.urls});
+  const _PortfolioGrid({
+    required this.profileId,
+    required this.tiles,
+    required this.isLoading,
+    required this.isBrandProfile,
+    this.onCampaignTap,
+    this.errorText,
+  });
 
   final String profileId;
-  final List<String> urls;
+  final List<_PortfolioTileData> tiles;
+  final bool isLoading;
+  final bool isBrandProfile;
+  final ValueChanged<_CampaignPortfolioDetail>? onCampaignTap;
+  final String? errorText;
 
   @override
   Widget build(BuildContext context) {
+    final visibleTiles = tiles.take(6).toList(growable: false);
+
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -859,49 +1142,603 @@ class _PortfolioGrid extends StatelessWidget {
           colors: [Color(0xB1150E29), Color(0xAA0F0A1E)],
         ),
       ),
-      child: GridView.builder(
-        itemCount: 6,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 6,
-          mainAxisSpacing: 6,
-          childAspectRatio: 1.06,
-        ),
-        itemBuilder: (context, index) {
-          final url = index < urls.length ? urls[index] : null;
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF2B1D45), Color(0xFF19132A)],
+      child: isLoading
+          ? const SizedBox(
+              height: 148,
+              child: Center(child: SinapsyLogoLoader()),
+            )
+          : visibleTiles.isEmpty
+          ? SizedBox(
+              height: 128,
+              child: Center(
+                child: Text(
+                  errorText?.trim().isNotEmpty == true
+                      ? errorText!
+                      : isBrandProfile
+                      ? 'Nessuna campagna pubblicata nel portfolio.'
+                      : 'Nessun contenuto pubblicato nel portfolio.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFFC9BCDF),
+                  ),
                 ),
               ),
-              child: (url ?? '').trim().isEmpty
-                  ? Icon(
-                      Icons.image_outlined,
-                      size: 20,
-                      color: const Color(0xFFD1C2F2).withValues(alpha: 0.8),
-                    )
-                  : Image.network(
-                      url!,
-                      key: ValueKey<String>('portfolio-$profileId-$index-$url'),
-                      fit: BoxFit.cover,
-                      gaplessPlayback: false,
-                      filterQuality: FilterQuality.low,
-                      errorBuilder: (_, _, _) => Icon(
-                        Icons.broken_image_outlined,
-                        size: 20,
-                        color: const Color(0xFFD1C2F2).withValues(alpha: 0.8),
+            )
+          : GridView.builder(
+              itemCount: visibleTiles.length,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 6,
+                mainAxisSpacing: 6,
+                childAspectRatio: 1.06,
+              ),
+              itemBuilder: (context, index) {
+                final tile = visibleTiles[index];
+                final url = (tile.imageUrl ?? '').trim();
+                final title = (tile.title ?? 'Campagna').trim();
+                final campaign = tile.campaign;
+                final canOpenCampaign =
+                    campaign != null && onCampaignTap != null;
+                final content = ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: DecoratedBox(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF2B1D45), Color(0xFF19132A)],
                       ),
                     ),
+                    child: url.isNotEmpty
+                        ? Image.network(
+                            url,
+                            key: ValueKey<String>(
+                              'portfolio-$profileId-$index-$url',
+                            ),
+                            fit: BoxFit.cover,
+                            gaplessPlayback: false,
+                            filterQuality: FilterQuality.low,
+                            errorBuilder: (_, _, _) => _PortfolioTileFallback(
+                              isBrandProfile: isBrandProfile,
+                              title: title,
+                            ),
+                          )
+                        : _PortfolioTileFallback(
+                            isBrandProfile: isBrandProfile,
+                            title: title,
+                          ),
+                  ),
+                );
+                if (!canOpenCampaign) return content;
+                return Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => onCampaignTap?.call(campaign),
+                    child: content,
+                  ),
+                );
+              },
             ),
-          );
-        },
+    );
+  }
+}
+
+class _PortfolioTileData {
+  const _PortfolioTileData({this.imageUrl, this.title, this.campaign});
+
+  final String? imageUrl;
+  final String? title;
+  final _CampaignPortfolioDetail? campaign;
+}
+
+class _PortfolioTileFallback extends StatelessWidget {
+  const _PortfolioTileFallback({
+    required this.isBrandProfile,
+    required this.title,
+  });
+
+  final bool isBrandProfile;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isBrandProfile ? Icons.campaign_outlined : Icons.image_outlined,
+              size: 18,
+              color: const Color(0xFFD1C2F2).withValues(alpha: 0.85),
+            ),
+            if (isBrandProfile) ...[
+              const SizedBox(height: 6),
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFD7C9F4),
+                  height: 1.2,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CampaignPortfolioDetail {
+  const _CampaignPortfolioDetail({
+    required this.id,
+    required this.title,
+    required this.category,
+    required this.status,
+    required this.budget,
+    this.description,
+    this.productBenefit,
+    this.deadline,
+    this.minFollowers,
+    this.locationRequired,
+    this.coverImageUrl,
+    this.applicantsCount,
+    this.brandId,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  final String id;
+  final String title;
+  final String category;
+  final String status;
+  final num budget;
+  final String? description;
+  final String? productBenefit;
+  final DateTime? deadline;
+  final int? minFollowers;
+  final String? locationRequired;
+  final String? coverImageUrl;
+  final int? applicantsCount;
+  final String? brandId;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  factory _CampaignPortfolioDetail.fromMap(Map<String, dynamic> map) {
+    final title = _string(map['title']) ?? 'Campagna';
+    return _CampaignPortfolioDetail(
+      id: _string(map['id']) ?? '',
+      title: title,
+      description: _string(map['description']),
+      category: _string(map['category']) ?? 'general',
+      budget: _num(map['cash_offer'] ?? map['cashOffer']) ?? 0,
+      productBenefit: _string(map['product_benefit'] ?? map['productBenefit']),
+      deadline: _dateTime(map['deadline']),
+      minFollowers: _int(map['min_followers'] ?? map['minFollowers']),
+      locationRequired: _string(
+        map['location_required'] ??
+            map['locationRequired'] ??
+            map['location_required_city'] ??
+            map['locationRequiredCity'],
+      ),
+      coverImageUrl: _string(map['cover_image_url'] ?? map['coverImageUrl']),
+      status: _string(map['status']) ?? 'active',
+      applicantsCount: _int(map['applicants_count'] ?? map['applicantsCount']),
+      brandId: _string(map['brand_id'] ?? map['brandId']),
+      createdAt: _dateTime(map['created_at'] ?? map['createdAt']),
+      updatedAt: _dateTime(map['updated_at'] ?? map['updatedAt']),
+    );
+  }
+
+  String get budgetLabel {
+    if (budget == budget.roundToDouble()) return 'EUR ${budget.toInt()}';
+    return 'EUR ${budget.toStringAsFixed(2)}';
+  }
+
+  static String? _string(dynamic raw) {
+    final value = (raw ?? '').toString().trim();
+    if (value.isEmpty) return null;
+    return value;
+  }
+
+  static int? _int(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    return int.tryParse(raw.toString());
+  }
+
+  static num? _num(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is num) return raw;
+    return num.tryParse(raw.toString());
+  }
+
+  static DateTime? _dateTime(dynamic raw) {
+    if (raw == null) return null;
+    return DateTime.tryParse(raw.toString());
+  }
+}
+
+class _CampaignDetailsPage extends StatelessWidget {
+  const _CampaignDetailsPage({required this.campaign});
+
+  final _CampaignPortfolioDetail campaign;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          const Positioned.fill(child: LuxuryNeonBackdrop()),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 12, 4),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                      const SizedBox(width: 4),
+                      const Expanded(
+                        child: Text(
+                          'Dettagli campagna',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFF3ECFF),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: SizedBox(
+                            height: 180,
+                            child: _CampaignCover(campaign: campaign),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: const Color(
+                                0xFF7A4CDD,
+                              ).withValues(alpha: 0.42),
+                            ),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xD81B1230), Color(0xCC100B22)],
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      campaign.title,
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFFF2EBFF),
+                                        height: 1.1,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  _CampaignStatusChip(status: campaign.status),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _CampaignDetailPill(
+                                    icon: Icons.payments_outlined,
+                                    text: 'Budget ${campaign.budgetLabel}',
+                                  ),
+                                  _CampaignDetailPill(
+                                    icon: Icons.category_outlined,
+                                    text: 'Categoria ${campaign.category}',
+                                  ),
+                                  if (campaign.applicantsCount != null)
+                                    _CampaignDetailPill(
+                                      icon: Icons.groups_outlined,
+                                      text:
+                                          'Candidature ${campaign.applicantsCount}',
+                                    ),
+                                  if (campaign.minFollowers != null)
+                                    _CampaignDetailPill(
+                                      icon: Icons.trending_up_rounded,
+                                      text:
+                                          'Min follower ${campaign.minFollowers}',
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              if ((campaign.locationRequired ?? '').isNotEmpty)
+                                _CampaignInfoLine(
+                                  icon: Icons.location_on_outlined,
+                                  value: campaign.locationRequired!,
+                                ),
+                              if (campaign.deadline != null)
+                                _CampaignInfoLine(
+                                  icon: Icons.event_outlined,
+                                  value:
+                                      'Deadline ${_formatDate(campaign.deadline!)}',
+                                ),
+                              if (campaign.createdAt != null)
+                                _CampaignInfoLine(
+                                  icon: Icons.calendar_today_outlined,
+                                  value:
+                                      'Creata ${_formatDate(campaign.createdAt!)}',
+                                ),
+                              if (campaign.updatedAt != null)
+                                _CampaignInfoLine(
+                                  icon: Icons.update_rounded,
+                                  value:
+                                      'Aggiornata ${_formatDate(campaign.updatedAt!)}',
+                                ),
+                              if ((campaign.brandId ?? '').isNotEmpty)
+                                _CampaignInfoLine(
+                                  icon: Icons.business_outlined,
+                                  value: 'Brand ${campaign.brandId}',
+                                ),
+                              if (campaign.id.trim().isNotEmpty)
+                                _CampaignInfoLine(
+                                  icon: Icons.fingerprint_rounded,
+                                  value: 'ID ${campaign.id}',
+                                ),
+                              if ((campaign.description ?? '')
+                                  .trim()
+                                  .isNotEmpty)
+                                _CampaignTextSection(
+                                  title: 'Descrizione',
+                                  text: campaign.description!,
+                                ),
+                              if ((campaign.productBenefit ?? '')
+                                  .trim()
+                                  .isNotEmpty)
+                                _CampaignTextSection(
+                                  title: 'Benefit prodotto',
+                                  text: campaign.productBenefit!,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatDate(DateTime date) {
+    final local = date.toLocal();
+    final dd = local.day.toString().padLeft(2, '0');
+    final mm = local.month.toString().padLeft(2, '0');
+    return '$dd/$mm/${local.year}';
+  }
+}
+
+class _CampaignCover extends StatelessWidget {
+  const _CampaignCover({required this.campaign});
+
+  final _CampaignPortfolioDetail campaign;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = (campaign.coverImageUrl ?? '').trim();
+    if (url.isNotEmpty) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const _CampaignCoverFallback(),
+      );
+    }
+    return const _CampaignCoverFallback();
+  }
+}
+
+class _CampaignCoverFallback extends StatelessWidget {
+  const _CampaignCoverFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF261B3D), Color(0xFF140F25)],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.campaign_outlined,
+          size: 30,
+          color: Color(0xFFDCCBF9),
+        ),
+      ),
+    );
+  }
+}
+
+class _CampaignStatusChip extends StatelessWidget {
+  const _CampaignStatusChip({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final clean = status.trim().isEmpty
+        ? 'active'
+        : status.trim().toLowerCase();
+    final color = switch (clean) {
+      'matched' => const Color(0xFFF6B04A),
+      'completed' => const Color(0xFF50D093),
+      'cancelled' => const Color(0xFFE56A80),
+      _ => const Color(0xFFB66BFF),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: color.withValues(alpha: 0.18),
+        border: Border.all(color: color.withValues(alpha: 0.55)),
+      ),
+      child: Text(
+        clean,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: color,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
+class _CampaignDetailPill extends StatelessWidget {
+  const _CampaignDetailPill({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF171427).withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: const Color(0xFF8B5BE6).withValues(alpha: 0.35),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFFD1A1FF)),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFFECE2FF),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CampaignInfoLine extends StatelessWidget {
+  const _CampaignInfoLine({required this.icon, required this.value});
+
+  final IconData icon;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(icon, size: 15, color: const Color(0xFFC99CFF)),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFFDFD4F4),
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CampaignTextSection extends StatelessWidget {
+  const _CampaignTextSection({required this.title, required this.text});
+
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFF1E8FF),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFFDBD0F2),
+              height: 1.35,
+            ),
+          ),
+        ],
       ),
     );
   }
