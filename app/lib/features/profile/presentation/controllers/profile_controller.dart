@@ -92,6 +92,12 @@ class ProfileController extends StateNotifier<ProfileUiState> {
         clearError: true,
       );
       return profile;
+    } on ProfileUsernameAlreadyInUseException catch (error) {
+      state = state.copyWith(isLoading: false, errorMessage: error.message);
+      return null;
+    } on ProfileValidationException catch (error) {
+      state = state.copyWith(isLoading: false, errorMessage: error.message);
+      return null;
     } catch (error) {
       state = state.copyWith(
         isLoading: false,

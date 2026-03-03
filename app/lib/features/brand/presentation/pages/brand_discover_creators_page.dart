@@ -89,31 +89,81 @@ class _BrandDiscoverCreatorsPageState
       _savingIds.add(card.id);
       _cards = _cards
           .map(
-            (item) =>
-                item.id == card.id ? item.copyWith(isSaved: nextSaved) : item,
+            (item) => item.id == card.id
+                ? item.copyWith(
+                    isSaved: nextSaved,
+                    followersCount: _nextFollowerCount(
+                      currentCount: item.followersCount,
+                      wasFollowing: card.isSaved,
+                      nextIsFollowing: nextSaved,
+                    ),
+                  )
+                : item,
           )
           .toList(growable: false);
     });
 
     try {
       final repo = ref.read(brandCreatorFeedRepositoryProvider);
-      await repo.setSaved(creatorId: card.id, isSaved: nextSaved);
+      await repo.setFollowing(creatorId: card.id, isFollowing: nextSaved);
+      await _syncCardFollowCounters(card.id);
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _cards = _cards
             .map(
               (item) => item.id == card.id
-                  ? item.copyWith(isSaved: !nextSaved)
+                  ? item.copyWith(
+                      isSaved: card.isSaved,
+                      followersCount: card.followersCount,
+                      followingCount: card.followingCount,
+                    )
                   : item,
             )
             .toList(growable: false);
       });
-      _showSnack('Impossibile aggiornare wishlist: $error');
+      _showSnack('Impossibile aggiornare follow: $error');
     } finally {
       if (mounted) {
         setState(() => _savingIds.remove(card.id));
       }
+    }
+  }
+
+  int _nextFollowerCount({
+    required int? currentCount,
+    required bool wasFollowing,
+    required bool nextIsFollowing,
+  }) {
+    final safeCurrent = currentCount ?? 0;
+    if (!wasFollowing && nextIsFollowing) return safeCurrent + 1;
+    if (wasFollowing && !nextIsFollowing) {
+      return safeCurrent > 0 ? safeCurrent - 1 : 0;
+    }
+    return safeCurrent;
+  }
+
+  Future<void> _syncCardFollowCounters(String creatorId) async {
+    try {
+      final counters = await ref
+          .read(brandCreatorFeedRepositoryProvider)
+          .getFollowCounters(creatorId: creatorId);
+      if (!mounted) return;
+      setState(() {
+        _cards = _cards
+            .map(
+              (item) => item.id == creatorId
+                  ? item.copyWith(
+                      isSaved: counters.isFollowing,
+                      followersCount: counters.followersCount,
+                      followingCount: counters.followingCount,
+                    )
+                  : item,
+            )
+            .toList(growable: false);
+      });
+    } catch (_) {
+      // Keep optimistic UI if a follow stats refresh fails.
     }
   }
 
@@ -243,7 +293,7 @@ class _BrandDiscoverCreatorsPageState
                               const SizedBox(width: 8),
                               Expanded(
                                 child: _RoleChip(
-                                  label: 'Salvati',
+                                  label: 'Seguiti',
                                   selected:
                                       _selectedRole ==
                                       _DiscoverRoleFilter.saved,
@@ -594,6 +644,16 @@ class _CreatorFeedCardTile extends StatelessWidget {
                           runSpacing: 8,
                           children: [
                             _InfoPill(
+                              icon: Icons.person_outline_rounded,
+                              text:
+                                  '${_formatCompactNumber(card.followersCount ?? 0)} follower',
+                            ),
+                            _InfoPill(
+                              icon: Icons.group_outlined,
+                              text:
+                                  'segue ${_formatCompactNumber(card.followingCount ?? 0)}',
+                            ),
+                            _InfoPill(
                               icon: Icons.category_rounded,
                               text: card.category,
                             ),
@@ -613,6 +673,19 @@ class _CreatorFeedCardTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static String _formatCompactNumber(int value) {
+    if (value <= 0) return '0';
+    if (value >= 1000000) {
+      final v = value / 1000000;
+      return '${v.toStringAsFixed(v >= 10 ? 0 : 1)}M'.replaceAll('.0M', 'M');
+    }
+    if (value >= 1000) {
+      final v = value / 1000;
+      return '${v.toStringAsFixed(v >= 10 ? 0 : 1)}k'.replaceAll('.0k', 'k');
+    }
+    return '$value';
   }
 }
 
@@ -754,35 +827,38 @@ class _SavedButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: isSaving ? null : onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Ink(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.32),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: AppTheme.colorStrokeMedium.withValues(alpha: 0.9),
+    return Tooltip(
+      message: isSaved ? 'Non seguire più' : 'Segui creator',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isSaving ? null : onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Ink(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.32),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: AppTheme.colorStrokeMedium.withValues(alpha: 0.9),
+              ),
             ),
+            child: isSaving
+                ? const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    isSaved
+                        ? Icons.person_remove_alt_1_rounded
+                        : Icons.person_add_alt_1_rounded,
+                    size: 21,
+                    color: isSaved
+                        ? AppTheme.colorAccentPrimary
+                        : AppTheme.colorTextPrimary,
+                  ),
           ),
-          child: isSaving
-              ? const Padding(
-                  padding: EdgeInsets.all(8),
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Icon(
-                  isSaved
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                  size: 21,
-                  color: isSaved
-                      ? AppTheme.colorAccentPrimary
-                      : AppTheme.colorTextPrimary,
-                ),
         ),
       ),
     );
