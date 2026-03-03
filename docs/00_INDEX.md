@@ -1,19 +1,27 @@
 # Docs Index
 
-## Start here
-1. `docs/01_VISION.md`
+## Leggi prima (operativo)
+1. `docs/QUICK_OPERATIVO.md`
 2. `docs/02_SCOPE_MVP.md`
-3. `docs/product/PRD.md`
-4. `docs/flows/STATE_MACHINES.md`
-5. `docs/data/DATA_MODEL.md`
-6. `docs/ui/SCREEN_INVENTORY.md`
-7. `docs/engineering/FOLDER_STRUCTURE_FLUTTER.md`
-8. `prompts/CODEX_SYSTEM_PROMPT.md`
+3. `docs/data/DATA_MODEL.md`
+4. `docs/engineering/FOLDER_STRUCTURE_FLUTTER.md`
 
-## Source of truth rules
-- Se c’è conflitto: vince **Scope MVP** → poi **State Machines** → poi **Data Model**.
-- L’LLM non deve inventare feature fuori scope.
+## Se devi modificare prodotto/flussi
+1. `docs/product/PRD.md`
+2. `docs/flows/STATE_MACHINES.md`
+3. `docs/ui/SCREEN_INVENTORY.md`
 
-## Roles
+## Se devi lavorare su sicurezza/backend
+1. `docs/data/SECURITY_RULES.md`
+2. `docs/backend/API_CONTRACTS.md`
+3. `docs/backend/WEBHOOKS_EVENTS.md`
+
+## Regola semplice di priorita
+In caso di conflitto usa questo ordine:
+1. `docs/02_SCOPE_MVP.md`
+2. `docs/flows/STATE_MACHINES.md`
+3. `docs/data/DATA_MODEL.md`
+
+## Ruoli
 - Brand
-- Creator (influencer)
+- Creator

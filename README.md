@@ -1,21 +1,23 @@
 ﻿
-# Sinapsy Connect (MVP)
+# Sinapsy Connect
 
-Marketplace mobile (iOS/Android) che connette **Brand** e **Creator/Service Provider (fotografi, videomaker, influencer)** tramite:
-- feed a **card + swipe** (stile matching)
-- **chat** attiva dopo match
-- **escrow** (fondi bloccati) + approvazione finale
-- **delivery** di file/link e gestione **dispute**
+App mobile Flutter (iOS/Android) per connessione tra Brand e Creator.
 
-## Repo guide
-- Se devi capire “cos’è l’app”: vai in `docs/00_INDEX.md`
-- Se devi generare codice Flutter: leggi `docs/engineering/FOLDER_STRUCTURE_FLUTTER.md` e `prompts/CODEX_SYSTEM_PROMPT.md`
+## Start rapido
+1. Apri la cartella `app`.
+2. Esegui `flutter pub get`.
+3. Configura le variabili Supabase (`url` + `anon key`).
+4. Avvia con `flutter run`.
 
-## MVP scope
-Il perimetro MVP è definito in `docs/02_SCOPE_MVP.md`.
+## Build APK release
+Da cartella `app`:
+- `flutter build apk --release`
+- APK output: `app/build/app/outputs/flutter-apk/app-release.apk`
 
-## Quick start (dev)
-> Placeholder: qui inserirai comandi Flutter quando hai creato il progetto.
+## Documentazione essenziale
+- Indice pratico: `docs/00_INDEX.md`
+- Guida operativa aggiornata: `docs/QUICK_OPERATIVO.md`
 
-## License
-TBD
+## Note
+- La dashboard brand e la logica follow/unfollow sono gia integrate lato app.
+- Per i contatori follower globali servono tabelle/policy Supabase coerenti.

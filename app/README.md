@@ -1,17 +1,18 @@
-# app
+# App Flutter
 
-A new Flutter project.
+Cartella applicazione mobile Flutter.
 
-## Getting Started
+## Run locale
+1. `flutter pub get`
+2. `flutter run`
 
-This project is a starting point for a Flutter application.
+## Analisi e build
+1. `flutter analyze`
+2. `flutter build apk --release`
 
-A few resources to get you started if this is your first Flutter project:
+APK release:
+- `build/app/outputs/flutter-apk/app-release.apk`
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Riferimenti
+- Guida operativa: `../docs/QUICK_OPERATIVO.md`
+- Indice docs: `../docs/00_INDEX.md`
