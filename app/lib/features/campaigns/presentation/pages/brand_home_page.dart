@@ -2317,83 +2317,134 @@ class _ActiveCampaignTile extends StatelessWidget {
 
     return _GlassPanel(
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Text(
                     campaign.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
+                      color: AppTheme.colorTextPrimary,
                     ),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'active',
-                    style: TextStyle(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                const SizedBox(width: 10),
+                const _CampaignStateBadge(
+                  label: 'active',
+                  textColor: Color(0xFFB970FF),
+                  backgroundColor: Color(0x2EA855F7),
+                  borderColor: Color(0x4FA855F7),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text('Budget: ${campaign.budgetLabel}'),
-            Text('Categoria: ${campaign.category}'),
-            Text('Applicants: ${campaign.applicantsCount}'),
-            if (campaign.createdAt != null)
-              Text('Creata: ${_formatDate(campaign.createdAt!)}'),
             const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _CampaignMetaPill(
+                  icon: Icons.payments_outlined,
+                  text: 'Budget ${campaign.budgetLabel}',
+                ),
+                _CampaignMetaPill(
+                  icon: Icons.category_outlined,
+                  text: 'Categoria ${campaign.category}',
+                ),
+                _CampaignMetaPill(
+                  icon: Icons.groups_outlined,
+                  text: 'Applicants ${campaign.applicantsCount}',
+                ),
+                if (campaign.createdAt != null)
+                  _CampaignMetaPill(
+                    icon: Icons.calendar_today_outlined,
+                    text: 'Creata ${_formatDate(campaign.createdAt!)}',
+                  ),
+              ],
+            ),
+            if (campaign.createdAt != null) const SizedBox(height: 0),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: isRemoving
-                        ? null
-                        : () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => BrandApplicationsPage(
-                                  campaignId: campaign.id,
-                                  campaignTitle: campaign.title,
-                                ),
-                              ),
-                            );
-                          },
-                    icon: const Icon(Icons.people_outline),
-                    label: const Text('Applications'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.colorAccentPrimary.withValues(
-                        alpha: 0.2,
+                  child: SizedBox(
+                    height: 40,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            const Color(0xFF47206E).withValues(alpha: 0.95),
+                            const Color(0xFF3A195D).withValues(alpha: 0.95),
+                          ],
+                        ),
+                        border: Border.all(color: const Color(0x55A855F7)),
                       ),
-                      foregroundColor: AppTheme.colorTextPrimary,
+                      child: ElevatedButton.icon(
+                        onPressed: isRemoving
+                            ? null
+                            : () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => BrandApplicationsPage(
+                                      campaignId: campaign.id,
+                                      campaignTitle: campaign.title,
+                                    ),
+                                  ),
+                                );
+                              },
+                        icon: const Icon(Icons.groups_2_outlined, size: 17),
+                        label: const Text('Applications'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          foregroundColor: AppTheme.colorTextPrimary,
+                          disabledForegroundColor: AppTheme.colorTextSecondary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: isRemoving ? null : onRemove,
-                  icon: isRemoving
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: SinapsyLogoLoader(size: 14),
-                        )
-                      : const Icon(Icons.delete_outline),
-                  label: const Text('Elimina'),
+                SizedBox(
+                  height: 40,
+                  child: OutlinedButton.icon(
+                    onPressed: isRemoving ? null : onRemove,
+                    icon: isRemoving
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: SinapsyLogoLoader(size: 14),
+                          )
+                        : const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 17,
+                            color: Color(0xFFB35AFF),
+                          ),
+                    label: const Text('Elimina'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFB35AFF),
+                      side: BorderSide(
+                        color: AppTheme.colorStrokeSubtle.withValues(
+                          alpha: 0.95,
+                        ),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -2602,83 +2653,134 @@ class _MatchedCampaignTile extends StatelessWidget {
 
     return _GlassPanel(
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Text(
                     campaign.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
+                      color: AppTheme.colorTextPrimary,
                     ),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade700.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'matched',
-                    style: TextStyle(
-                      color: Colors.orange.shade700,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                const SizedBox(width: 10),
+                const _CampaignStateBadge(
+                  label: 'matched',
+                  textColor: Color(0xFFFFC674),
+                  backgroundColor: Color(0x26F59E0B),
+                  borderColor: Color(0x55F59E0B),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text('Budget: ${campaign.budgetLabel}'),
-            Text('Categoria: ${campaign.category}'),
-            Text('Applicants: ${campaign.applicantsCount}'),
-            if (campaign.createdAt != null)
-              Text('Creata: ${_formatDate(campaign.createdAt!)}'),
             const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _CampaignMetaPill(
+                  icon: Icons.payments_outlined,
+                  text: 'Budget ${campaign.budgetLabel}',
+                ),
+                _CampaignMetaPill(
+                  icon: Icons.category_outlined,
+                  text: 'Categoria ${campaign.category}',
+                ),
+                _CampaignMetaPill(
+                  icon: Icons.groups_outlined,
+                  text: 'Applicants ${campaign.applicantsCount}',
+                ),
+                if (campaign.createdAt != null)
+                  _CampaignMetaPill(
+                    icon: Icons.calendar_today_outlined,
+                    text: 'Creata ${_formatDate(campaign.createdAt!)}',
+                  ),
+              ],
+            ),
+            if (campaign.createdAt != null) const SizedBox(height: 0),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: isRemoving
-                        ? null
-                        : () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => BrandApplicationsPage(
-                                  campaignId: campaign.id,
-                                  campaignTitle: campaign.title,
-                                ),
-                              ),
-                            );
-                          },
-                    icon: const Icon(Icons.people_outline),
-                    label: const Text('Applications'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.colorAccentPrimary.withValues(
-                        alpha: 0.2,
+                  child: SizedBox(
+                    height: 40,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            const Color(0xFF47206E).withValues(alpha: 0.95),
+                            const Color(0xFF3A195D).withValues(alpha: 0.95),
+                          ],
+                        ),
+                        border: Border.all(color: const Color(0x55A855F7)),
                       ),
-                      foregroundColor: AppTheme.colorTextPrimary,
+                      child: ElevatedButton.icon(
+                        onPressed: isRemoving
+                            ? null
+                            : () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => BrandApplicationsPage(
+                                      campaignId: campaign.id,
+                                      campaignTitle: campaign.title,
+                                    ),
+                                  ),
+                                );
+                              },
+                        icon: const Icon(Icons.groups_2_outlined, size: 17),
+                        label: const Text('Applications'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          foregroundColor: AppTheme.colorTextPrimary,
+                          disabledForegroundColor: AppTheme.colorTextSecondary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: isRemoving ? null : onRemove,
-                  icon: isRemoving
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: SinapsyLogoLoader(size: 14),
-                        )
-                      : const Icon(Icons.delete_outline),
-                  label: const Text('Elimina'),
+                SizedBox(
+                  height: 40,
+                  child: OutlinedButton.icon(
+                    onPressed: isRemoving ? null : onRemove,
+                    icon: isRemoving
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: SinapsyLogoLoader(size: 14),
+                          )
+                        : const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 17,
+                            color: Color(0xFFB35AFF),
+                          ),
+                    label: const Text('Elimina'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFB35AFF),
+                      side: BorderSide(
+                        color: AppTheme.colorStrokeSubtle.withValues(
+                          alpha: 0.95,
+                        ),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -2693,5 +2795,76 @@ class _MatchedCampaignTile extends StatelessWidget {
     final mm = local.month.toString().padLeft(2, '0');
     final dd = local.day.toString().padLeft(2, '0');
     return '${local.year}-$mm-$dd';
+  }
+}
+
+class _CampaignStateBadge extends StatelessWidget {
+  const _CampaignStateBadge({
+    required this.label,
+    required this.textColor,
+    required this.backgroundColor,
+    required this.borderColor,
+  });
+
+  final String label;
+  final Color textColor;
+  final Color backgroundColor;
+  final Color borderColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: borderColor),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: textColor,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
+          fontSize: 12,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
+class _CampaignMetaPill extends StatelessWidget {
+  const _CampaignMetaPill({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.colorBgElevated.withValues(alpha: 0.74),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.95),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppTheme.colorTextSecondary),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppTheme.colorTextSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
