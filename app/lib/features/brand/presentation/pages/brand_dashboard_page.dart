@@ -5,11 +5,9 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../data/brand_creator_feed_repository.dart';
-import '../../../campaigns/presentation/pages/brand_home_page.dart';
 import '../pages/brand_notifications_page.dart';
 import '../../../campaigns/presentation/controllers/create_campaign_controller.dart';
 import '../../../campaigns/presentation/pages/create_campaign_page.dart';
-import 'brand_candidatures_page.dart';
 
 class BrandDashboardPage extends ConsumerStatefulWidget {
   const BrandDashboardPage({super.key});
@@ -53,18 +51,6 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
   Future<void> _openNotifications() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const BrandNotificationsPage()),
-    );
-  }
-
-  Future<void> _openActiveCampaigns() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => const ActiveCampaignsPage()),
-    );
-  }
-
-  Future<void> _openCandidatureRequests() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => const BrandCandidaturesPage()),
     );
   }
 
@@ -184,13 +170,7 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(brandCampaignsControllerProvider);
-    final activeCampaigns = state.campaigns
-        .where((campaign) => campaign.status.toLowerCase() == 'active')
-        .length;
-    final candidatureCount = state.campaigns.fold<int>(
-      0,
-      (total, campaign) => total + campaign.applicantsCount,
-    );
+    final canCreateCampaign = !state.isLoading && !state.isRemoving;
 
     ref.listen<BrandCampaignsState>(brandCampaignsControllerProvider, (
       previous,
@@ -209,129 +189,84 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
         children: [
           const LuxuryNeonBackdrop(),
           SafeArea(
-            child: RefreshIndicator(
-              onRefresh: () => ref
-                  .read(brandCampaignsControllerProvider.notifier)
-                  .loadMyCampaigns()
-                  .then((_) => _loadRecommendedCreators()),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(14, 18, 14, 22),
-                children: [
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            children: [
-                              const Spacer(),
-                              _NotificationActionButton(
-                                onPressed: _openNotifications,
-                              ),
-                              const SizedBox(width: 10),
-                              _CreateCampaignActionButton(
-                                tooltip: 'Nuova campagna',
-                                onPressed: !state.isLoading && !state.isRemoving
-                                    ? _openCreateCampaign
-                                    : null,
-                              ),
-                            ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return RefreshIndicator(
+                  onRefresh: () => ref
+                      .read(brandCampaignsControllerProvider.notifier)
+                      .loadMyCampaigns()
+                      .then((_) => _loadRecommendedCreators()),
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(14, 34, 14, 16),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight - 30,
                           ),
-                          const SizedBox(height: 10),
-                          if (state.isLoading && state.campaigns.isEmpty) ...[
-                            const SizedBox(height: 60),
-                            const Center(child: SinapsyLogoLoader()),
-                            const SizedBox(height: 60),
-                          ] else ...[
-                            Row(
+                          child: IntrinsicHeight(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                Expanded(
-                                  child: _DashboardStatCard(
-                                    title: 'Campagne\nAttive',
-                                    value: '$activeCampaigns',
-                                    icon: Icons.show_chart_rounded,
-                                    iconColor: const Color(0xFF3AF8CA),
-                                    onTap: _openActiveCampaigns,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _DashboardStatCard(
-                                    title: 'Candidature',
-                                    value: '$candidatureCount',
-                                    icon: Icons.groups_2_outlined,
-                                    iconColor: const Color(0xFF56E7FF),
-                                    onTap: _openCandidatureRequests,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            SizedBox(
-                              height: 54,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  gradient: const LinearGradient(
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                    colors: [
-                                      Color(0xFF8E47F7),
-                                      Color(0xFFB15CFF),
-                                    ],
-                                  ),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Color(0x6D8E47F7),
-                                      blurRadius: 18,
-                                      offset: Offset(0, 8),
+                                Row(
+                                  children: [
+                                    const Spacer(),
+                                    _NotificationActionButton(
+                                      onPressed: _openNotifications,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    _CreateCampaignActionButton(
+                                      tooltip: 'Nuova campagna',
+                                      onPressed: canCreateCampaign
+                                          ? _openCreateCampaign
+                                          : null,
                                     ),
                                   ],
                                 ),
-                                child: ElevatedButton.icon(
-                                  onPressed: state.isLoading
-                                      ? null
-                                      : _openCreateCampaign,
-                                  icon: const Icon(Icons.add_rounded, size: 20),
-                                  label: const Text(
-                                    'Nuova Campagna',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.2,
-                                    ),
+                                const SizedBox(height: 20),
+                                if (state.isLoading && state.campaigns.isEmpty)
+                                  const Expanded(
+                                    child: Center(child: SinapsyLogoLoader()),
+                                  )
+                                else ...[
+                                  const Spacer(),
+                                  _RecommendedCreatorsSection(
+                                    creators: _recommendedCreators,
+                                    isLoading: _isLoadingCreators,
+                                    errorMessage: _creatorsError,
+                                    savingCreatorIds: _savingCreatorIds,
+                                    onRetry: _loadRecommendedCreators,
+                                    onToggleSaved: _toggleSavedCreator,
                                   ),
-                                  style: ElevatedButton.styleFrom(
-                                    elevation: 0,
-                                    backgroundColor: Colors.transparent,
-                                    shadowColor: Colors.transparent,
-                                    foregroundColor: Colors.white,
-                                    disabledForegroundColor: Colors.white70,
-                                    disabledBackgroundColor: Colors.transparent,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                                  const SizedBox(height: 92),
+                                ],
+                              ],
                             ),
-                            const SizedBox(height: 18),
-                            _RecommendedCreatorsSection(
-                              creators: _recommendedCreators,
-                              isLoading: _isLoadingCreators,
-                              errorMessage: _creatorsError,
-                              savingCreatorIds: _savingCreatorIds,
-                              onRetry: _loadRecommendedCreators,
-                              onToggleSaved: _toggleSavedCreator,
-                            ),
-                          ],
-                        ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ],
+                );
+              },
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: _PrimaryCreateCampaignButton(
+                    enabled: canCreateCampaign,
+                    onPressed: _openCreateCampaign,
+                  ),
+                ),
               ),
             ),
           ),
@@ -341,89 +276,64 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
   }
 }
 
-class _DashboardStatCard extends StatelessWidget {
-  const _DashboardStatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.iconColor,
-    this.onTap,
+class _PrimaryCreateCampaignButton extends StatelessWidget {
+  const _PrimaryCreateCampaignButton({
+    required this.enabled,
+    required this.onPressed,
   });
 
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color iconColor;
-  final VoidCallback? onTap;
+  final bool enabled;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(16);
-    final content = Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 15, color: iconColor),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.1,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFFD4E2FF),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-              height: 1,
-            ),
-          ),
-        ],
-      ),
-    );
-
     return SizedBox(
-      height: 94,
-      child: Material(
-        color: Colors.transparent,
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: borderRadius,
-            border: Border.all(
-              color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.9),
-            ),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF161C2B), Color(0xFF101420)],
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x70040A14),
-                blurRadius: 16,
-                offset: Offset(0, 8),
-              ),
-            ],
+      height: 44,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: enabled
+                ? [
+                    const Color(0xFFAA63FF).withValues(alpha: 0.26),
+                    const Color(0xFF6D30DA).withValues(alpha: 0.16),
+                  ]
+                : [
+                    const Color(0xFFAA63FF).withValues(alpha: 0.12),
+                    const Color(0xFF6D30DA).withValues(alpha: 0.08),
+                  ],
           ),
-          child: InkWell(
-            borderRadius: borderRadius,
-            onTap: onTap,
-            child: content,
+          border: Border.all(
+            color: const Color(
+              0xFFB97BFF,
+            ).withValues(alpha: enabled ? 0.62 : 0.28),
+          ),
+        ),
+        child: ElevatedButton.icon(
+          onPressed: enabled ? onPressed : null,
+          icon: const Icon(Icons.add_rounded, size: 19),
+          label: const Text(
+            'Nuova Campagna',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+              fontSize: 15,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            foregroundColor: const Color(0xFFE7D7FF),
+            disabledForegroundColor: const Color(
+              0xFFE7D7FF,
+            ).withValues(alpha: 0.55),
+            disabledBackgroundColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
         ),
       ),
@@ -461,7 +371,7 @@ class _RecommendedCreatorsSectionState
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(viewportFraction: 0.965);
+    _pageController = PageController(viewportFraction: 1);
   }
 
   @override
@@ -499,7 +409,7 @@ class _RecommendedCreatorsSectionState
         ),
         const SizedBox(height: 10),
         if (widget.isLoading)
-          const SizedBox(height: 320, child: Center(child: SinapsyLogoLoader()))
+          const SizedBox(height: 360, child: Center(child: SinapsyLogoLoader()))
         else if ((widget.errorMessage ?? '').isNotEmpty)
           _CreatorPanelFrame(
             child: Padding(
@@ -534,22 +444,19 @@ class _RecommendedCreatorsSectionState
           )
         else ...[
           SizedBox(
-            height: 340,
+            height: 378,
             child: PageView.builder(
               controller: _pageController,
               itemCount: widget.creators.length,
               onPageChanged: (index) => setState(() => _pageIndex = index),
               itemBuilder: (context, index) {
                 final creator = widget.creators[index];
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: _CreatorRecommendationCard(
-                    creator: creator,
-                    isSaving: widget.savingCreatorIds.contains(creator.id),
-                    onToggleSaved: () {
-                      widget.onToggleSaved(creator);
-                    },
-                  ),
+                return _CreatorRecommendationCard(
+                  creator: creator,
+                  isSaving: widget.savingCreatorIds.contains(creator.id),
+                  onToggleSaved: () {
+                    widget.onToggleSaved(creator);
+                  },
                 );
               },
             ),
@@ -660,15 +567,22 @@ class _CreatorRecommendationCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    creator.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFEDE4FF),
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        creator.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFEDE4FF),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _CreatorCategoryChip(label: creator.category),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -783,6 +697,49 @@ class _CreatorRecommendationCard extends StatelessWidget {
   }
 }
 
+class _CreatorCategoryChip extends StatelessWidget {
+  const _CreatorCategoryChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized =
+        label.trim().isEmpty || label.trim().toLowerCase() == 'creator'
+        ? 'Creator'
+        : label.trim();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFFAA63FF).withValues(alpha: 0.22),
+            const Color(0xFF6D30DA).withValues(alpha: 0.14),
+          ],
+        ),
+        border: Border.all(
+          color: const Color(0xFFB97BFF).withValues(alpha: 0.6),
+        ),
+      ),
+      child: Text(
+        normalized,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFFE7D7FF),
+          letterSpacing: 0.1,
+        ),
+      ),
+    );
+  }
+}
+
 class _CreatorFavoriteButton extends StatelessWidget {
   const _CreatorFavoriteButton({
     required this.isFollowing,
@@ -887,39 +844,73 @@ class _NotificationActionButton extends StatelessWidget {
     final enabled = onPressed != null;
     return Tooltip(
       message: 'Centro notifiche',
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(999),
-          child: SizedBox(
-            width: 34,
-            height: 34,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  Icons.notifications_none_rounded,
-                  size: 21,
-                  color: Colors.white.withValues(alpha: enabled ? 0.92 : 0.45),
-                ),
-                Positioned(
-                  right: 6.5,
-                  top: 6.0,
-                  child: Container(
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(
-                        0xFFB35AFF,
-                      ).withValues(alpha: enabled ? 1 : 0.5),
-                      border: Border.all(color: const Color(0xFF090A12)),
+      child: GestureDetector(
+        onTap: onPressed,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: enabled
+                  ? [const Color(0xFF1B1B2B), const Color(0xFF0E1020)]
+                  : [
+                      const Color(0xFF1B1B2B).withValues(alpha: 0.42),
+                      const Color(0xFF0E1020).withValues(alpha: 0.4),
+                    ],
+            ),
+            border: Border.all(
+              color: const Color(
+                0x6A625A84,
+              ).withValues(alpha: enabled ? 1 : 0.35),
+            ),
+            boxShadow: enabled
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF8B4CFF).withValues(alpha: 0.18),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.26),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(
+                Icons.notifications_none_rounded,
+                size: 23,
+                color: const Color(
+                  0xFFF7F4FF,
+                ).withValues(alpha: enabled ? 0.95 : 0.46),
+              ),
+              Positioned(
+                right: 9.5,
+                top: 8.5,
+                child: Container(
+                  width: 9,
+                  height: 9,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(
+                      0xFFAF63FF,
+                    ).withValues(alpha: enabled ? 1 : 0.5),
+                    border: Border.all(
+                      color: const Color(0xFF151626),
+                      width: 1.2,
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -939,46 +930,37 @@ class _CreateCampaignActionButton extends StatelessWidget {
 
     return Tooltip(
       message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(999),
-          child: Ink(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: isEnabled
-                    ? const [Color(0xFFAA63FF), Color(0xFF934DFF)]
-                    : [
-                        const Color(0xFFAA63FF).withValues(alpha: 0.4),
-                        const Color(0xFF934DFF).withValues(alpha: 0.4),
-                      ],
-              ),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: const Color(
-                  0xFFCBA3FF,
-                ).withValues(alpha: isEnabled ? 0.5 : 0.2),
-              ),
-              boxShadow: isEnabled
-                  ? [
-                      BoxShadow(
-                        color: const Color(0xFF9B4EFF).withValues(alpha: 0.34),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : null,
+      child: GestureDetector(
+        onTap: onPressed,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isEnabled
+                  ? const [Color(0xFFB26BFF), Color(0xFF7D47F1)]
+                  : [
+                      const Color(0xFFB26BFF).withValues(alpha: 0.4),
+                      const Color(0xFF7D47F1).withValues(alpha: 0.4),
+                    ],
             ),
-            child: Icon(
-              Icons.add_rounded,
-              size: 20,
-              color: Colors.white.withValues(alpha: isEnabled ? 0.98 : 0.6),
+            border: Border.all(
+              color: const Color(
+                0xFFE4D4FF,
+              ).withValues(alpha: isEnabled ? 0.24 : 0.12),
             ),
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            Icons.add_rounded,
+            size: 23,
+            color: const Color(
+              0xFFF9F6FF,
+            ).withValues(alpha: isEnabled ? 0.98 : 0.6),
           ),
         ),
       ),
