@@ -337,11 +337,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                       ),
                                       const SizedBox(width: 8),
                                       _TopActionIconButton(
+                                        icon: Icons.logout_rounded,
+                                        onTap:
+                                            isBusy ? null : _confirmAndLogout,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _TopActionIconButton(
                                         icon: Icons.add_rounded,
                                         primary: true,
                                         onTap: () =>
                                             _openPrimaryAction(profile),
-                                        onLongPress: _confirmAndLogout,
                                       ),
                                     ],
                                   ),
@@ -809,13 +814,14 @@ class _TopActionIconButton extends StatelessWidget {
   });
 
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final bool primary;
   final bool showBadge;
 
   @override
   Widget build(BuildContext context) {
+    final isEnabled = onTap != null || onLongPress != null;
     return GestureDetector(
       onTap: onTap,
       onLongPress: onLongPress,
@@ -845,7 +851,13 @@ class _TopActionIconButton extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Icon(icon, size: primary ? 27 : 23, color: const Color(0xFFF3EEFF)),
+            Icon(
+              icon,
+              size: primary ? 27 : 23,
+              color: const Color(0xFFF3EEFF).withValues(
+                alpha: isEnabled ? 1 : 0.45,
+              ),
+            ),
             if (showBadge)
               Positioned(
                 top: 8,
