@@ -335,16 +335,8 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
         ? _recommendedCreators.length - 1
         : _activeCreatorIndex;
     final creator = _recommendedCreators[safeIndex];
-    final candidates = <String>[
-      creator.heroImageUrl ?? '',
-      ...creator.portfolioThumbUrls,
-      creator.avatarUrl ?? '',
-    ];
-    for (final url in candidates) {
-      final clean = url.trim();
-      if (clean.isNotEmpty) return clean;
-    }
-    return null;
+    final avatar = (creator.avatarUrl ?? '').trim();
+    return avatar.isEmpty ? null : avatar;
   }
 }
 
@@ -690,9 +682,7 @@ class _CreatorRecommendationCard extends StatelessWidget {
     final mediaUrls = _collectMediaUrls(creator);
     final followers = creator.followersCount ?? 0;
     final completedWorks =
-        creator.completedWorksCount ??
-        creator.portfolioThumbUrls.length +
-            (creator.heroImageUrl?.isNotEmpty == true ? 1 : 0);
+        creator.completedWorksCount ?? creator.portfolioThumbUrls.length;
 
     return Material(
       color: Colors.transparent,

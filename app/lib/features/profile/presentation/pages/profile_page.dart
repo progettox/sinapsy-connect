@@ -36,6 +36,7 @@ class ProfilePage extends ConsumerStatefulWidget {
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   Uint8List? _pendingAvatarBytes;
   bool _isUploadingAvatar = false;
+  bool _isAddingPortfolioMedia = false;
   bool _isLoggingOut = false;
   bool _isLoadingPortfolio = false;
   String? _portfolioError;
@@ -173,6 +174,91 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     }
   }
 
+  Future<void> _addCreatorPortfolioMedia(ProfileModel profile) async {
+    if (_isAddingPortfolioMedia) return;
+    if (profile.role != ProfileRole.creator) {
+      _showSnack('Portfolio immagini disponibile per il profilo Creator.');
+      return;
+    }
+    if (profile.role == null ||
+        profile.username.trim().isEmpty ||
+        profile.location.trim().isEmpty) {
+      _showSnack('Completa il profilo prima di aggiungere contenuti.');
+      return;
+    }
+
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (picked == null || picked.files.isEmpty) return;
+
+    final file = picked.files.first;
+    if (file.bytes == null) {
+      _showSnack('Impossibile leggere il file selezionato.');
+      return;
+    }
+
+    final creatorId =
+        ref.read(authRepositoryProvider).currentUser?.id ?? profile.id;
+    setState(() => _isAddingPortfolioMedia = true);
+
+    try {
+      final imageUrl = await ref
+          .read(storageServiceProvider)
+          .uploadCreatorPortfolioImage(
+            creatorId: creatorId,
+            bytes: file.bytes!,
+            originalFileName: file.name,
+          );
+
+      await _insertCreatorPortfolioRow(
+        creatorId: creatorId,
+        imageUrl: imageUrl,
+      );
+
+      if (!mounted) return;
+      await _loadPortfolioForProfile(profile, force: true);
+      _showSnack('Foto aggiunta al portfolio.');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Errore aggiunta foto portfolio: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _isAddingPortfolioMedia = false);
+      }
+    }
+  }
+
+  Future<void> _insertCreatorPortfolioRow({
+    required String creatorId,
+    required String imageUrl,
+  }) async {
+    final client = ref.read(supabaseClientProvider);
+    final sortOrder = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+
+    try {
+      await client.from('creator_media').insert({
+        'creator_id': creatorId,
+        'image_url': imageUrl,
+        'sort_order': sortOrder,
+        'is_featured': false,
+      });
+    } on PostgrestException catch (error) {
+      if (_isMissingTable(error)) {
+        throw StateError('Tabella creator_media non disponibile.');
+      }
+      if (!_isColumnError(error)) rethrow;
+
+      await client.from('creator_media').insert({
+        'creatorId': creatorId,
+        'imageUrl': imageUrl,
+        'sortOrder': sortOrder,
+        'isFeatured': false,
+      });
+    }
+  }
+
   Future<void> _confirmAndLogout() async {
     if (_isLoggingOut) return;
 
@@ -259,7 +345,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     });
 
     final profile = state.profile;
-    final isBusy = state.isLoading || _isUploadingAvatar || _isLoggingOut;
+    final isBusy =
+        state.isLoading ||
+        _isUploadingAvatar ||
+        _isAddingPortfolioMedia ||
+        _isLoggingOut;
 
     return Theme(
       data: pageTheme,
@@ -467,6 +557,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               isLoading: _isLoadingPortfolio,
                               errorText: _portfolioError,
                               isBrandProfile: profile.role == ProfileRole.brand,
+                              isAddingCreatorMedia: _isAddingPortfolioMedia,
+                              onAddTap: profile.role == ProfileRole.creator
+                                  ? (isBusy
+                                        ? null
+                                        : () => _addCreatorPortfolioMedia(
+                                            profile,
+                                          ))
+                                  : null,
                               onCampaignTap: _openCampaignDetails,
                             ),
                           ],
@@ -1626,7 +1724,9 @@ class _PortfolioGrid extends StatelessWidget {
     required this.tiles,
     required this.isLoading,
     required this.isBrandProfile,
+    required this.isAddingCreatorMedia,
     this.onCampaignTap,
+    this.onAddTap,
     this.errorText,
   });
 
@@ -1634,12 +1734,16 @@ class _PortfolioGrid extends StatelessWidget {
   final List<_PortfolioTileData> tiles;
   final bool isLoading;
   final bool isBrandProfile;
+  final bool isAddingCreatorMedia;
   final ValueChanged<_CampaignPortfolioDetail>? onCampaignTap;
+  final VoidCallback? onAddTap;
   final String? errorText;
 
   @override
   Widget build(BuildContext context) {
-    final visibleTiles = tiles.take(6).toList(growable: false);
+    final showAddTile = !isBrandProfile && onAddTap != null;
+    final maxTiles = showAddTile ? 5 : 6;
+    final visibleTiles = tiles.take(maxTiles).toList(growable: false);
 
     return Container(
       padding: const EdgeInsets.all(8),
@@ -1659,7 +1763,7 @@ class _PortfolioGrid extends StatelessWidget {
               height: 148,
               child: Center(child: SinapsyLogoLoader()),
             )
-          : visibleTiles.isEmpty
+          : visibleTiles.isEmpty && !showAddTile
           ? SizedBox(
               height: 128,
               child: Center(
@@ -1679,7 +1783,7 @@ class _PortfolioGrid extends StatelessWidget {
               ),
             )
           : GridView.builder(
-              itemCount: visibleTiles.length,
+              itemCount: visibleTiles.length + (showAddTile ? 1 : 0),
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -1689,7 +1793,14 @@ class _PortfolioGrid extends StatelessWidget {
                 childAspectRatio: 1.06,
               ),
               itemBuilder: (context, index) {
-                final tile = visibleTiles[index];
+                if (showAddTile && index == 0) {
+                  return _PortfolioAddTile(
+                    onTap: onAddTap!,
+                    isLoading: isAddingCreatorMedia,
+                  );
+                }
+                final dataIndex = showAddTile ? index - 1 : index;
+                final tile = visibleTiles[dataIndex];
                 final url = (tile.imageUrl ?? '').trim();
                 final title = (tile.title ?? 'Campagna').trim();
                 final campaign = tile.campaign;
@@ -1736,6 +1847,57 @@ class _PortfolioGrid extends StatelessWidget {
                 );
               },
             ),
+    );
+  }
+}
+
+class _PortfolioAddTile extends StatelessWidget {
+  const _PortfolioAddTile({required this.onTap, required this.isLoading});
+
+  final VoidCallback onTap;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: isLoading ? null : onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF2B1D45), Color(0xFF19132A)],
+              ),
+              border: Border.all(
+                color: const Color(0xFF8F62F2).withValues(alpha: 0.5),
+              ),
+            ),
+            child: Center(
+              child: isLoading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.3,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color(0xFFE7DBFF),
+                        ),
+                      ),
+                    )
+                  : const Icon(
+                      Icons.add_photo_alternate_outlined,
+                      size: 26,
+                      color: Color(0xFFD8C6FF),
+                    ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

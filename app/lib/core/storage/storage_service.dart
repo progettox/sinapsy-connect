@@ -71,6 +71,31 @@ class StorageService {
     );
   }
 
+  Future<String> uploadCreatorPortfolioImage({
+    required String creatorId,
+    required Uint8List bytes,
+    required String originalFileName,
+    bool preferSignedUrl = false,
+  }) async {
+    try {
+      return await uploadCampaignCoverImage(
+        brandId: creatorId,
+        bytes: bytes,
+        originalFileName: originalFileName,
+        bucket: 'creator-media',
+        preferSignedUrl: preferSignedUrl,
+      );
+    } on StorageException {
+      return uploadCampaignCoverImage(
+        brandId: creatorId,
+        bytes: bytes,
+        originalFileName: originalFileName,
+        bucket: 'campaign-covers',
+        preferSignedUrl: preferSignedUrl,
+      );
+    }
+  }
+
   String _sanitizeFileName(String fileName) {
     final cleaned = fileName
         .trim()

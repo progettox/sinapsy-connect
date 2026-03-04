@@ -163,12 +163,7 @@ class BrandCreatorFeedRepository {
       );
 
       final media = mediaByCreator[id] ?? const <_CreatorMedia>[];
-      final featuredMedia = media.where((item) => item.isFeatured).toList();
-      final heroImageUrl = featuredMedia.isNotEmpty
-          ? featuredMedia.first.imageUrl
-          : media.isNotEmpty
-          ? media.first.imageUrl
-          : avatarUrl;
+      final heroImageUrl = avatarUrl;
 
       final thumbUrls = media
           .map((item) => item.imageUrl)

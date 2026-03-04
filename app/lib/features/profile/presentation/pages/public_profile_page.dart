@@ -131,11 +131,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
           ) ??
           _asInt(profileRow['completed_works'] ?? profileRow['completedWorks']);
       final completedWorksCount = storedCompletedWorks ?? 0;
-      final heroImage = _pickHeroImage(
-        creatorMedia: creatorMedia,
-        activeCampaigns: activeCampaigns,
-        avatarUrl: profile.avatarUrl,
-      );
+      final heroImage = _pickHeroImage(avatarUrl: profile.avatarUrl);
 
       if (!mounted) return;
       setState(() {
@@ -597,16 +593,32 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
       sliver: SliverGrid(
         delegate: SliverChildBuilderDelegate((context, index) {
           final imageUrl = data.creatorMediaUrls[index];
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Image.network(
-              imageUrl,
-              key: ValueKey<String>(
-                'creator-grid-${data.profile.id}-$index-$imageUrl',
+          final heroTag = _creatorMediaHeroTag(
+            profileId: data.profile.id,
+            index: index,
+            imageUrl: imageUrl,
+          );
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () =>
+                  _openCreatorMediaViewer(data: data, initialIndex: index),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Hero(
+                  tag: heroTag,
+                  child: Image.network(
+                    imageUrl,
+                    key: ValueKey<String>(
+                      'creator-grid-${data.profile.id}-$index-$imageUrl',
+                    ),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        const _MediaFallback(icon: Icons.broken_image_outlined),
+                  ),
+                ),
               ),
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) =>
-                  const _MediaFallback(icon: Icons.broken_image_outlined),
             ),
           );
         }, childCount: data.creatorMediaUrls.length),
@@ -615,6 +627,32 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
         ),
+      ),
+    );
+  }
+
+  Future<void> _openCreatorMediaViewer({
+    required _PublicProfileData data,
+    required int initialIndex,
+  }) async {
+    final mediaUrls = data.creatorMediaUrls;
+    if (mediaUrls.isEmpty) return;
+
+    final safeIndex = initialIndex.clamp(0, mediaUrls.length - 1);
+
+    await Navigator.of(context).push<void>(
+      PageRouteBuilder<void>(
+        transitionDuration: const Duration(milliseconds: 220),
+        reverseTransitionDuration: const Duration(milliseconds: 180),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            _CreatorMediaViewerPage(
+              profileId: data.profile.id,
+              mediaUrls: mediaUrls,
+              initialIndex: safeIndex,
+            ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
       ),
     );
   }
@@ -1045,23 +1083,9 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
     return fallback.isEmpty ? 'PROFILO' : fallback.toUpperCase();
   }
 
-  String? _pickHeroImage({
-    required List<String> creatorMedia,
-    required List<CampaignModel> activeCampaigns,
-    required String? avatarUrl,
-  }) {
+  String? _pickHeroImage({required String? avatarUrl}) {
     final avatar = (avatarUrl ?? '').trim();
-    if (avatar.isNotEmpty) return avatar;
-
-    for (final media in creatorMedia) {
-      final clean = media.trim();
-      if (clean.isNotEmpty) return clean;
-    }
-    for (final campaign in activeCampaigns) {
-      final clean = (campaign.coverImageUrl ?? '').trim();
-      if (clean.isNotEmpty) return clean;
-    }
-    return null;
+    return avatar.isEmpty ? null : avatar;
   }
 
   String _formatCompact(int value) {
@@ -1680,6 +1704,363 @@ class _MediaFallback extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CreatorMediaViewerPage extends StatefulWidget {
+  const _CreatorMediaViewerPage({
+    required this.profileId,
+    required this.mediaUrls,
+    required this.initialIndex,
+  });
+
+  final String profileId;
+  final List<String> mediaUrls;
+  final int initialIndex;
+
+  @override
+  State<_CreatorMediaViewerPage> createState() =>
+      _CreatorMediaViewerPageState();
+}
+
+class _CreatorMediaViewerPageState extends State<_CreatorMediaViewerPage> {
+  static const double _dismissSwipeDistance = 120;
+  static const double _dismissSwipeMinDistanceForVelocity = 36;
+  static const double _dismissSwipeVelocity = 980;
+  static const double _dismissDirectionRatio = 1.15;
+
+  late final PageController _pageController;
+  late int _currentIndex;
+  int _pointerCount = 0;
+  bool _multiTouchDetected = false;
+  int? _activePointer;
+  Offset? _dragStart;
+  DateTime? _dragStartedAt;
+  double _maxDownDistance = 0;
+  double _maxHorizontalDistance = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex.clamp(0, widget.mediaUrls.length - 1);
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _goToPage(int index) {
+    if (_currentIndex == index) return;
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _resetDismissTracking() {
+    _activePointer = null;
+    _dragStart = null;
+    _dragStartedAt = null;
+    _maxDownDistance = 0;
+    _maxHorizontalDistance = 0;
+    _multiTouchDetected = false;
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    _pointerCount += 1;
+    if (_pointerCount > 1) {
+      _multiTouchDetected = true;
+      return;
+    }
+
+    _activePointer = event.pointer;
+    _dragStart = event.position;
+    _dragStartedAt = DateTime.now();
+    _maxDownDistance = 0;
+    _maxHorizontalDistance = 0;
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    if (_activePointer != event.pointer) return;
+    final start = _dragStart;
+    if (start == null) return;
+
+    final verticalDistance = event.position.dy - start.dy;
+    final horizontalDistance = (event.position.dx - start.dx).abs();
+    if (horizontalDistance > _maxHorizontalDistance) {
+      _maxHorizontalDistance = horizontalDistance;
+    }
+    if (verticalDistance > _maxDownDistance) {
+      _maxDownDistance = verticalDistance;
+    }
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    if (_pointerCount > 0) _pointerCount -= 1;
+    if (_activePointer != event.pointer) {
+      if (_pointerCount == 0) _resetDismissTracking();
+      return;
+    }
+
+    final startedAt = _dragStartedAt;
+    final elapsedMs = startedAt == null
+        ? 0
+        : DateTime.now().difference(startedAt).inMilliseconds;
+    final elapsedSeconds = elapsedMs <= 0 ? 0.0 : elapsedMs / 1000.0;
+    final verticalVelocity = elapsedSeconds <= 0
+        ? 0.0
+        : _maxDownDistance / elapsedSeconds;
+
+    final hasVerticalIntent =
+        _maxDownDistance > _maxHorizontalDistance * _dismissDirectionRatio;
+    final reachedDistance = _maxDownDistance >= _dismissSwipeDistance;
+    final reachedVelocity =
+        _maxDownDistance >= _dismissSwipeMinDistanceForVelocity &&
+        verticalVelocity >= _dismissSwipeVelocity;
+    final shouldDismiss =
+        !_multiTouchDetected &&
+        hasVerticalIntent &&
+        (reachedDistance || reachedVelocity);
+
+    if (shouldDismiss) {
+      Navigator.of(context).maybePop();
+    }
+
+    _resetDismissTracking();
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    if (_pointerCount > 0) _pointerCount -= 1;
+    if (_pointerCount == 0 || _activePointer == event.pointer) {
+      _resetDismissTracking();
+    }
+  }
+
+  Widget _buildTopIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Ink(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.black.withValues(alpha: 0.42),
+            border: Border.all(
+              color: const Color(0xFF8462C8).withValues(alpha: 0.62),
+            ),
+          ),
+          child: Icon(icon, size: 18, color: const Color(0xFFF3EEFF)),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _onPointerDown,
+        onPointerMove: _onPointerMove,
+        onPointerUp: _onPointerUp,
+        onPointerCancel: _onPointerCancel,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFF160F28),
+                    Color(0xFF05040A),
+                    Color(0xFF000000),
+                  ],
+                  stops: [0, 0.55, 1],
+                ),
+              ),
+            ),
+            PageView.builder(
+              controller: _pageController,
+              itemCount: widget.mediaUrls.length,
+              onPageChanged: (index) => setState(() => _currentIndex = index),
+              itemBuilder: (context, index) {
+                final imageUrl = widget.mediaUrls[index];
+                final heroTag = _creatorMediaHeroTag(
+                  profileId: widget.profileId,
+                  index: index,
+                  imageUrl: imageUrl,
+                );
+                return Center(
+                  child: InteractiveViewer(
+                    minScale: 1,
+                    maxScale: 4,
+                    child: Hero(
+                      tag: heroTag,
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.high,
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return const SizedBox(
+                            width: 34,
+                            height: 34,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFFB98CFF),
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (_, _, _) => const SizedBox(
+                          width: 180,
+                          height: 220,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.all(Radius.circular(22)),
+                            child: _MediaFallback(
+                              icon: Icons.broken_image_outlined,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10, right: 12),
+                  child: _buildTopIconButton(
+                    icon: Icons.close_rounded,
+                    onTap: () => Navigator.of(context).maybePop(),
+                  ),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 102),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: const Color(0xFF8462C8).withValues(alpha: 0.58),
+                      ),
+                    ),
+                    child: Text(
+                      '${_currentIndex + 1}/${widget.mediaUrls.length}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFEADFFF),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  height: 82,
+                  margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: const Color(0xFF7B55C2).withValues(alpha: 0.48),
+                    ),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xB2171128), Color(0xA40C0918)],
+                    ),
+                  ),
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: widget.mediaUrls.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final thumbUrl = widget.mediaUrls[index];
+                      final selected = index == _currentIndex;
+                      return Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => _goToPage(index),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 160),
+                            width: selected ? 60 : 54,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: selected
+                                    ? const Color(0xFFB98CFF)
+                                    : const Color(
+                                        0xFF7D62A8,
+                                      ).withValues(alpha: 0.45),
+                                width: selected ? 1.5 : 1,
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(11),
+                              child: Image.network(
+                                thumbUrl,
+                                fit: BoxFit.cover,
+                                filterQuality: FilterQuality.low,
+                                errorBuilder: (_, _, _) => const _MediaFallback(
+                                  icon: Icons.image_outlined,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _creatorMediaHeroTag({
+  required String profileId,
+  required int index,
+  required String imageUrl,
+}) {
+  return 'creator-media-$profileId-$index-$imageUrl';
 }
 
 class _EmptyCard extends StatelessWidget {
