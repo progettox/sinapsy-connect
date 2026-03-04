@@ -922,44 +922,38 @@ class _CreatorFavoriteButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: isSaving ? null : onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Ink(
-          width: 126,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          height: 42,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                const Color(0xFF7A4ED1).withValues(alpha: 0.95),
-                const Color(0xFF6441B7).withValues(alpha: 0.9),
-              ],
+    return Tooltip(
+      message: isFollowing ? 'Non seguire più' : 'Segui creator',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isSaving ? null : onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Ink(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.32),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: AppTheme.colorStrokeMedium.withValues(alpha: 0.9),
+              ),
             ),
-            border: Border.all(
-              color: const Color(0xFFD2B4FF).withValues(alpha: 0.58),
-            ),
-          ),
-          child: isSaving
-              ? const Padding(
-                  padding: EdgeInsets.all(8),
-                  child: Center(child: SinapsyLogoLoader(size: 14)),
-                )
-              : Center(
-                  child: Text(
-                    isFollowing ? 'Segui gia' : 'Segui',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFF2EAFF),
-                    ),
+            child: isSaving
+                ? const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Center(child: SinapsyLogoLoader(size: 14)),
+                  )
+                : Icon(
+                    isFollowing
+                        ? Icons.person_remove_alt_1_rounded
+                        : Icons.person_add_alt_1_rounded,
+                    size: 21,
+                    color: isFollowing
+                        ? AppTheme.colorAccentPrimary
+                        : AppTheme.colorTextPrimary,
                   ),
-                ),
+          ),
         ),
       ),
     );

@@ -446,7 +446,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                               child: _PillButton(
                                 text: isBrand
                                     ? 'Contatta Brand'
-                                    : 'Richiedi Collaborazione',
+                                    : 'Collabora',
                                 onTap: () => _showSnack(
                                   'Azione collaborazione disponibile nei prossimi step.',
                                 ),
