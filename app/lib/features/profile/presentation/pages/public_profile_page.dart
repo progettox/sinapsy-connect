@@ -290,8 +290,6 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                         icon: Icons.arrow_back_rounded,
                         onTap: () => Navigator.of(context).maybePop(),
                       ),
-                      const Spacer(),
-                      const _ActionCircleButton(icon: Icons.more_horiz_rounded),
                     ],
                   ),
                 ),
@@ -1042,9 +1040,9 @@ class _ActionCircleButton extends StatelessWidget {
 }
 
 class _SocialDot extends StatelessWidget {
-  const _SocialDot({required this.icon});
+  const _SocialDot({required this.child});
 
-  final IconData icon;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
@@ -1057,7 +1055,7 @@ class _SocialDot extends StatelessWidget {
           color: const Color(0xFF8E58F3).withValues(alpha: 0.78),
         ),
       ),
-      child: Icon(icon, color: const Color(0xFFB98CFF), size: 18),
+      child: Center(child: child),
     );
   }
 }
@@ -1124,12 +1122,122 @@ class _SocialRailState extends State<_SocialRail> {
               physics: const BouncingScrollPhysics(),
               child: Column(
                 children: const [
-                  _SocialDot(icon: Icons.camera_alt_outlined),
+                  _SocialDot(child: _InstagramGlyph()),
                   SizedBox(height: 6),
-                  _SocialDot(icon: Icons.music_note_rounded),
+                  _SocialDot(child: _TikTokGlyph()),
                   SizedBox(height: 6),
-                  _SocialDot(icon: Icons.language_rounded),
+                  _SocialDot(
+                    child: Icon(
+                      Icons.language_rounded,
+                      color: Color(0xFFB98CFF),
+                      size: 18,
+                    ),
+                  ),
                 ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InstagramGlyph extends StatelessWidget {
+  const _InstagramGlyph();
+
+  @override
+  Widget build(BuildContext context) {
+    const color = Color(0xFFB98CFF);
+    return SizedBox(
+      width: 18,
+      height: 18,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: color, width: 1.6),
+              ),
+            ),
+          ),
+          Align(
+            child: Container(
+              width: 7.2,
+              height: 7.2,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: color, width: 1.5),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 2.4,
+            top: 2.4,
+            child: Container(
+              width: 2.8,
+              height: 2.8,
+              decoration: const BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TikTokGlyph extends StatelessWidget {
+  const _TikTokGlyph();
+
+  @override
+  Widget build(BuildContext context) {
+    const color = Color(0xFFB98CFF);
+    return SizedBox(
+      width: 18,
+      height: 18,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 8.0,
+            top: 2.0,
+            child: Container(
+              width: 2.4,
+              height: 8.5,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(1.2),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 8.0,
+            top: 1.8,
+            child: Transform.rotate(
+              angle: -0.26,
+              alignment: Alignment.centerLeft,
+              child: Container(
+                width: 6.0,
+                height: 2.2,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(1.1),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 3.0,
+            bottom: 2.0,
+            child: Container(
+              width: 6.8,
+              height: 6.8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: color, width: 1.5),
               ),
             ),
           ),
