@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
+import '../../../profile/presentation/pages/public_profile_page.dart';
 import '../../data/user_search_repository.dart';
 
 class BrandSearchPage extends ConsumerStatefulWidget {
@@ -83,6 +84,18 @@ class _BrandSearchPageState extends ConsumerState<BrandSearchPage> {
         _errorMessage = 'Errore ricerca utenti: $error';
       });
     }
+  }
+
+  Future<void> _openPublicProfile(UserSearchResult user) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PublicProfilePage(
+          profileId: user.id,
+          initialRole: user.role,
+          initialUsername: user.username,
+        ),
+      ),
+    );
   }
 
   @override
@@ -184,7 +197,10 @@ class _BrandSearchPageState extends ConsumerState<BrandSearchPage> {
                                   const SizedBox(height: 12),
                               itemBuilder: (context, index) {
                                 final item = _results[index];
-                                return _UserResultTile(item: item);
+                                return _UserResultTile(
+                                  item: item,
+                                  onTap: () => _openPublicProfile(item),
+                                );
                               },
                             );
                           },
@@ -343,9 +359,10 @@ class _GlassPanel extends StatelessWidget {
 }
 
 class _UserResultTile extends StatelessWidget {
-  const _UserResultTile({required this.item});
+  const _UserResultTile({required this.item, required this.onTap});
 
   final UserSearchResult item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -357,92 +374,101 @@ class _UserResultTile extends StatelessWidget {
         ? item.roleLabel
         : '${item.roleLabel} - ${item.location.trim()}';
 
-    return _GlassPanel(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: _roleColor(item.role).withValues(alpha: 0.2),
-              backgroundImage: item.avatarUrl?.isNotEmpty == true
-                  ? NetworkImage(item.avatarUrl!)
-                  : null,
-              child: item.avatarUrl?.isNotEmpty == true
-                  ? null
-                  : Text(
-                      initials,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '@${item.username}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium?.copyWith(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: _GlassPanel(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: _roleColor(item.role).withValues(alpha: 0.2),
+                  backgroundImage: item.avatarUrl?.isNotEmpty == true
+                      ? NetworkImage(item.avatarUrl!)
+                      : null,
+                  child: item.avatarUrl?.isNotEmpty == true
+                      ? null
+                      : Text(
+                          initials,
+                          style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _roleColor(item.role).withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          item.roleLabel,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: _roleColor(item.role),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.place_rounded,
-                        size: 14,
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.62,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.72,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '@${item.username}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                        ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _roleColor(
+                                item.role,
+                              ).withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              item.roleLabel,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: _roleColor(item.role),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.place_rounded,
+                            size: 14,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.62,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.72,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

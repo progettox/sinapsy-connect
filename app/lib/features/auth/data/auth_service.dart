@@ -46,4 +46,8 @@ class AuthService {
   Future<void> signOut() {
     return _client.auth.signOut();
   }
+
+  Future<void> setSessionWithRefreshToken(String refreshToken) async {
+    await _client.auth.setSession(refreshToken);
+  }
 }

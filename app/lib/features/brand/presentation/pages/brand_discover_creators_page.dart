@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
+import '../../../profile/presentation/pages/public_profile_page.dart';
 import '../../data/brand_creator_feed_repository.dart';
 
 enum _DiscoverRoleFilter { all, creator, brand, saved }
@@ -128,6 +129,18 @@ class _BrandDiscoverCreatorsPageState
         setState(() => _savingIds.remove(card.id));
       }
     }
+  }
+
+  Future<void> _openPublicProfile(CreatorFeedCard card) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PublicProfilePage(
+          profileId: card.id,
+          initialRole: card.role,
+          initialUsername: card.username,
+        ),
+      ),
+    );
   }
 
   int _nextFollowerCount({
@@ -424,6 +437,7 @@ class _BrandDiscoverCreatorsPageState
                                   card: card,
                                   isSaving: _savingIds.contains(card.id),
                                   onToggleSaved: () => _toggleSaved(card),
+                                  onOpenProfile: () => _openPublicProfile(card),
                                 ),
                               ),
                             );
@@ -506,11 +520,13 @@ class _CreatorFeedCardTile extends StatelessWidget {
     required this.card,
     required this.isSaving,
     required this.onToggleSaved,
+    required this.onOpenProfile,
   });
 
   final CreatorFeedCard card;
   final bool isSaving;
   final VoidCallback onToggleSaved;
+  final VoidCallback onOpenProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -519,152 +535,159 @@ class _CreatorFeedCardTile extends StatelessWidget {
         ? 'Localita non indicata'
         : card.location.trim();
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.colorBgCard,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.92),
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x59000000),
-            blurRadius: 24,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AspectRatio(
-              aspectRatio: 4 / 3,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _HeroImage(imageUrl: card.heroImageUrl),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0x00000000), Color(0xB3000000)],
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: _SavedButton(
-                      isSaved: card.isSaved,
-                      isSaving: isSaving,
-                      onTap: onToggleSaved,
-                    ),
-                  ),
-                  Positioned(
-                    left: 12,
-                    bottom: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.42),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.15),
-                        ),
-                      ),
-                      child: Text(
-                        card.role.trim().isEmpty ? 'Creator' : card.role,
-                        style: const TextStyle(
-                          color: AppTheme.colorTextPrimary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+        onTap: onOpenProfile,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppTheme.colorBgCard,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: AppTheme.colorStrokeSubtle.withValues(alpha: 0.92),
             ),
-            const SizedBox(height: 10),
-            _PortfolioThumbs(urls: card.portfolioThumbUrls),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: AppTheme.colorBgElevated,
-                    backgroundImage: card.avatarUrl?.isNotEmpty == true
-                        ? NetworkImage(card.avatarUrl!)
-                        : null,
-                    child: card.avatarUrl?.isNotEmpty == true
-                        ? null
-                        : Text(
-                            card.username.isEmpty
-                                ? '?'
-                                : card.username[0].toUpperCase(),
-                            style: theme.textTheme.titleSmall?.copyWith(
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x59000000),
+                blurRadius: 24,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AspectRatio(
+                  aspectRatio: 4 / 3,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _HeroImage(imageUrl: card.heroImageUrl),
+                      const DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0x00000000), Color(0xB3000000)],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: _SavedButton(
+                          isSaved: card.isSaved,
+                          isSaving: isSaving,
+                          onTap: onToggleSaved,
+                        ),
+                      ),
+                      Positioned(
+                        left: 12,
+                        bottom: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.42),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.15),
+                            ),
+                          ),
+                          child: Text(
+                            card.role.trim().isEmpty ? 'Creator' : card.role,
+                            style: const TextStyle(
+                              color: AppTheme.colorTextPrimary,
+                              fontSize: 11,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          card.displayName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.colorTextPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          '@${card.username}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.colorTextSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
+                ),
+                const SizedBox(height: 10),
+                _PortfolioThumbs(urls: card.portfolioThumbUrls),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor: AppTheme.colorBgElevated,
+                        backgroundImage: card.avatarUrl?.isNotEmpty == true
+                            ? NetworkImage(card.avatarUrl!)
+                            : null,
+                        child: card.avatarUrl?.isNotEmpty == true
+                            ? null
+                            : Text(
+                                card.username.isEmpty
+                                    ? '?'
+                                    : card.username[0].toUpperCase(),
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _InfoPill(
-                              icon: Icons.person_outline_rounded,
-                              text:
-                                  '${_formatCompactNumber(card.followersCount ?? 0)} follower',
+                            Text(
+                              card.displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.colorTextPrimary,
+                              ),
                             ),
-                            _InfoPill(
-                              icon: Icons.category_rounded,
-                              text: card.category,
+                            const SizedBox(height: 3),
+                            Text(
+                              '@${card.username}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: AppTheme.colorTextSecondary,
+                              ),
                             ),
-                            _InfoPill(
-                              icon: Icons.location_on_outlined,
-                              text: location,
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _InfoPill(
+                                  icon: Icons.person_outline_rounded,
+                                  text:
+                                      '${_formatCompactNumber(card.followersCount ?? 0)} follower',
+                                ),
+                                _InfoPill(
+                                  icon: Icons.category_rounded,
+                                  text: card.category,
+                                ),
+                                _InfoPill(
+                                  icon: Icons.location_on_outlined,
+                                  text: location,
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

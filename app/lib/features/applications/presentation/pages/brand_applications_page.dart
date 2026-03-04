@@ -9,6 +9,9 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../chats/presentation/pages/chat_page.dart';
+import '../../../reviews/data/review_model.dart';
+import '../../../reviews/data/review_repository.dart';
+import '../../../reviews/presentation/widgets/review_composer_dialog.dart';
 import '../controllers/applications_controller.dart';
 
 class BrandApplicationsPage extends ConsumerStatefulWidget {
@@ -27,16 +30,58 @@ class BrandApplicationsPage extends ConsumerStatefulWidget {
 }
 
 class _BrandApplicationsPageState extends ConsumerState<BrandApplicationsPage> {
+  bool _isLoadingMyReviews = false;
+  Map<String, ReviewModel> _myReviewsByTarget = const <String, ReviewModel>{};
+
   @override
   void initState() {
     super.initState();
     Future<void>.microtask(_load);
   }
 
-  Future<void> _load() {
-    return ref
+  Future<void> _load() async {
+    await ref
         .read(applicationsControllerProvider.notifier)
         .loadBrandApplications(campaignId: widget.campaignId);
+    await _loadMyReviews();
+  }
+
+  Future<void> _loadMyReviews() async {
+    final items = ref.read(applicationsControllerProvider).brandApplications;
+    final targets = items
+        .where((item) => item.creatorId.trim().isNotEmpty)
+        .map(
+          (item) => ReviewTarget(
+            campaignId: item.campaignId,
+            toUserId: item.creatorId,
+          ),
+        )
+        .toList(growable: false);
+    if (targets.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingMyReviews = false;
+        _myReviewsByTarget = const <String, ReviewModel>{};
+      });
+      return;
+    }
+
+    if (mounted) {
+      setState(() => _isLoadingMyReviews = true);
+    }
+    try {
+      final map = await ref
+          .read(reviewRepositoryProvider)
+          .getMyReviewsForTargets(targets);
+      if (!mounted) return;
+      setState(() {
+        _isLoadingMyReviews = false;
+        _myReviewsByTarget = map;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingMyReviews = false);
+    }
   }
 
   void _showSnack(String message) {
@@ -88,6 +133,60 @@ class _BrandApplicationsPageState extends ConsumerState<BrandApplicationsPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _markWorkCompleted(ApplicationItem item) async {
+    final result = await ref
+        .read(applicationsControllerProvider.notifier)
+        .markWorkCompleted(item);
+    if (!mounted || !result.success) return;
+
+    if (result.nowCompleted) {
+      _showSnack('Lavoro completato: entrambe le conferme ricevute.');
+    } else if (result.alreadyCompleted) {
+      _showSnack('Questo lavoro risulta gia completato.');
+    } else {
+      _showSnack('Conferma salvata. In attesa anche dell\'altra parte.');
+    }
+
+    await _load();
+  }
+
+  Future<void> _leaveReview(
+    ApplicationItem item, {
+    bool mandatory = false,
+  }) async {
+    final targetId = item.creatorId.trim();
+    if (targetId.isEmpty) {
+      _showSnack('Creator non disponibile per questa review.');
+      return;
+    }
+
+    final result = await showReviewComposerDialog(
+      context: context,
+      title: 'Review collaborazione',
+      message:
+          'Assegna una valutazione da 1 a 5 stelle al creator per il lavoro completato.',
+      mandatory: mandatory,
+    );
+    if (!mounted || result == null) return;
+
+    try {
+      await ref
+          .read(reviewRepositoryProvider)
+          .submitReview(
+            campaignId: item.campaignId,
+            toUserId: targetId,
+            rating: result.rating,
+            text: result.text,
+          );
+      if (!mounted) return;
+      _showSnack('Review inviata.');
+      await _loadMyReviews();
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Errore invio review: $error');
+    }
   }
 
   @override
@@ -189,6 +288,16 @@ class _BrandApplicationsPageState extends ConsumerState<BrandApplicationsPage> {
                               candidate.status.toLowerCase() == 'accepted',
                         );
                         final item = state.brandApplications[index];
+                        final reviewKey = reviewTargetKey(
+                          campaignId: item.campaignId,
+                          toUserId: item.creatorId,
+                        );
+                        final myReview = _myReviewsByTarget[reviewKey];
+                        final requiresMandatoryReview =
+                            item.isAccepted &&
+                            item.isCampaignCompleted &&
+                            item.creatorId.trim().isNotEmpty &&
+                            myReview == null;
                         final isMutating =
                             state.isMutating &&
                             state.activeMutationId == item.id;
@@ -196,11 +305,20 @@ class _BrandApplicationsPageState extends ConsumerState<BrandApplicationsPage> {
                         return _BrandApplicationCard(
                           item: item,
                           isMutating: isMutating,
+                          isLoadingReview: _isLoadingMyReviews,
+                          myReview: myReview,
+                          requiresMandatoryReview: requiresMandatoryReview,
                           onAccept: canAccept ? () => _accept(item) : null,
                           onReject: item.isPending ? () => _reject(item) : null,
                           onDismissRejected:
                               item.status.toLowerCase() == 'rejected'
                               ? () => _dismissRejected(item)
+                              : null,
+                          onMarkWorkCompleted: item.isAccepted
+                              ? () => _markWorkCompleted(item)
+                              : null,
+                          onLeaveReview: requiresMandatoryReview
+                              ? () => _leaveReview(item, mandatory: true)
                               : null,
                           onOpenChat: item.chatId?.trim().isNotEmpty == true
                               ? () => _openChat(item)
@@ -223,17 +341,27 @@ class _BrandApplicationCard extends StatelessWidget {
   const _BrandApplicationCard({
     required this.item,
     required this.isMutating,
+    required this.isLoadingReview,
+    required this.myReview,
+    required this.requiresMandatoryReview,
     required this.onAccept,
     required this.onReject,
     required this.onDismissRejected,
+    required this.onMarkWorkCompleted,
+    required this.onLeaveReview,
     required this.onOpenChat,
   });
 
   final ApplicationItem item;
   final bool isMutating;
+  final bool isLoadingReview;
+  final ReviewModel? myReview;
+  final bool requiresMandatoryReview;
   final VoidCallback? onAccept;
   final VoidCallback? onReject;
   final VoidCallback? onDismissRejected;
+  final VoidCallback? onMarkWorkCompleted;
+  final VoidCallback? onLeaveReview;
   final VoidCallback? onOpenChat;
 
   @override
@@ -307,70 +435,145 @@ class _BrandApplicationCard extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 40,
-                    child: OutlinedButton(
-                      onPressed: isMutating ? null : onReject,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFE8D6FF),
-                        side: BorderSide(
-                          color: AppTheme.colorStrokeSubtle.withValues(
-                            alpha: 0.95,
-                          ),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                      child: const Text('Rifiuta'),
-                    ),
+            if (item.isAccepted) ...[
+              const SizedBox(height: 12),
+              _WorkCompletionRow(
+                brandDone: item.brandMarkedWorkCompleted,
+                creatorDone: item.creatorMarkedWorkCompleted,
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed:
+                      isMutating ||
+                          item.brandMarkedWorkCompleted ||
+                          item.isCampaignCompleted
+                      ? null
+                      : onMarkWorkCompleted,
+                  icon: Icon(
+                    item.brandMarkedWorkCompleted || item.isCampaignCompleted
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                  ),
+                  label: Text(
+                    item.brandMarkedWorkCompleted || item.isCampaignCompleted
+                        ? 'Lavoro concluso (confermato)'
+                        : 'Segna lavoro concluso',
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: SizedBox(
-                    height: 40,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(999),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppTheme.colorAccentPrimary.withValues(alpha: 0.82),
-                            const Color(0xFF8E47F7).withValues(alpha: 0.88),
-                          ],
-                        ),
-                        border: Border.all(color: const Color(0x66C89EFF)),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: isMutating ? null : onAccept,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          foregroundColor: AppTheme.colorTextPrimary,
-                          disabledForegroundColor: AppTheme.colorTextSecondary,
+              ),
+            ] else ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: OutlinedButton(
+                        onPressed: isMutating ? null : onReject,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFE8D6FF),
+                          side: BorderSide(
+                            color: AppTheme.colorStrokeSubtle.withValues(
+                              alpha: 0.95,
+                            ),
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(999),
                           ),
                         ),
-                        child: isMutating
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: SinapsyLogoLoader(size: 18),
-                              )
-                            : const Text('Accetta'),
+                        child: const Text('Rifiuta'),
                       ),
                     ),
                   ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppTheme.colorAccentPrimary.withValues(
+                                alpha: 0.82,
+                              ),
+                              const Color(0xFF8E47F7).withValues(alpha: 0.88),
+                            ],
+                          ),
+                          border: Border.all(color: const Color(0x66C89EFF)),
+                        ),
+                        child: ElevatedButton(
+                          onPressed: isMutating ? null : onAccept,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            foregroundColor: AppTheme.colorTextPrimary,
+                            disabledForegroundColor:
+                                AppTheme.colorTextSecondary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                          child: isMutating
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: SinapsyLogoLoader(size: 18),
+                                )
+                              : const Text('Accetta'),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (item.isAccepted && item.isCampaignCompleted) ...[
+              const SizedBox(height: 10),
+              if (isLoadingReview)
+                const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: SinapsyLogoLoader(size: 20),
+                )
+              else if (myReview != null)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Text(
+                    'Review inviata: ${myReview!.rating}/5',
+                    style: TextStyle(
+                      color: Colors.green.shade800,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                )
+              else if (onLeaveReview != null)
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: isMutating ? null : onLeaveReview,
+                    icon: const Icon(Icons.star_rate_rounded),
+                    label: Text(
+                      requiresMandatoryReview
+                          ? 'Lascia review obbligatoria'
+                          : 'Lascia review',
+                    ),
+                  ),
                 ),
-              ],
-            ),
+            ],
             if (onDismissRejected != null) ...[
               const SizedBox(height: 8),
               Align(
@@ -394,6 +597,70 @@ class _BrandApplicationCard extends StatelessWidget {
     final mm = local.month.toString().padLeft(2, '0');
     final dd = local.day.toString().padLeft(2, '0');
     return '${local.year}-$mm-$dd';
+  }
+}
+
+class _WorkCompletionRow extends StatelessWidget {
+  const _WorkCompletionRow({
+    required this.brandDone,
+    required this.creatorDone,
+  });
+
+  final bool brandDone;
+  final bool creatorDone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _CompletionPill(label: 'Brand', done: brandDone),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _CompletionPill(label: 'Creator', done: creatorDone),
+        ),
+      ],
+    );
+  }
+}
+
+class _CompletionPill extends StatelessWidget {
+  const _CompletionPill({required this.label, required this.done});
+
+  final String label;
+  final bool done;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = done ? const Color(0xFF58D68D) : const Color(0xFFFFC674);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.34)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            done ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+            size: 15,
+            color: color,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            '$label ${done ? 'ok' : 'attesa'}',
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

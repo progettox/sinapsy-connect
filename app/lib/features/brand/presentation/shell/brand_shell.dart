@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../auth/data/auth_repository.dart';
+import '../../../profile/data/profile_model.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../pages/brand_analytics_page.dart';
@@ -9,6 +10,7 @@ import '../pages/brand_dashboard_page.dart';
 import '../pages/brand_discover_creators_page.dart';
 import '../pages/brand_projects_page.dart';
 import '../widgets/premium_brand_bottom_nav.dart';
+import '../widgets/profile_linked_accounts_sheet.dart';
 
 class BrandShell extends ConsumerStatefulWidget {
   const BrandShell({super.key});
@@ -51,6 +53,30 @@ class _BrandShellState extends ConsumerState<BrandShell> {
   void _handlePageChanged(int index) {
     if (index == _currentNavIndex) return;
     setState(() => _currentNavIndex = index);
+  }
+
+  Future<void> _openAccountsSheet(ProfileModel? profile) async {
+    if (profile == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Carica il profilo prima di aprire la gestione account.',
+            ),
+          ),
+        );
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.56),
+      builder: (_) => ProfileLinkedAccountsSheet(activeProfile: profile),
+    );
   }
 
   Widget _buildPage(int index) {
@@ -116,6 +142,7 @@ class _BrandShellState extends ConsumerState<BrandShell> {
             : null,
         profileAvatarUrl: (avatar?.isNotEmpty ?? false) ? avatar : null,
         profileInitial: username.isNotEmpty ? username.substring(0, 1) : null,
+        onProfileLongPress: () => _openAccountsSheet(sameAccountProfile),
         onTap: _handleBottomTap,
       ),
     );

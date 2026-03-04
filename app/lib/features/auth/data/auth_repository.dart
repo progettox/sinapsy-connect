@@ -34,4 +34,8 @@ class AuthRepository {
   }
 
   Future<void> signOut() => _service.signOut();
+
+  Future<void> setSessionWithRefreshToken(String refreshToken) {
+    return _service.setSessionWithRefreshToken(refreshToken);
+  }
 }

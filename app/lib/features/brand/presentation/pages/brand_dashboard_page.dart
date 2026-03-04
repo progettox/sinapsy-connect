@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../data/brand_creator_feed_repository.dart';
+import '../../../profile/presentation/pages/public_profile_page.dart';
 import '../controllers/brand_notifications_badge_controller.dart';
 import '../pages/brand_notifications_page.dart';
 import '../../../campaigns/presentation/controllers/create_campaign_controller.dart';
@@ -93,6 +94,18 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
         _creatorsError = 'Errore caricamento creator consigliati: $error';
       });
     }
+  }
+
+  Future<void> _openPublicProfile(CreatorFeedCard creator) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PublicProfilePage(
+          profileId: creator.id,
+          initialRole: creator.role,
+          initialUsername: creator.username,
+        ),
+      ),
+    );
   }
 
   Future<void> _toggleSavedCreator(CreatorFeedCard creator) async {
@@ -287,6 +300,7 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
                                         savingCreatorIds: _savingCreatorIds,
                                         onRetry: _loadRecommendedCreators,
                                         onToggleSaved: _toggleSavedCreator,
+                                        onOpenProfile: _openPublicProfile,
                                         onPageChanged: (index) {
                                           if (_activeCreatorIndex == index) {
                                             return;
@@ -447,6 +461,7 @@ class _RecommendedCreatorsSection extends StatefulWidget {
     required this.savingCreatorIds,
     required this.onRetry,
     required this.onToggleSaved,
+    required this.onOpenProfile,
     required this.onPageChanged,
   });
 
@@ -456,6 +471,7 @@ class _RecommendedCreatorsSection extends StatefulWidget {
   final Set<String> savingCreatorIds;
   final Future<void> Function() onRetry;
   final Future<void> Function(CreatorFeedCard creator) onToggleSaved;
+  final Future<void> Function(CreatorFeedCard creator) onOpenProfile;
   final ValueChanged<int> onPageChanged;
 
   @override
@@ -580,6 +596,9 @@ class _RecommendedCreatorsSectionState
                       onToggleSaved: () {
                         widget.onToggleSaved(creator);
                       },
+                      onOpenProfile: () {
+                        widget.onOpenProfile(creator);
+                      },
                     );
                   },
                 ),
@@ -658,11 +677,13 @@ class _CreatorRecommendationCard extends StatelessWidget {
     required this.creator,
     required this.isSaving,
     required this.onToggleSaved,
+    required this.onOpenProfile,
   });
 
   final CreatorFeedCard creator;
   final bool isSaving;
   final VoidCallback onToggleSaved;
+  final VoidCallback onOpenProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -673,139 +694,141 @@ class _CreatorRecommendationCard extends StatelessWidget {
         creator.portfolioThumbUrls.length +
             (creator.heroImageUrl?.isNotEmpty == true ? 1 : 0);
 
-    return _CreatorPanelFrame(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onOpenProfile,
+        child: _CreatorPanelFrame(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: AppTheme.colorBgElevated,
-                  backgroundImage: (creator.avatarUrl ?? '').isNotEmpty
-                      ? NetworkImage(creator.avatarUrl!)
-                      : null,
-                  child: (creator.avatarUrl ?? '').isNotEmpty
-                      ? null
-                      : Text(
-                          creator.displayName.isEmpty
-                              ? '?'
-                              : creator.displayName[0].toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              creator.displayName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: AppTheme.colorBgElevated,
+                      backgroundImage: (creator.avatarUrl ?? '').isNotEmpty
+                          ? NetworkImage(creator.avatarUrl!)
+                          : null,
+                      child: (creator.avatarUrl ?? '').isNotEmpty
+                          ? null
+                          : Text(
+                              creator.displayName.isEmpty
+                                  ? '?'
+                                  : creator.displayName[0].toUpperCase(),
                               style: const TextStyle(
-                                fontSize: 16,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFFEDE4FF),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          const Icon(
-                            Icons.verified_rounded,
-                            size: 20,
-                            color: Color(0xFF3C82F6),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 5),
-                      _CreatorCategoryChip(label: creator.category),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _CreatorFavoriteButton(
-                  isFollowing: creator.isFollowing,
-                  isSaving: isSaving,
-                  onTap: onToggleSaved,
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 14,
-              runSpacing: 8,
-              children: [
-                _CreatorStatChip(
-                  icon: Icons.person_outline_rounded,
-                  label: '${_formatNumberWithCommas(followers)} follower',
-                ),
-                _CreatorStatChip(
-                  icon: Icons.work_outline_rounded,
-                  label: '$completedWorks lavori completati',
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Divider(
-              color: const Color(0xFF8E47F7).withValues(alpha: 0.45),
-              height: 1,
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: 6,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 6,
-                  mainAxisSpacing: 6,
-                  childAspectRatio: 1.12,
-                ),
-                itemBuilder: (context, index) {
-                  final url = index < mediaUrls.length
-                      ? mediaUrls[index]
-                      : null;
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF2C1F46), Color(0xFF1B142C)],
-                        ),
-                      ),
-                      child: url == null
-                          ? const Icon(
-                              Icons.image_outlined,
-                              size: 18,
-                              color: Color(0xB3D4C6F6),
-                            )
-                          : Image.network(
-                              url,
-                              fit: BoxFit.cover,
-                              filterQuality: FilterQuality.low,
-                              errorBuilder: (_, _, _) => const Icon(
-                                Icons.broken_image_outlined,
-                                size: 18,
-                                color: Color(0xB3D4C6F6),
                               ),
                             ),
                     ),
-                  );
-                },
-              ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  creator.displayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFEDE4FF),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          _CreatorCategoryChip(label: creator.category),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _CreatorFavoriteButton(
+                      isFollowing: creator.isFollowing,
+                      isSaving: isSaving,
+                      onTap: onToggleSaved,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 8,
+                  children: [
+                    _CreatorStatChip(
+                      icon: Icons.person_outline_rounded,
+                      label: '${_formatNumberWithCommas(followers)} follower',
+                    ),
+                    _CreatorStatChip(
+                      icon: Icons.work_outline_rounded,
+                      label: '$completedWorks lavori completati',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Divider(
+                  color: const Color(0xFF8E47F7).withValues(alpha: 0.45),
+                  height: 1,
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: GridView.builder(
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: 6,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 6,
+                          mainAxisSpacing: 6,
+                          childAspectRatio: 1.12,
+                        ),
+                    itemBuilder: (context, index) {
+                      final url = index < mediaUrls.length
+                          ? mediaUrls[index]
+                          : null;
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFF2C1F46), Color(0xFF1B142C)],
+                            ),
+                          ),
+                          child: url == null
+                              ? const Icon(
+                                  Icons.image_outlined,
+                                  size: 18,
+                                  color: Color(0xB3D4C6F6),
+                                )
+                              : Image.network(
+                                  url,
+                                  fit: BoxFit.cover,
+                                  filterQuality: FilterQuality.low,
+                                  errorBuilder: (_, _, _) => const Icon(
+                                    Icons.broken_image_outlined,
+                                    size: 18,
+                                    color: Color(0xB3D4C6F6),
+                                  ),
+                                ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

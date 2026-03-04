@@ -19,6 +19,8 @@ import '../../../auth/data/auth_repository.dart';
 import '../../../brand/presentation/controllers/brand_notifications_badge_controller.dart';
 import '../../../brand/presentation/pages/brand_notifications_page.dart';
 import '../../../campaigns/presentation/pages/create_campaign_page.dart';
+import '../../../reviews/data/review_model.dart';
+import '../../../reviews/data/review_repository.dart';
 import '../../data/profile_model.dart';
 import '../controllers/profile_controller.dart';
 import 'edit_profile_page.dart';
@@ -38,6 +40,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   String? _portfolioError;
   String? _loadedPortfolioProfileId;
   List<_PortfolioTileData> _portfolioTiles = const <_PortfolioTileData>[];
+  bool _isLoadingReviewSummary = false;
+  String? _loadedReviewSummaryProfileId;
+  ReviewSummary _reviewSummary = const ReviewSummary(
+    averageRating: 0,
+    totalReviews: 0,
+  );
 
   @override
   void initState() {
@@ -220,18 +228,29 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         if (_loadedPortfolioProfileId != null ||
             _portfolioTiles.isNotEmpty ||
             _portfolioError != null ||
-            _isLoadingPortfolio) {
+            _isLoadingPortfolio ||
+            _loadedReviewSummaryProfileId != null ||
+            _reviewSummary.totalReviews != 0 ||
+            _reviewSummary.averageRating != 0 ||
+            _isLoadingReviewSummary) {
           setState(() {
             _loadedPortfolioProfileId = null;
             _portfolioTiles = const <_PortfolioTileData>[];
             _portfolioError = null;
             _isLoadingPortfolio = false;
+            _loadedReviewSummaryProfileId = null;
+            _reviewSummary = const ReviewSummary(
+              averageRating: 0,
+              totalReviews: 0,
+            );
+            _isLoadingReviewSummary = false;
           });
         }
         return;
       }
       if (previousProfileId != nextProfile.id) {
         unawaited(_loadPortfolioForProfile(nextProfile, force: true));
+        unawaited(_loadReviewSummaryForProfile(nextProfile.id, force: true));
       }
     });
 
@@ -287,6 +306,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       final works = followersBase > 0
                           ? (followersBase % 80 + 12)
                           : 37;
+                      final ratingLabel = _isLoadingReviewSummary
+                          ? '...'
+                          : _reviewSummary.averageRating.toStringAsFixed(1);
+                      final qualityLabel = _reviewSummary.totalReviews > 0
+                          ? '${_reviewSummary.totalReviews} review'
+                          : '0 review';
 
                       if (_loadedPortfolioProfileId != profile.id &&
                           !_isLoadingPortfolio) {
@@ -338,8 +363,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                       const SizedBox(width: 8),
                                       _TopActionIconButton(
                                         icon: Icons.logout_rounded,
-                                        onTap:
-                                            isBusy ? null : _confirmAndLogout,
+                                        onTap: isBusy
+                                            ? null
+                                            : _confirmAndLogout,
                                       ),
                                       const SizedBox(width: 8),
                                       _TopActionIconButton(
@@ -374,12 +400,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
-                                          const Icon(
-                                            Icons.verified_rounded,
-                                            size: 21,
-                                            color: Color(0xFF3E86FF),
-                                          ),
                                         ],
                                       ),
                                       const SizedBox(height: 8),
@@ -389,9 +409,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                         location: location,
                                         bioText: bioText,
                                         specialization: specialization,
-                                        rating: '4.8',
+                                        rating: ratingLabel,
                                         works: '$works',
-                                        quality: '96%',
+                                        quality: qualityLabel,
                                         followers:
                                             '${followers.toString()} follower',
                                         onMainAction: isBusy
@@ -481,6 +501,51 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         })
         .toList(growable: false);
     return chunks.isEmpty ? raw : chunks.join('\n\n');
+  }
+
+  Future<void> _loadReviewSummaryForProfile(
+    String profileId, {
+    bool force = false,
+  }) async {
+    final cleanProfileId = profileId.trim();
+    if (cleanProfileId.isEmpty) return;
+
+    if (!force &&
+        _loadedReviewSummaryProfileId == cleanProfileId &&
+        !_isLoadingReviewSummary) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _loadedReviewSummaryProfileId = cleanProfileId;
+        _isLoadingReviewSummary = true;
+      });
+    }
+
+    try {
+      final summary = await ref
+          .read(reviewRepositoryProvider)
+          .getReceivedSummary(userId: cleanProfileId);
+      if (!mounted) return;
+      final activeProfileId = ref
+          .read(profileControllerProvider)
+          .profile
+          ?.id
+          .trim();
+      if (activeProfileId == null || activeProfileId != cleanProfileId) return;
+
+      setState(() {
+        _reviewSummary = summary;
+        _isLoadingReviewSummary = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _reviewSummary = const ReviewSummary(averageRating: 0, totalReviews: 0);
+        _isLoadingReviewSummary = false;
+      });
+    }
   }
 
   Future<void> _loadPortfolioForProfile(
@@ -808,23 +873,20 @@ class _TopActionIconButton extends StatelessWidget {
   const _TopActionIconButton({
     required this.icon,
     required this.onTap,
-    this.onLongPress,
     this.primary = false,
     this.showBadge = false,
   });
 
   final IconData icon;
   final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
   final bool primary;
   final bool showBadge;
 
   @override
   Widget build(BuildContext context) {
-    final isEnabled = onTap != null || onLongPress != null;
+    final isEnabled = onTap != null;
     return GestureDetector(
       onTap: onTap,
-      onLongPress: onLongPress,
       behavior: HitTestBehavior.opaque,
       child: Container(
         width: 44,
@@ -854,9 +916,9 @@ class _TopActionIconButton extends StatelessWidget {
             Icon(
               icon,
               size: primary ? 27 : 23,
-              color: const Color(0xFFF3EEFF).withValues(
-                alpha: isEnabled ? 1 : 0.45,
-              ),
+              color: const Color(
+                0xFFF3EEFF,
+              ).withValues(alpha: isEnabled ? 1 : 0.45),
             ),
             if (showBadge)
               Positioned(

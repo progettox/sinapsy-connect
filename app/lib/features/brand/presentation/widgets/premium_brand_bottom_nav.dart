@@ -7,6 +7,7 @@ class PremiumBrandBottomNav extends StatelessWidget {
     this.profileUserId,
     this.profileAvatarUrl,
     this.profileInitial,
+    this.onProfileLongPress,
     required this.onTap,
   });
 
@@ -14,6 +15,7 @@ class PremiumBrandBottomNav extends StatelessWidget {
   final String? profileUserId;
   final String? profileAvatarUrl;
   final String? profileInitial;
+  final VoidCallback? onProfileLongPress;
   final ValueChanged<int> onTap;
 
   @override
@@ -42,6 +44,7 @@ class PremiumBrandBottomNav extends StatelessWidget {
               avatarUrl: profileAvatarUrl,
               profileInitial: profileInitial,
               onTap: () => onTap(2),
+              onLongPress: onProfileLongPress,
             ),
             _NavItem(
               icon: Icons.send_rounded,
@@ -68,6 +71,7 @@ class _CenterProfileNavItem extends StatelessWidget {
     required this.avatarUrl,
     required this.profileInitial,
     required this.onTap,
+    required this.onLongPress,
   });
 
   final bool active;
@@ -75,6 +79,7 @@ class _CenterProfileNavItem extends StatelessWidget {
   final String? avatarUrl;
   final String? profileInitial;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -84,6 +89,7 @@ class _CenterProfileNavItem extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
+          onLongPress: onLongPress,
           customBorder: const CircleBorder(),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),

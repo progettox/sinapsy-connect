@@ -24,7 +24,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   late final TextEditingController _bioController;
   late final TextEditingController _locationController;
   late final TextEditingController _avatarUrlController;
-  late ProfileRole _selectedRole;
 
   @override
   void initState() {
@@ -35,7 +34,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     _avatarUrlController = TextEditingController(
       text: widget.profile.avatarUrl ?? '',
     );
-    _selectedRole = widget.profile.role ?? ProfileRole.creator;
   }
 
   @override
@@ -56,11 +54,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    final fixedRole = widget.profile.role ?? ProfileRole.creator;
 
     final profile = await ref
         .read(profileControllerProvider.notifier)
         .upsertMyProfile(
-          role: _selectedRole,
+          role: fixedRole,
           username: _usernameController.text,
           location: _locationController.text,
           bio: _bioController.text,
@@ -80,6 +79,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   Widget build(BuildContext context) {
     final state = ref.watch(profileControllerProvider);
     final theme = Theme.of(context);
+    final fixedRole = widget.profile.role ?? ProfileRole.creator;
     final pageTheme = theme.copyWith(
       textTheme: GoogleFonts.plusJakartaSansTextTheme(theme.textTheme),
       primaryTextTheme: GoogleFonts.plusJakartaSansTextTheme(
@@ -163,32 +163,16 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  DropdownButtonFormField<ProfileRole>(
-                                    key: ValueKey<ProfileRole>(_selectedRole),
-                                    initialValue: _selectedRole,
+                                  TextFormField(
+                                    initialValue: fixedRole.label,
+                                    readOnly: true,
                                     decoration: const InputDecoration(
                                       labelText: 'Ruolo',
+                                      suffixIcon: Icon(
+                                        Icons.lock_outline_rounded,
+                                        size: 18,
+                                      ),
                                     ),
-                                    dropdownColor: const Color(0xFF121E30),
-                                    iconEnabledColor: theme.colorScheme.primary,
-                                    items: ProfileRole.values
-                                        .map(
-                                          (role) => DropdownMenuItem<ProfileRole>(
-                                            value: role,
-                                            child: Text(role.label),
-                                          ),
-                                        )
-                                        .toList(),
-                                    onChanged: state.isLoading
-                                        ? null
-                                        : (value) {
-                                            if (value == null) return;
-                                            setState(() => _selectedRole = value);
-                                          },
-                                    validator: (value) =>
-                                        value == null
-                                        ? 'Ruolo obbligatorio'
-                                        : null,
                                   ),
                                   const SizedBox(height: 12),
                                   TextFormField(
@@ -233,7 +217,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                                       onPressed: state.isLoading ? null : _save,
                                       style: OutlinedButton.styleFrom(
                                         backgroundColor: Colors.transparent,
-                                        foregroundColor: theme.colorScheme.onSurface
+                                        foregroundColor: theme
+                                            .colorScheme
+                                            .onSurface
                                             .withValues(alpha: 0.9),
                                         side: BorderSide(
                                           color: const Color(

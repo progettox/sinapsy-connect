@@ -104,6 +104,7 @@ class ApplicationItem {
     this.creatorCategory,
     this.campaignTitle,
     this.campaignStatus,
+    this.projectStatus,
     this.chatId,
   });
 
@@ -118,12 +119,22 @@ class ApplicationItem {
   final String? creatorCategory;
   final String? campaignTitle;
   final String? campaignStatus;
+  final String? projectStatus;
   final String? chatId;
 
   bool get isPending => status.toLowerCase() == 'pending';
+  bool get isAccepted => status.toLowerCase() == 'accepted';
+  bool get isCampaignCompleted =>
+      (campaignStatus ?? '').trim().toLowerCase() == 'completed';
   bool get isCancelledAfterMatch =>
       status.toLowerCase() == 'accepted' &&
       (campaignStatus ?? '').toLowerCase() == 'cancelled';
+
+  bool get brandMarkedWorkCompleted =>
+      isCampaignCompleted || _completionFlags(projectStatus).brandConfirmed;
+
+  bool get creatorMarkedWorkCompleted =>
+      isCampaignCompleted || _completionFlags(projectStatus).creatorConfirmed;
 
   ApplicationItem copyWith({
     String? brandId,
@@ -133,7 +144,9 @@ class ApplicationItem {
     String? creatorCategory,
     String? campaignTitle,
     String? campaignStatus,
+    String? projectStatus,
     String? chatId,
+    bool clearProjectStatus = false,
     bool clearChatId = false,
   }) {
     return ApplicationItem(
@@ -148,9 +161,55 @@ class ApplicationItem {
       creatorCategory: creatorCategory ?? this.creatorCategory,
       campaignTitle: campaignTitle ?? this.campaignTitle,
       campaignStatus: campaignStatus ?? this.campaignStatus,
+      projectStatus: clearProjectStatus
+          ? null
+          : (projectStatus ?? this.projectStatus),
       chatId: clearChatId ? null : (chatId ?? this.chatId),
     );
   }
+
+  static _CompletionFlags _completionFlags(String? rawProjectStatus) {
+    final normalized = (rawProjectStatus ?? '').trim().toLowerCase();
+    switch (normalized) {
+      case 'completed':
+        return const _CompletionFlags(
+          brandConfirmed: true,
+          creatorConfirmed: true,
+        );
+      case 'delivered_brand':
+      case 'brand_done':
+      case 'brand_completed':
+        return const _CompletionFlags(
+          brandConfirmed: true,
+          creatorConfirmed: false,
+        );
+      case 'delivered_creator':
+      case 'creator_done':
+      case 'creator_completed':
+      case 'delivered':
+        return const _CompletionFlags(
+          brandConfirmed: false,
+          creatorConfirmed: true,
+        );
+      default:
+        return const _CompletionFlags(
+          brandConfirmed: false,
+          creatorConfirmed: false,
+        );
+    }
+  }
+}
+
+class WorkCompletionResult {
+  const WorkCompletionResult({
+    required this.success,
+    required this.nowCompleted,
+    required this.alreadyCompleted,
+  });
+
+  final bool success;
+  final bool nowCompleted;
+  final bool alreadyCompleted;
 }
 
 class ApplicationsController extends StateNotifier<ApplicationsState> {
@@ -494,6 +553,186 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     }
   }
 
+  Future<WorkCompletionResult> markWorkCompleted(ApplicationItem item) async {
+    if (!item.isAccepted) {
+      state = state.copyWith(
+        errorMessage: 'Puoi concludere solo lavori con candidatura accepted.',
+      );
+      return const WorkCompletionResult(
+        success: false,
+        nowCompleted: false,
+        alreadyCompleted: false,
+      );
+    }
+
+    final currentUserId = _authRepository.currentUser?.id.trim();
+    if (currentUserId == null || currentUserId.isEmpty) {
+      state = state.copyWith(errorMessage: 'Sessione non valida.');
+      return const WorkCompletionResult(
+        success: false,
+        nowCompleted: false,
+        alreadyCompleted: false,
+      );
+    }
+
+    final creatorId = item.creatorId.trim();
+    var brandId = item.brandId.trim();
+    if (brandId.isEmpty) {
+      brandId = (await _resolveBrandIdForCampaign(item.campaignId) ?? '')
+          .trim();
+    }
+
+    final isCreatorActor = creatorId.isNotEmpty && creatorId == currentUserId;
+    final isBrandActor = brandId.isNotEmpty
+        ? brandId == currentUserId
+        : (!isCreatorActor && currentUserId.isNotEmpty);
+    if (!isCreatorActor && !isBrandActor) {
+      state = state.copyWith(
+        errorMessage: 'Non sei autorizzato a concludere questo lavoro.',
+      );
+      return const WorkCompletionResult(
+        success: false,
+        nowCompleted: false,
+        alreadyCompleted: false,
+      );
+    }
+
+    state = state.copyWith(
+      isMutating: true,
+      activeMutationId: item.id,
+      clearError: true,
+    );
+
+    try {
+      var projectRecord = await _findProjectRecordForItem(
+        campaignId: item.campaignId,
+        brandId: brandId,
+        creatorId: creatorId,
+      );
+      if (projectRecord == null &&
+          item.campaignId.trim().isNotEmpty &&
+          brandId.isNotEmpty &&
+          creatorId.isNotEmpty) {
+        await _chatRepository.createChatForMatch(
+          campaignId: item.campaignId,
+          brandId: brandId,
+          creatorId: creatorId,
+        );
+        projectRecord = await _findProjectRecordForItem(
+          campaignId: item.campaignId,
+          brandId: brandId,
+          creatorId: creatorId,
+        );
+      }
+
+      if (projectRecord == null) {
+        throw StateError(
+          'Project non trovato per la campagna ${item.campaignId}.',
+        );
+      }
+
+      final currentProjectStatus = projectRecord.status.trim().toLowerCase();
+      final currentFlags = ApplicationItem._completionFlags(
+        currentProjectStatus,
+      );
+      var brandConfirmed = currentFlags.brandConfirmed;
+      var creatorConfirmed = currentFlags.creatorConfirmed;
+
+      if (isBrandActor && brandConfirmed) {
+        state = state.copyWith(
+          isMutating: false,
+          clearActiveMutation: true,
+          clearError: true,
+        );
+        return WorkCompletionResult(
+          success: true,
+          nowCompleted: false,
+          alreadyCompleted:
+              item.isCampaignCompleted || currentProjectStatus == 'completed',
+        );
+      }
+
+      if (isCreatorActor && creatorConfirmed) {
+        state = state.copyWith(
+          isMutating: false,
+          clearActiveMutation: true,
+          clearError: true,
+        );
+        return WorkCompletionResult(
+          success: true,
+          nowCompleted: false,
+          alreadyCompleted:
+              item.isCampaignCompleted || currentProjectStatus == 'completed',
+        );
+      }
+
+      if (isBrandActor) {
+        brandConfirmed = true;
+      } else {
+        creatorConfirmed = true;
+      }
+
+      final nextProjectStatus = _nextProjectStatus(
+        brandConfirmed: brandConfirmed,
+        creatorConfirmed: creatorConfirmed,
+      );
+
+      if (nextProjectStatus != currentProjectStatus) {
+        await _updateProjectStatus(
+          projectId: projectRecord.id,
+          status: nextProjectStatus,
+        );
+      }
+
+      final isNowCompleted =
+          nextProjectStatus == 'completed' ||
+          (item.campaignStatus ?? '').trim().toLowerCase() == 'completed';
+
+      if (isNowCompleted &&
+          (item.campaignStatus ?? '').trim().toLowerCase() != 'completed') {
+        await _updateCampaignStatus(
+          campaignId: item.campaignId,
+          status: 'completed',
+        );
+      }
+
+      _applyWorkCompletionLocally(
+        campaignId: item.campaignId,
+        projectStatus: nextProjectStatus,
+        campaignCompleted: isNowCompleted,
+      );
+
+      state = state.copyWith(
+        isMutating: false,
+        clearActiveMutation: true,
+        clearError: true,
+      );
+
+      return WorkCompletionResult(
+        success: true,
+        nowCompleted:
+            isNowCompleted &&
+            (item.campaignStatus ?? '').trim().toLowerCase() != 'completed',
+        alreadyCompleted:
+            item.isCampaignCompleted || currentProjectStatus == 'completed',
+      );
+    } catch (error) {
+      _log(
+        'application.work_completed.error applicationId=${item.id} error=$error',
+      );
+      state = state.copyWith(
+        isMutating: false,
+        clearActiveMutation: true,
+        errorMessage: 'Errore chiusura lavoro: $error',
+      );
+      return const WorkCompletionResult(
+        success: false,
+        nowCompleted: false,
+        alreadyCompleted: false,
+      );
+    }
+  }
+
   void clearError() {
     state = state.copyWith(clearError: true);
   }
@@ -603,6 +842,7 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
       status: _string(map['status']) ?? 'pending',
       createdAt: _dateTime(map['created_at'] ?? map['createdAt']),
       campaignStatus: _string(map['campaign_status'] ?? map['campaignStatus']),
+      projectStatus: _string(map['project_status'] ?? map['projectStatus']),
     );
   }
 
@@ -624,6 +864,7 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     final campaignTitles = await _loadCampaignTitles(campaignIds);
     final campaignOwners = await _loadCampaignOwners(campaignIds);
     final campaignStatuses = await _loadCampaignStatuses(campaignIds);
+    final projectStatuses = await _loadProjectStatuses(campaignIds);
 
     return items
         .map(
@@ -634,6 +875,7 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
             creatorCategory: creatorMetaById[item.creatorId]?.categoryLabel,
             campaignTitle: campaignTitles[item.campaignId],
             campaignStatus: campaignStatuses[item.campaignId],
+            projectStatus: projectStatuses[item.campaignId],
           ),
         )
         .toList();
@@ -918,6 +1160,187 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     }
   }
 
+  Future<Map<String, String>> _loadProjectStatuses(
+    Set<String> campaignIds,
+  ) async {
+    if (campaignIds.isEmpty) return const <String, String>{};
+
+    try {
+      final rows = await _client
+          .from('projects')
+          .select('campaign_id,status')
+          .inFilter('campaign_id', campaignIds.toList());
+      return _rowsToMaps(rows).fold<Map<String, String>>(<String, String>{}, (
+        acc,
+        row,
+      ) {
+        final campaignId = _string(row['campaign_id']);
+        final status = _string(row['status']);
+        if (campaignId != null &&
+            status != null &&
+            !acc.containsKey(campaignId)) {
+          acc[campaignId] = status;
+        }
+        return acc;
+      });
+    } on PostgrestException catch (error) {
+      if (_isMissingTable(error)) return const <String, String>{};
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    try {
+      final rows = await _client
+          .from('projects')
+          .select('campaignId,status')
+          .inFilter('campaignId', campaignIds.toList());
+      return _rowsToMaps(rows).fold<Map<String, String>>(<String, String>{}, (
+        acc,
+        row,
+      ) {
+        final campaignId = _string(row['campaignId']);
+        final status = _string(row['status']);
+        if (campaignId != null &&
+            status != null &&
+            !acc.containsKey(campaignId)) {
+          acc[campaignId] = status;
+        }
+        return acc;
+      });
+    } on PostgrestException catch (error) {
+      if (_isMissingTable(error)) return const <String, String>{};
+      if (!_isColumnError(error)) rethrow;
+      return const <String, String>{};
+    }
+  }
+
+  Future<_ProjectRecord?> _findProjectRecordForItem({
+    required String campaignId,
+    required String brandId,
+    required String creatorId,
+  }) async {
+    final cleanCampaignId = campaignId.trim();
+    final cleanBrandId = brandId.trim();
+    final cleanCreatorId = creatorId.trim();
+    if (cleanCampaignId.isEmpty) return null;
+
+    try {
+      var query = _client
+          .from('projects')
+          .select('id,status')
+          .eq('campaign_id', cleanCampaignId);
+      if (cleanBrandId.isNotEmpty) {
+        query = query.eq('brand_id', cleanBrandId);
+      }
+      if (cleanCreatorId.isNotEmpty) {
+        query = query.eq('partner_id', cleanCreatorId);
+      }
+      final row = await query.maybeSingle();
+      if (row != null) {
+        final map = _toMap(row);
+        final id = _string(map['id']);
+        if (id != null) {
+          return _ProjectRecord(id: id, status: _string(map['status']) ?? '');
+        }
+      }
+    } on PostgrestException catch (error) {
+      if (_isMissingTable(error)) return null;
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    try {
+      var query = _client
+          .from('projects')
+          .select('id,status')
+          .eq('campaignId', cleanCampaignId);
+      if (cleanBrandId.isNotEmpty) {
+        query = query.eq('brandId', cleanBrandId);
+      }
+      if (cleanCreatorId.isNotEmpty) {
+        query = query.eq('partnerId', cleanCreatorId);
+      }
+      final row = await query.maybeSingle();
+      if (row != null) {
+        final map = _toMap(row);
+        final id = _string(map['id']);
+        if (id != null) {
+          return _ProjectRecord(id: id, status: _string(map['status']) ?? '');
+        }
+      }
+    } on PostgrestException catch (error) {
+      if (_isMissingTable(error)) return null;
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    try {
+      final row = await _client
+          .from('projects')
+          .select('id,status')
+          .eq('campaign_id', cleanCampaignId)
+          .maybeSingle();
+      if (row != null) {
+        final map = _toMap(row);
+        final id = _string(map['id']);
+        if (id != null) {
+          return _ProjectRecord(id: id, status: _string(map['status']) ?? '');
+        }
+      }
+    } on PostgrestException catch (error) {
+      if (_isMissingTable(error)) return null;
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    try {
+      final row = await _client
+          .from('projects')
+          .select('id,status')
+          .eq('campaignId', cleanCampaignId)
+          .maybeSingle();
+      if (row != null) {
+        final map = _toMap(row);
+        final id = _string(map['id']);
+        if (id != null) {
+          return _ProjectRecord(id: id, status: _string(map['status']) ?? '');
+        }
+      }
+    } on PostgrestException catch (error) {
+      if (_isMissingTable(error)) return null;
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    return null;
+  }
+
+  String _nextProjectStatus({
+    required bool brandConfirmed,
+    required bool creatorConfirmed,
+  }) {
+    if (brandConfirmed && creatorConfirmed) return 'completed';
+    if (brandConfirmed) return 'delivered_brand';
+    if (creatorConfirmed) return 'delivered_creator';
+    return 'in_progress';
+  }
+
+  Future<void> _updateProjectStatus({
+    required String projectId,
+    required String status,
+  }) async {
+    try {
+      await _client
+          .from('projects')
+          .update({'status': status})
+          .eq('id', projectId);
+      return;
+    } on PostgrestException catch (error) {
+      if (_isMissingTable(error)) return;
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    await _client
+        .from('projects')
+        .update({'status': status})
+        .eq('id', projectId);
+  }
+
   Future<void> _updateApplicationStatus({
     required String applicationId,
     required String status,
@@ -1132,6 +1555,31 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
     }
   }
 
+  void _applyWorkCompletionLocally({
+    required String campaignId,
+    required String projectStatus,
+    required bool campaignCompleted,
+  }) {
+    List<ApplicationItem> patch(List<ApplicationItem> list) {
+      return list
+          .map((item) {
+            if (item.campaignId != campaignId) return item;
+            return item.copyWith(
+              projectStatus: projectStatus,
+              campaignStatus: campaignCompleted
+                  ? 'completed'
+                  : item.campaignStatus,
+            );
+          })
+          .toList(growable: false);
+    }
+
+    state = state.copyWith(
+      brandApplications: patch(state.brandApplications),
+      myApplications: patch(state.myApplications),
+    );
+  }
+
   void _replaceApplicationLocally(
     String applicationId, {
     required String status,
@@ -1294,6 +1742,14 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
         error.message.toLowerCase().contains('column');
   }
 
+  bool _isMissingTable(PostgrestException error) {
+    return error.code == '42P01' ||
+        error.code == 'PGRST205' ||
+        _messageContainsSqlState(error, '42P01') ||
+        error.message.toLowerCase().contains('relation') &&
+            error.message.toLowerCase().contains('does not exist');
+  }
+
   bool _isMissingRpc(PostgrestException error) {
     return error.code == '42883' ||
         error.message.toLowerCase().contains('function') ||
@@ -1331,4 +1787,21 @@ class _CreatorProfileMeta {
   final String? username;
   final String roleLabel;
   final String categoryLabel;
+}
+
+class _CompletionFlags {
+  const _CompletionFlags({
+    required this.brandConfirmed,
+    required this.creatorConfirmed,
+  });
+
+  final bool brandConfirmed;
+  final bool creatorConfirmed;
+}
+
+class _ProjectRecord {
+  const _ProjectRecord({required this.id, required this.status});
+
+  final String id;
+  final String status;
 }
