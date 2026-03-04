@@ -432,17 +432,13 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            Expanded(
-                              child: _PillButton(
-                                text: data.isFollowing
-                                    ? 'SEGUI GI\u00C0'
-                                    : 'SEGUI',
-                                onTap: _isUpdatingFollow ? null : _toggleFollow,
-                              ),
+                            _FollowCompactButton(
+                              isFollowing: data.isFollowing,
+                              isSaving: _isUpdatingFollow,
+                              onTap: _toggleFollow,
                             ),
                             const SizedBox(width: 10),
                             Expanded(
-                              flex: 2,
                               child: _PillButton(
                                 text: isBrand
                                     ? 'Contatta Brand'
@@ -1408,6 +1404,57 @@ class _PillButton extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FollowCompactButton extends StatelessWidget {
+  const _FollowCompactButton({
+    required this.isFollowing,
+    required this.isSaving,
+    required this.onTap,
+  });
+
+  final bool isFollowing;
+  final bool isSaving;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: isFollowing ? 'Non seguire più' : 'Segui creator',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isSaving ? null : onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Ink(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.32),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: const Color(0xFF6F648A).withValues(alpha: 0.45),
+              ),
+            ),
+            child: isSaving
+                ? const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Center(child: SinapsyLogoLoader(size: 14)),
+                  )
+                : Icon(
+                    isFollowing
+                        ? Icons.person_remove_alt_1_rounded
+                        : Icons.person_add_alt_1_rounded,
+                    size: 21,
+                    color: isFollowing
+                        ? const Color(0xFFB98CFF)
+                        : const Color(0xFFF3EEFF),
+                  ),
           ),
         ),
       ),
