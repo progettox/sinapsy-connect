@@ -296,28 +296,6 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                   ),
                 ),
                 Positioned(
-                  right: 12,
-                  top: 112,
-                  child: Column(
-                    children: const [
-                      Text(
-                        'SOCIAL',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFAA7CFF),
-                        ),
-                      ),
-                      Icon(Icons.expand_more_rounded, color: Color(0xFFAA7CFF)),
-                      _SocialDot(icon: Icons.camera_alt_outlined),
-                      SizedBox(height: 8),
-                      _SocialDot(icon: Icons.music_note_rounded),
-                      SizedBox(height: 8),
-                      _SocialDot(icon: Icons.language_rounded),
-                    ],
-                  ),
-                ),
-                Positioned(
                   left: 14,
                   right: 14,
                   bottom: 14,
@@ -329,113 +307,138 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 50,
+                          fontSize: 42,
                           fontWeight: FontWeight.w700,
                           color: Color(0xFFF3EEFF),
                           height: 0.95,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       _RoleChip(label: data.roleLabel),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(
-                            color: const Color(
-                              0xFF8C58F2,
-                            ).withValues(alpha: 0.45),
-                          ),
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xD91A1230), Color(0xCA0E0A1D)],
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _TopStat(
-                                    label: 'N° FOLLOWER',
-                                    value: _formatCompact(data.followersCount),
-                                  ),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.fromLTRB(
+                                14,
+                                12,
+                                14,
+                                10,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(
+                                  color: const Color(
+                                    0xFF8C58F2,
+                                  ).withValues(alpha: 0.45),
                                 ),
-                                Expanded(
-                                  child: _TopStat(
-                                    label: 'N° SEGUITI',
-                                    value: _formatCompact(data.followingCount),
-                                  ),
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Color(0xD91A1230),
+                                    Color(0xCA0E0A1D),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            _InlineStat(
-                              icon: Icons.work_outline_rounded,
-                              label: 'LAVORI COMPLETATI',
-                              value: '${data.completedWorksCount}',
-                            ),
-                            const SizedBox(height: 8),
-                            _InlineStat(
-                              icon: Icons.star_rounded,
-                              label: 'STELLE',
-                              value:
-                                  '$ratingText (${data.reviewSummary.totalReviews} recensioni)',
-                            ),
-                            const SizedBox(height: 10),
-                            Divider(
-                              height: 1,
-                              color: const Color(
-                                0xFF8B5EE8,
-                              ).withValues(alpha: 0.3),
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                const Text(
-                                  'Bio',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFFF2EAFF),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _TopStat(
+                                          label: 'N\u00B0 FOLLOWER',
+                                          value: _formatCompact(
+                                            data.followersCount,
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: _TopStat(
+                                          label: 'N\u00B0 SEGUITI',
+                                          value: _formatCompact(
+                                            data.followingCount,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(width: 10),
-                                _RoleChip(label: isBrand ? 'Brand' : 'Creator'),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              data.location,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFFCDBDEB),
+                                  const SizedBox(height: 8),
+                                  _InlineStat(
+                                    icon: Icons.work_outline_rounded,
+                                    label: 'LAVORI COMPLETATI',
+                                    value: '${data.completedWorksCount}',
+                                  ),
+                                  const SizedBox(height: 6),
+                                  _InlineStat(
+                                    icon: Icons.star_rounded,
+                                    label: 'STELLE',
+                                    value:
+                                        '$ratingText (${data.reviewSummary.totalReviews} recensioni)',
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Divider(
+                                    height: 1,
+                                    color: const Color(
+                                      0xFF8B5EE8,
+                                    ).withValues(alpha: 0.3),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Text(
+                                        'Bio',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFFF2EAFF),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _RoleChip(
+                                        label: isBrand ? 'Brand' : 'Creator',
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    data.location,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFFCDBDEB),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    data.bioText,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFFE1D7F3),
+                                      height: 1.2,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              data.bioText,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFFE1D7F3),
-                                height: 1.2,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 8),
+                          const _SocialRail(),
+                        ],
                       ),
                       if (!data.isCurrentUser) ...[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         Row(
                           children: [
                             Expanded(
                               child: _PillButton(
-                                text: data.isFollowing ? 'SEGUI GIÀ' : 'SEGUI',
+                                text: data.isFollowing
+                                    ? 'SEGUI GI\u00C0'
+                                    : 'SEGUI',
                                 onTap: _isUpdatingFollow ? null : _toggleFollow,
                               ),
                             ),
@@ -463,11 +466,11 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
         ),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
             child: Text(
               isBrand ? 'Campagne Attive' : 'Portfolio',
               style: const TextStyle(
-                fontSize: 30,
+                fontSize: 24,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFFEDE5FF),
               ),
@@ -478,7 +481,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
           _buildCreatorMediaSliver(data)
         else
           _buildBrandCampaignsSliver(data),
-        const SliverToBoxAdapter(child: SizedBox(height: 18)),
+        const SliverToBoxAdapter(child: SizedBox(height: 14)),
       ],
     );
   }
@@ -501,7 +504,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
         delegate: SliverChildBuilderDelegate((context, index) {
           final imageUrl = data.creatorMediaUrls[index];
           return ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             child: Image.network(
               imageUrl,
               key: ValueKey<String>(
@@ -579,7 +582,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                   ),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -588,16 +591,16 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: 14,
                               fontWeight: FontWeight.w700,
                               color: Color(0xFFF1E8FF),
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           Text(
                             'Budget ${campaign.budgetLabel}',
                             style: const TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                               color: Color(0xFFD8C9F1),
                             ),
@@ -610,7 +613,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                               color: Color(0xFFC8B8E6),
                             ),
@@ -948,7 +951,7 @@ class _HeroBackdrop extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(30),
       child: SizedBox(
-        height: 712,
+        height: 680,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -1019,8 +1022,8 @@ class _ActionCircleButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 44,
-        height: 44,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: const LinearGradient(
@@ -1032,7 +1035,7 @@ class _ActionCircleButton extends StatelessWidget {
             color: const Color(0xFF6F648A).withValues(alpha: 0.3),
           ),
         ),
-        child: Icon(icon, size: 24, color: const Color(0xFFF3EEFF)),
+        child: Icon(icon, size: 20, color: const Color(0xFFF3EEFF)),
       ),
     );
   }
@@ -1046,15 +1049,92 @@ class _SocialDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 48,
-      height: 48,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
           color: const Color(0xFF8E58F3).withValues(alpha: 0.78),
         ),
       ),
-      child: Icon(icon, color: const Color(0xFFB98CFF), size: 22),
+      child: Icon(icon, color: const Color(0xFFB98CFF), size: 18),
+    );
+  }
+}
+
+class _SocialRail extends StatefulWidget {
+  const _SocialRail();
+
+  @override
+  State<_SocialRail> createState() => _SocialRailState();
+}
+
+class _SocialRailState extends State<_SocialRail> {
+  bool _isExpanded = false;
+
+  void _toggle() {
+    setState(() => _isExpanded = !_isExpanded);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 58,
+      child: Column(
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: _toggle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Column(
+                  children: [
+                    const Text(
+                      'SOCIAL',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFAA7CFF),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    AnimatedRotation(
+                      turns: _isExpanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutCubic,
+                      child: const Icon(
+                        Icons.expand_more_rounded,
+                        size: 18,
+                        color: Color(0xFFAA7CFF),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            height: _isExpanded ? 136 : 0,
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: const [
+                  _SocialDot(icon: Icons.camera_alt_outlined),
+                  SizedBox(height: 6),
+                  _SocialDot(icon: Icons.music_note_rounded),
+                  SizedBox(height: 6),
+                  _SocialDot(icon: Icons.language_rounded),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1069,7 +1149,7 @@ class _RoleChip extends StatelessWidget {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
           gradient: const LinearGradient(
@@ -1084,7 +1164,7 @@ class _RoleChip extends StatelessWidget {
         child: Text(
           label,
           style: const TextStyle(
-            fontSize: 14,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
             color: Color(0xFFE8DDFF),
           ),
@@ -1108,7 +1188,7 @@ class _TopStat extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 14,
+            fontSize: 12,
             fontWeight: FontWeight.w500,
             color: Color(0xFFD8C9F0),
           ),
@@ -1117,7 +1197,7 @@ class _TopStat extends StatelessWidget {
         Text(
           value,
           style: const TextStyle(
-            fontSize: 42,
+            fontSize: 34,
             fontWeight: FontWeight.w700,
             color: Color(0xFFF1EAFF),
             height: 0.95,
@@ -1143,24 +1223,24 @@ class _InlineStat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: const Color(0xFFB376FF)),
-        const SizedBox(width: 8),
+        Icon(icon, size: 18, color: const Color(0xFFB376FF)),
+        const SizedBox(width: 6),
         Text(
           label,
           style: const TextStyle(
-            fontSize: 17,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
             color: Color(0xFFE8DDFF),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         Expanded(
           child: Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
               color: Color(0xFFF4ECFF),
             ),
@@ -1180,7 +1260,7 @@ class _PillButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 54,
+      height: 48,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
@@ -1211,7 +1291,7 @@ class _PillButton extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: const Color(
                       0xFFF7F2FF,
@@ -1259,7 +1339,7 @@ class _EmptyCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: const Color(0xFF7040CF).withValues(alpha: 0.3),
         ),
