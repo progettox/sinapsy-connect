@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/supabase/supabase_client_provider.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
@@ -32,10 +33,16 @@ class PublicProfilePage extends ConsumerStatefulWidget {
 }
 
 class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
+  static const double _edgeSwipeActivationWidth = 26;
+  static const double _edgeSwipePopDistance = 72;
+  static const double _edgeSwipePopVelocity = 820;
+
   bool _isLoading = true;
   bool _isUpdatingFollow = false;
   String? _errorMessage;
   _PublicProfileData? _data;
+  bool _isEdgeSwipeActive = false;
+  double _edgeSwipeDistance = 0;
 
   @override
   void initState() {
@@ -78,6 +85,16 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
           .trim();
       final isCurrentUser = currentUserId != null && currentUserId == targetId;
       final bioInfo = _extractBioInfo(profile.bio);
+      final legacySocial = _extractLegacySocialLinksFromBio(profile.bio);
+      final instagramUrl = _normalizeExternalUrl(
+        profile.instagramUrl ?? legacySocial.instagram ?? '',
+      );
+      final tiktokUrl = _normalizeExternalUrl(
+        profile.tiktokUrl ?? legacySocial.tiktok ?? '',
+      );
+      final websiteUrl = _normalizeExternalUrl(
+        profile.websiteUrl ?? legacySocial.website ?? '',
+      );
 
       final loaded = await Future.wait<dynamic>([
         ref.read(reviewRepositoryProvider).getReceivedSummary(userId: targetId),
@@ -88,14 +105,12 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
         role == ProfileRole.brand
             ? _fetchActiveCampaigns(targetId)
             : Future<List<CampaignModel>>.value(const <CampaignModel>[]),
-        _fetchCompletedWorksCount(profileId: targetId, role: role),
       ]);
 
       final reviewSummary = loaded[0] as ReviewSummary;
       final followSnapshot = loaded[1] as _FollowSnapshot;
       final creatorMedia = loaded[2] as List<String>;
       final activeCampaigns = loaded[3] as List<CampaignModel>;
-      final fallbackWorksCount = loaded[4] as int;
 
       final followersCount =
           followSnapshot.followersCount ??
@@ -115,7 +130,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                 profileRow['completedWorksCount'],
           ) ??
           _asInt(profileRow['completed_works'] ?? profileRow['completedWorks']);
-      final completedWorksCount = storedCompletedWorks ?? fallbackWorksCount;
+      final completedWorksCount = storedCompletedWorks ?? 0;
       final heroImage = _pickHeroImage(
         creatorMedia: creatorMedia,
         activeCampaigns: activeCampaigns,
@@ -146,6 +161,9 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
           creatorMediaUrls: creatorMedia,
           activeCampaigns: activeCampaigns,
           heroImageUrl: heroImage,
+          instagramUrl: instagramUrl,
+          tiktokUrl: tiktokUrl,
+          websiteUrl: websiteUrl,
         );
       });
     } catch (error) {
@@ -215,6 +233,45 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
     return current;
   }
 
+  void _resetEdgeSwipe() {
+    _isEdgeSwipeActive = false;
+    _edgeSwipeDistance = 0;
+  }
+
+  void _handleEdgeSwipeBack() {
+    final navigator = Navigator.of(context);
+    if (!navigator.canPop()) return;
+    navigator.maybePop();
+  }
+
+  void _onHorizontalDragStart(DragStartDetails details) {
+    _isEdgeSwipeActive = details.globalPosition.dx <= _edgeSwipeActivationWidth;
+    _edgeSwipeDistance = 0;
+  }
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    if (!_isEdgeSwipeActive) return;
+    final delta = details.primaryDelta ?? 0;
+    if (delta <= 0) {
+      _edgeSwipeDistance = 0;
+      return;
+    }
+    _edgeSwipeDistance += delta;
+    if (_edgeSwipeDistance >= _edgeSwipePopDistance) {
+      _resetEdgeSwipe();
+      _handleEdgeSwipeBack();
+    }
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    final shouldPop = _isEdgeSwipeActive && velocity > _edgeSwipePopVelocity;
+    _resetEdgeSwipe();
+    if (shouldPop) {
+      _handleEdgeSwipeBack();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -229,19 +286,26 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
     return Theme(
       data: pageTheme,
       child: Scaffold(
-        body: Stack(
-          children: [
-            const Positioned.fill(child: LuxuryNeonBackdrop()),
-            SafeArea(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 430),
-                  child: _buildBody(context),
+        body: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onHorizontalDragStart: _onHorizontalDragStart,
+          onHorizontalDragUpdate: _onHorizontalDragUpdate,
+          onHorizontalDragEnd: _onHorizontalDragEnd,
+          onHorizontalDragCancel: _resetEdgeSwipe,
+          child: Stack(
+            children: [
+              const Positioned.fill(child: LuxuryNeonBackdrop()),
+              SafeArea(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 430),
+                    child: _buildBody(context),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -285,10 +349,32 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                   right: 12,
                   top: 12,
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _ActionCircleButton(
-                        icon: Icons.arrow_back_rounded,
+                        icon: Icons.arrow_back_ios_new_rounded,
                         onTap: () => Navigator.of(context).maybePop(),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              data.displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 30,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFF3EEFF),
+                                height: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _RoleChip(label: data.roleLabel),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -300,20 +386,6 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        data.displayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 42,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFF3EEFF),
-                          height: 0.95,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      _RoleChip(label: data.roleLabel),
-                      const SizedBox(height: 8),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -365,17 +437,46 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                                     ],
                                   ),
                                   const SizedBox(height: 8),
-                                  _InlineStat(
-                                    icon: Icons.work_outline_rounded,
-                                    label: 'LAVORI COMPLETATI',
-                                    value: '${data.completedWorksCount}',
-                                  ),
-                                  const SizedBox(height: 6),
-                                  _InlineStat(
-                                    icon: Icons.star_rounded,
-                                    label: 'STELLE',
-                                    value:
-                                        '$ratingText (${data.reviewSummary.totalReviews} recensioni)',
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.work_outline_rounded,
+                                        size: 18,
+                                        color: Color(0xFFB376FF),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '${data.completedWorksCount}',
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFFF4ECFF),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Container(
+                                        width: 1,
+                                        height: 14,
+                                        color: const Color(
+                                          0xFF8B5EE8,
+                                        ).withValues(alpha: 0.35),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      const Icon(
+                                        Icons.star_rounded,
+                                        size: 18,
+                                        color: Color(0xFFB376FF),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        ratingText,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFFF4ECFF),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   const SizedBox(height: 8),
                                   Divider(
@@ -395,22 +496,18 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                                           color: Color(0xFFF2EAFF),
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      _RoleChip(
-                                        label: isBrand ? 'Brand' : 'Creator',
-                                      ),
                                     ],
                                   ),
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: 2),
                                   Text(
                                     data.location,
                                     style: const TextStyle(
                                       fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                      color: Color(0xFFCDBDEB),
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFE3D5FF),
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 7),
                                   Text(
                                     data.bioText,
                                     style: const TextStyle(
@@ -425,7 +522,12 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const _SocialRail(),
+                          _SocialRail(
+                            instagramUrl: data.instagramUrl,
+                            tiktokUrl: data.tiktokUrl,
+                            websiteUrl: data.websiteUrl,
+                            onSocialTap: _onSocialTap,
+                          ),
                         ],
                       ),
                       if (!data.isCurrentUser) ...[
@@ -440,9 +542,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: _PillButton(
-                                text: isBrand
-                                    ? 'Contatta Brand'
-                                    : 'Collabora',
+                                text: isBrand ? 'Contatta Brand' : 'Collabora',
                                 onTap: () => _showSnack(
                                   'Azione collaborazione disponibile nei prossimi step.',
                                 ),
@@ -731,59 +831,6 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
     return sorted;
   }
 
-  Future<int> _fetchCompletedWorksCount({
-    required String profileId,
-    required ProfileRole? role,
-  }) async {
-    final client = ref.read(supabaseClientProvider);
-    dynamic raw;
-    if (role == ProfileRole.brand) {
-      try {
-        raw = await client
-            .from('campaigns')
-            .select('id')
-            .eq('brand_id', profileId)
-            .eq('status', 'completed');
-        return _toMaps(raw).length;
-      } on PostgrestException catch (error) {
-        if (_isMissingTable(error)) return 0;
-        if (!_isColumnError(error)) rethrow;
-      }
-      try {
-        raw = await client
-            .from('campaigns')
-            .select('id')
-            .eq('brandId', profileId)
-            .eq('status', 'completed');
-        return _toMaps(raw).length;
-      } on PostgrestException catch (_) {
-        return 0;
-      }
-    }
-
-    try {
-      raw = await client
-          .from('applications')
-          .select('id')
-          .eq('applicant_id', profileId)
-          .eq('status', 'completed');
-      return _toMaps(raw).length;
-    } on PostgrestException catch (error) {
-      if (_isMissingTable(error)) return 0;
-      if (!_isColumnError(error)) rethrow;
-    }
-    try {
-      raw = await client
-          .from('applications')
-          .select('id')
-          .eq('creator_id', profileId)
-          .eq('status', 'completed');
-      return _toMaps(raw).length;
-    } on PostgrestException catch (_) {
-      return 0;
-    }
-  }
-
   Future<_FollowSnapshot> _fetchFollowSnapshot(
     String profileId, {
     required bool isCurrentUser,
@@ -803,6 +850,40 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
     }
   }
 
+  Future<void> _onSocialTap(String platformLabel, String? rawUrl) async {
+    final clean = (rawUrl ?? '').trim();
+    if (clean.isEmpty) {
+      _showSnack('Link $platformLabel non disponibile.');
+      return;
+    }
+
+    final normalized = _normalizeExternalUrl(clean);
+    if (normalized == null) {
+      _showSnack('Link $platformLabel non valido.');
+      return;
+    }
+
+    final uri = Uri.tryParse(normalized);
+    if (uri == null) {
+      _showSnack('Link $platformLabel non valido.');
+      return;
+    }
+
+    final openedExternally = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (openedExternally) return;
+
+    final openedDefault = await launchUrl(
+      uri,
+      mode: LaunchMode.platformDefault,
+    );
+    if (!openedDefault) {
+      _showSnack('Impossibile aprire il link $platformLabel.');
+    }
+  }
+
   (String?, String) _extractBioInfo(String bio) {
     final text = bio.trim();
     if (text.isEmpty) return (null, 'Nessuna bio disponibile.');
@@ -810,7 +891,31 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
       r'(specializzazione|tipologia|categoria|category)\s*:\s*([^\n]+)',
       caseSensitive: false,
     ).firstMatch(text)?.group(2);
-    final clean = text
+    final roleOnlyLine = RegExp(
+      r'^(brand|creator|creatore|service|servizio|azienda)$',
+      caseSensitive: false,
+    );
+    final filteredChunks = text
+        .split('\n\n')
+        .map((chunk) => chunk.trim())
+        .where((chunk) => chunk.isNotEmpty)
+        .where((chunk) {
+          final lower = chunk.toLowerCase();
+          return !(lower.startsWith('specializzazione:\n') ||
+              lower.startsWith('tipologia:\n') ||
+              lower.startsWith('categoria:\n') ||
+              lower.startsWith('category:\n') ||
+              lower.startsWith('links:\n') ||
+              lower.startsWith('instagram:\n') ||
+              lower.startsWith('tiktok:\n') ||
+              lower.startsWith('sito web:\n') ||
+              lower.startsWith('website:\n') ||
+              lower.startsWith('ruolo:\n') ||
+              lower.startsWith('role:\n'));
+        })
+        .toList(growable: false);
+    final clean = filteredChunks
+        .join('\n\n')
         .split('\n')
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
@@ -819,10 +924,103 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
           return !(l.startsWith('specializzazione:') ||
               l.startsWith('tipologia:') ||
               l.startsWith('categoria:') ||
-              l.startsWith('category:'));
+              l.startsWith('category:') ||
+              l.startsWith('links:') ||
+              l.startsWith('instagram:') ||
+              l.startsWith('tiktok:') ||
+              l.startsWith('sito web:') ||
+              l.startsWith('website:') ||
+              l.startsWith('ruolo:') ||
+              l.startsWith('role:') ||
+              roleOnlyLine.hasMatch(l));
         })
         .join('\n');
     return (category?.trim().isEmpty ?? true ? null : category!.trim(), clean);
+  }
+
+  _LegacySocialLinks _extractLegacySocialLinksFromBio(String rawBio) {
+    final text = rawBio.trim();
+    if (text.isEmpty) {
+      return const _LegacySocialLinks();
+    }
+
+    String? instagram;
+    String? tiktok;
+    String? website;
+
+    final chunks = text.split('\n\n').map((chunk) => chunk.trim());
+    for (final chunk in chunks) {
+      if (chunk.isEmpty) continue;
+      final lowerChunk = chunk.toLowerCase();
+      if (lowerChunk.startsWith('links:\n')) {
+        final rows = chunk
+            .substring('Links:\n'.length)
+            .split(RegExp(r'[\r\n]+'))
+            .map((row) => row.trim())
+            .where((row) => row.isNotEmpty);
+        for (final row in rows) {
+          final normalized = _normalizeExternalUrl(row);
+          if (normalized == null) continue;
+          final host = (Uri.tryParse(normalized)?.host ?? '').toLowerCase();
+          if (instagram == null && host.contains('instagram.')) {
+            instagram = normalized;
+            continue;
+          }
+          if (tiktok == null && host.contains('tiktok.')) {
+            tiktok = normalized;
+            continue;
+          }
+          website ??= normalized;
+        }
+        continue;
+      }
+
+      if (lowerChunk.startsWith('instagram:\n')) {
+        final candidate = chunk.substring('Instagram:\n'.length).trim();
+        final normalized = _normalizeExternalUrl(candidate);
+        if (normalized != null) {
+          instagram = normalized;
+        }
+        continue;
+      }
+
+      if (lowerChunk.startsWith('tiktok:\n')) {
+        final candidate = chunk.substring('TikTok:\n'.length).trim();
+        final normalized = _normalizeExternalUrl(candidate);
+        if (normalized != null) {
+          tiktok = normalized;
+        }
+        continue;
+      }
+
+      if (lowerChunk.startsWith('sito web:\n') ||
+          lowerChunk.startsWith('website:\n')) {
+        final candidate = chunk.split('\n').skip(1).join('\n').trim();
+        final normalized = _normalizeExternalUrl(candidate);
+        if (normalized != null) {
+          website = normalized;
+        }
+      }
+    }
+
+    return _LegacySocialLinks(
+      instagram: instagram,
+      tiktok: tiktok,
+      website: website,
+    );
+  }
+
+  String? _normalizeExternalUrl(String raw) {
+    final clean = raw.trim();
+    if (clean.isEmpty) return null;
+    final lower = clean.toLowerCase();
+    final candidate =
+        lower.startsWith('http://') || lower.startsWith('https://')
+        ? clean
+        : 'https://$clean';
+    final uri = Uri.tryParse(candidate);
+    if (uri == null || uri.host.trim().isEmpty) return null;
+    return uri.replace(fragment: '').toString();
   }
 
   String _displayName(ProfileModel profile) {
@@ -1013,51 +1211,82 @@ class _ActionCircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF201D2F), Color(0xFF121221)],
-          ),
-          border: Border.all(
-            color: const Color(0xFF6F648A).withValues(alpha: 0.3),
+    return Material(
+      color: Colors.transparent,
+      child: InkResponse(
+        onTap: onTap,
+        radius: 20,
+        splashColor: const Color(0x26FFFFFF),
+        highlightColor: const Color(0x14FFFFFF),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(
+            icon,
+            size: 20,
+            color: const Color(0xFFF3EEFF),
+            shadows: const [
+              Shadow(
+                color: Color(0x6622183A),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
         ),
-        child: Icon(icon, size: 20, color: const Color(0xFFF3EEFF)),
       ),
     );
   }
 }
 
 class _SocialDot extends StatelessWidget {
-  const _SocialDot({required this.child});
+  const _SocialDot({
+    required this.child,
+    required this.onTap,
+    required this.isAvailable,
+  });
 
   final Widget child;
+  final VoidCallback onTap;
+  final bool isAvailable;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: const Color(0xFF8E58F3).withValues(alpha: 0.78),
+    return Opacity(
+      opacity: isAvailable ? 1 : 0.62,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Ink(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: const Color(0xFF8E58F3).withValues(alpha: 0.78),
+              ),
+            ),
+            child: Center(child: child),
+          ),
         ),
       ),
-      child: Center(child: child),
     );
   }
 }
 
 class _SocialRail extends StatefulWidget {
-  const _SocialRail();
+  const _SocialRail({
+    required this.instagramUrl,
+    required this.tiktokUrl,
+    required this.websiteUrl,
+    required this.onSocialTap,
+  });
+
+  final String? instagramUrl;
+  final String? tiktokUrl;
+  final String? websiteUrl;
+  final Future<void> Function(String platformLabel, String? rawUrl) onSocialTap;
 
   @override
   State<_SocialRail> createState() => _SocialRailState();
@@ -1117,13 +1346,25 @@ class _SocialRailState extends State<_SocialRail> {
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               child: Column(
-                children: const [
-                  _SocialDot(child: _InstagramGlyph()),
-                  SizedBox(height: 6),
-                  _SocialDot(child: _TikTokGlyph()),
-                  SizedBox(height: 6),
+                children: [
                   _SocialDot(
-                    child: Icon(
+                    isAvailable: (widget.instagramUrl ?? '').trim().isNotEmpty,
+                    onTap: () =>
+                        widget.onSocialTap('Instagram', widget.instagramUrl),
+                    child: const _InstagramGlyph(),
+                  ),
+                  const SizedBox(height: 6),
+                  _SocialDot(
+                    isAvailable: (widget.tiktokUrl ?? '').trim().isNotEmpty,
+                    onTap: () => widget.onSocialTap('TikTok', widget.tiktokUrl),
+                    child: const _TikTokGlyph(),
+                  ),
+                  const SizedBox(height: 6),
+                  _SocialDot(
+                    isAvailable: (widget.websiteUrl ?? '').trim().isNotEmpty,
+                    onTap: () =>
+                        widget.onSocialTap('Sito web', widget.websiteUrl),
+                    child: const Icon(
                       Icons.language_rounded,
                       color: Color(0xFFB98CFF),
                       size: 18,
@@ -1253,7 +1494,7 @@ class _RoleChip extends StatelessWidget {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
           gradient: const LinearGradient(
@@ -1268,7 +1509,7 @@ class _RoleChip extends StatelessWidget {
         child: Text(
           label,
           style: const TextStyle(
-            fontSize: 12,
+            fontSize: 9,
             fontWeight: FontWeight.w600,
             color: Color(0xFFE8DDFF),
           ),
@@ -1305,49 +1546,6 @@ class _TopStat extends StatelessWidget {
             fontWeight: FontWeight.w700,
             color: Color(0xFFF1EAFF),
             height: 0.95,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _InlineStat extends StatelessWidget {
-  const _InlineStat({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: const Color(0xFFB376FF)),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFFE8DDFF),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFFF4ECFF),
-            ),
           ),
         ),
       ],
@@ -1533,6 +1731,9 @@ class _PublicProfileData {
     required this.creatorMediaUrls,
     required this.activeCampaigns,
     required this.heroImageUrl,
+    required this.instagramUrl,
+    required this.tiktokUrl,
+    required this.websiteUrl,
   });
 
   final ProfileModel profile;
@@ -1550,6 +1751,9 @@ class _PublicProfileData {
   final List<String> creatorMediaUrls;
   final List<CampaignModel> activeCampaigns;
   final String? heroImageUrl;
+  final String? instagramUrl;
+  final String? tiktokUrl;
+  final String? websiteUrl;
 
   _PublicProfileData copyWith({
     bool? isFollowing,
@@ -1572,8 +1776,19 @@ class _PublicProfileData {
       creatorMediaUrls: creatorMediaUrls,
       activeCampaigns: activeCampaigns,
       heroImageUrl: heroImageUrl,
+      instagramUrl: instagramUrl,
+      tiktokUrl: tiktokUrl,
+      websiteUrl: websiteUrl,
     );
   }
+}
+
+class _LegacySocialLinks {
+  const _LegacySocialLinks({this.instagram, this.tiktok, this.website});
+
+  final String? instagram;
+  final String? tiktok;
+  final String? website;
 }
 
 class _FollowSnapshot {

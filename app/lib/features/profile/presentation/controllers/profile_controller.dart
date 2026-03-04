@@ -136,6 +136,9 @@ class ProfileController extends StateNotifier<ProfileUiState> {
     DateTime? birthDate,
     String? bio,
     String? avatarUrl,
+    String? instagramUrl,
+    String? tiktokUrl,
+    String? websiteUrl,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
@@ -149,6 +152,9 @@ class ProfileController extends StateNotifier<ProfileUiState> {
           birthDate: birthDate,
           bio: bio,
           avatarUrl: avatarUrl,
+          instagramUrl: instagramUrl,
+          tiktokUrl: tiktokUrl,
+          websiteUrl: websiteUrl,
         ),
       );
       state = state.copyWith(
@@ -212,6 +218,9 @@ class ProfileController extends StateNotifier<ProfileUiState> {
     String? firstName,
     String? lastName,
     DateTime? birthDate,
+    String? instagramUrl,
+    String? tiktokUrl,
+    String? websiteUrl,
   }) {
     return upsertMyProfile(
       role: role,
@@ -220,6 +229,9 @@ class ProfileController extends StateNotifier<ProfileUiState> {
       firstName: firstName,
       lastName: lastName,
       birthDate: birthDate,
+      instagramUrl: instagramUrl,
+      tiktokUrl: tiktokUrl,
+      websiteUrl: websiteUrl,
     );
   }
 

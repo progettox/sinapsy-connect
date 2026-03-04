@@ -64,6 +64,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           location: _locationController.text,
           bio: _bioController.text,
           avatarUrl: _avatarUrlController.text,
+          instagramUrl: widget.profile.instagramUrl,
+          tiktokUrl: widget.profile.tiktokUrl,
+          websiteUrl: widget.profile.websiteUrl,
         );
     if (!mounted || profile == null) return;
 

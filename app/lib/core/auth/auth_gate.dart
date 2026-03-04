@@ -64,10 +64,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
 
   bool _isProfileComplete(ProfileModel? profile) {
     if (profile == null) return false;
-    if (profile.role == null) return false;
-    if (profile.username.trim().isEmpty) return false;
-    if (profile.location.trim().isEmpty) return false;
-    return true;
+    return profile.isComplete;
   }
 
   void _go(String path) {

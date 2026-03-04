@@ -66,6 +66,9 @@ class ProfileRepository {
       bio: data.bio ?? '',
       location: data.location,
       avatarUrl: data.avatarUrl,
+      instagramUrl: data.instagramUrl,
+      tiktokUrl: data.tiktokUrl,
+      websiteUrl: data.websiteUrl,
     ).toUpsertMap();
 
     try {
@@ -106,6 +109,9 @@ class ProfileRepository {
     String? firstName,
     String? lastName,
     DateTime? birthDate,
+    String? instagramUrl,
+    String? tiktokUrl,
+    String? websiteUrl,
   }) {
     return upsertMyProfile(
       ProfileUpsertData(
@@ -115,6 +121,9 @@ class ProfileRepository {
         firstName: firstName,
         lastName: lastName,
         birthDate: birthDate,
+        instagramUrl: instagramUrl,
+        tiktokUrl: tiktokUrl,
+        websiteUrl: websiteUrl,
       ),
     );
   }

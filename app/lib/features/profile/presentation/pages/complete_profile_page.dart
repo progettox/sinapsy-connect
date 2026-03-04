@@ -43,7 +43,9 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
 
   final _formKey = GlobalKey<FormState>();
   final _bioController = TextEditingController();
-  final _brandLinksController = TextEditingController();
+  final _instagramController = TextEditingController();
+  final _tiktokController = TextEditingController();
+  final _websiteController = TextEditingController();
   final _usernameController = TextEditingController();
   final _locationController = TextEditingController();
   ProfileRole? _selectedRole;
@@ -84,8 +86,20 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
               ? savedCreatorType
               : null;
         }
-        if (_brandLinksController.text.isEmpty) {
-          _brandLinksController.text = parsedProfileMeta['links'] ?? '';
+        final legacyLinks = _extractLegacySocialLinks(
+          parsedProfileMeta['links'] ?? '',
+        );
+        if (_instagramController.text.isEmpty) {
+          _instagramController.text =
+              profile.instagramUrl ?? legacyLinks.instagram ?? '';
+        }
+        if (_tiktokController.text.isEmpty) {
+          _tiktokController.text =
+              profile.tiktokUrl ?? legacyLinks.tiktok ?? '';
+        }
+        if (_websiteController.text.isEmpty) {
+          _websiteController.text =
+              profile.websiteUrl ?? legacyLinks.website ?? '';
         }
         _avatarUrl = profile.avatarUrl;
         if (_usernameController.text.isEmpty) {
@@ -101,7 +115,9 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
   @override
   void dispose() {
     _bioController.dispose();
-    _brandLinksController.dispose();
+    _instagramController.dispose();
+    _tiktokController.dispose();
+    _websiteController.dispose();
     _usernameController.dispose();
     _locationController.dispose();
     super.dispose();
@@ -131,10 +147,29 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       _showSnack('Seleziona la tua specializzazione.');
       return;
     }
+    final instagramRaw = _instagramController.text.trim();
+    final instagramUrl = instagramRaw.isEmpty
+        ? null
+        : _normalizeInstagramUrl(instagramRaw);
+    if (instagramRaw.isNotEmpty && instagramUrl == null) {
+      _showSnack('Link Instagram non valido.');
+      return;
+    }
+    final tiktokRaw = _tiktokController.text.trim();
+    final tiktokUrl = tiktokRaw.isEmpty ? null : _normalizeTiktokUrl(tiktokRaw);
+    if (tiktokRaw.isNotEmpty && tiktokUrl == null) {
+      _showSnack('Link TikTok non valido.');
+      return;
+    }
+    final websiteRaw = _websiteController.text.trim();
+    final websiteUrl = _normalizeWebsiteUrl(websiteRaw);
+    if (websiteRaw.isNotEmpty && websiteUrl == null) {
+      _showSnack('Il link sito web non e valido.');
+      return;
+    }
     var avatarUrl = _avatarUrl;
     final profileBio = _composeProfileBio(
       _bioController.text,
-      _brandLinksController.text,
       brandType: isBrand ? _selectedBrandType : null,
       creatorType: isCreator ? _selectedCreatorType : null,
     );
@@ -186,6 +221,9 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
           avatarUrl: avatarUrl,
           username: _usernameController.text,
           location: _locationController.text,
+          instagramUrl: instagramUrl,
+          tiktokUrl: tiktokUrl,
+          websiteUrl: websiteUrl,
         );
     if (!mounted || profile == null || profile.role == null) return;
 
@@ -434,20 +472,17 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
   }
 
   String _composeProfileBio(
-    String bio,
-    String links, {
+    String bio, {
     String? brandType,
     String? creatorType,
   }) {
     final cleanBio = bio.trim();
-    final cleanLinks = links.trim();
     final cleanBrandType = (brandType ?? '').trim();
     final cleanCreatorType = (creatorType ?? '').trim();
     final sections = <String>[
       if (cleanBio.isNotEmpty) cleanBio,
       if (cleanBrandType.isNotEmpty) 'Tipologia:\n$cleanBrandType',
       if (cleanCreatorType.isNotEmpty) 'Specializzazione:\n$cleanCreatorType',
-      if (cleanLinks.isNotEmpty) 'Links:\n$cleanLinks',
     ];
     return sections.join('\n\n');
   }
@@ -489,6 +524,131 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       'creatorType': creatorType,
       'links': links,
     };
+  }
+
+  _LegacySocialLinks _extractLegacySocialLinks(String rawLinks) {
+    var instagram = '';
+    var tiktok = '';
+    var website = '';
+
+    final rows = rawLinks
+        .split(RegExp(r'[\r\n]+'))
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty);
+
+    for (final row in rows) {
+      final normalizedWebsite = _normalizeWebsiteUrl(row);
+      if (normalizedWebsite == null) continue;
+      final uri = Uri.tryParse(normalizedWebsite);
+      final host = (uri?.host ?? '').toLowerCase();
+      if (instagram.isEmpty && host.contains('instagram.')) {
+        instagram = normalizedWebsite;
+        continue;
+      }
+      if (tiktok.isEmpty && host.contains('tiktok.')) {
+        tiktok = normalizedWebsite;
+        continue;
+      }
+      if (website.isEmpty) {
+        website = normalizedWebsite;
+      }
+    }
+
+    return _LegacySocialLinks(
+      instagram: instagram.isEmpty ? null : instagram,
+      tiktok: tiktok.isEmpty ? null : tiktok,
+      website: website.isEmpty ? null : website,
+    );
+  }
+
+  String? _normalizeInstagramUrl(String raw) {
+    final input = raw.trim();
+    if (input.isEmpty) return null;
+
+    var candidate = input;
+    final lower = input.toLowerCase();
+    if (!lower.startsWith('http://') && !lower.startsWith('https://')) {
+      if (!(lower.contains('instagram.com') || lower.contains('instagr.am'))) {
+        return null;
+      }
+      candidate = 'https://$input';
+    }
+
+    final uri = Uri.tryParse(candidate);
+    if (uri == null || uri.host.trim().isEmpty) return null;
+    final host = uri.host.toLowerCase();
+    final isInstagramHost =
+        host == 'instagram.com' ||
+        host == 'www.instagram.com' ||
+        host.endsWith('.instagram.com') ||
+        host == 'instagr.am' ||
+        host == 'www.instagr.am';
+    if (!isInstagramHost) return null;
+    final path = uri.path.trim().isEmpty ? '/' : uri.path;
+    return uri.replace(path: path, fragment: '').toString();
+  }
+
+  String? _normalizeTiktokUrl(String raw) {
+    final input = raw.trim();
+    if (input.isEmpty) return null;
+
+    var candidate = input;
+    final lower = input.toLowerCase();
+    if (!lower.startsWith('http://') && !lower.startsWith('https://')) {
+      if (!lower.contains('tiktok.com')) return null;
+      candidate = 'https://$input';
+    }
+
+    final uri = Uri.tryParse(candidate);
+    if (uri == null || uri.host.trim().isEmpty) return null;
+    final host = uri.host.toLowerCase();
+    final isTikTokHost =
+        host == 'tiktok.com' ||
+        host == 'www.tiktok.com' ||
+        host.endsWith('.tiktok.com');
+    if (!isTikTokHost) return null;
+    final path = uri.path.trim().isEmpty ? '/' : uri.path;
+    return uri.replace(path: path, fragment: '').toString();
+  }
+
+  String? _normalizeWebsiteUrl(String raw) {
+    final input = raw.trim();
+    if (input.isEmpty) return null;
+    final candidate =
+        input.toLowerCase().startsWith('http://') ||
+            input.toLowerCase().startsWith('https://')
+        ? input
+        : 'https://$input';
+    final uri = Uri.tryParse(candidate);
+    if (uri == null || uri.host.trim().isEmpty) return null;
+    return uri.replace(fragment: '').toString();
+  }
+
+  String? _validateInstagramInput(String? value) {
+    final clean = (value ?? '').trim();
+    if (clean.isEmpty) return null;
+    if (_normalizeInstagramUrl(clean) == null) {
+      return 'Inserisci il link completo Instagram (es. https://instagram.com/...)';
+    }
+    return null;
+  }
+
+  String? _validateTiktokInput(String? value) {
+    final clean = (value ?? '').trim();
+    if (clean.isEmpty) return null;
+    if (_normalizeTiktokUrl(clean) == null) {
+      return 'Inserisci il link completo TikTok (es. https://www.tiktok.com/@...)';
+    }
+    return null;
+  }
+
+  String? _validateWebsiteInput(String? value) {
+    final clean = (value ?? '').trim();
+    if (clean.isEmpty) return null;
+    if (_normalizeWebsiteUrl(clean) == null) {
+      return 'Inserisci un link sito valido';
+    }
+    return null;
   }
 
   Future<void> _goToLogin() async {
@@ -651,16 +811,36 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                               ),
                               const SizedBox(height: 12),
                               TextFormField(
-                                controller: _brandLinksController,
-                                minLines: 2,
-                                maxLines: 4,
+                                controller: _instagramController,
                                 keyboardType: TextInputType.url,
                                 decoration: const InputDecoration(
-                                  labelText: 'Link social o sito web',
-                                  hintText:
-                                      'https://instagram.com/tuobrand\nhttps://tuobrand.com',
+                                  labelText: 'Link Instagram (opzionale)',
+                                  hintText: 'https://instagram.com/tuobrand',
                                   border: OutlineInputBorder(),
                                 ),
+                                validator: _validateInstagramInput,
+                              ),
+                              const SizedBox(height: 10),
+                              TextFormField(
+                                controller: _tiktokController,
+                                keyboardType: TextInputType.url,
+                                decoration: const InputDecoration(
+                                  labelText: 'Link TikTok (opzionale)',
+                                  hintText: 'https://www.tiktok.com/@tuobrand',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: _validateTiktokInput,
+                              ),
+                              const SizedBox(height: 10),
+                              TextFormField(
+                                controller: _websiteController,
+                                keyboardType: TextInputType.url,
+                                decoration: const InputDecoration(
+                                  labelText: 'Sito web (opzionale)',
+                                  hintText: 'https://tuobrand.com',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: _validateWebsiteInput,
                               ),
                             ] else ...[
                               Center(
@@ -694,16 +874,36 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                               ),
                               const SizedBox(height: 12),
                               TextFormField(
-                                controller: _brandLinksController,
-                                minLines: 2,
-                                maxLines: 4,
+                                controller: _instagramController,
                                 keyboardType: TextInputType.url,
                                 decoration: const InputDecoration(
-                                  labelText: 'Link social o portfolio',
-                                  hintText:
-                                      'https://instagram.com/tuonome\nhttps://youtube.com/@tuonome',
+                                  labelText: 'Link Instagram (opzionale)',
+                                  hintText: 'https://instagram.com/tuonome',
                                   border: OutlineInputBorder(),
                                 ),
+                                validator: _validateInstagramInput,
+                              ),
+                              const SizedBox(height: 10),
+                              TextFormField(
+                                controller: _tiktokController,
+                                keyboardType: TextInputType.url,
+                                decoration: const InputDecoration(
+                                  labelText: 'Link TikTok (opzionale)',
+                                  hintText: 'https://www.tiktok.com/@tuonome',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: _validateTiktokInput,
+                              ),
+                              const SizedBox(height: 10),
+                              TextFormField(
+                                controller: _websiteController,
+                                keyboardType: TextInputType.url,
+                                decoration: const InputDecoration(
+                                  labelText: 'Sito web (opzionale)',
+                                  hintText: 'https://tuosito.com',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: _validateWebsiteInput,
                               ),
                             ],
                             const SizedBox(height: 12),
@@ -743,6 +943,18 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       ),
     );
   }
+}
+
+class _LegacySocialLinks {
+  const _LegacySocialLinks({
+    required this.instagram,
+    required this.tiktok,
+    required this.website,
+  });
+
+  final String? instagram;
+  final String? tiktok;
+  final String? website;
 }
 
 class _RoleCard extends StatelessWidget {

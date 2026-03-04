@@ -44,7 +44,12 @@ class ProfileModel {
     this.birthDate,
     this.bio = '',
     this.avatarUrl,
+    this.instagramUrl,
+    this.tiktokUrl,
+    this.websiteUrl,
     this.followersCount,
+    this.followingCount,
+    this.completedWorksCount,
     this.createdAt,
     this.updatedAt,
   });
@@ -58,7 +63,12 @@ class ProfileModel {
   final String bio;
   final String location;
   final String? avatarUrl;
+  final String? instagramUrl;
+  final String? tiktokUrl;
+  final String? websiteUrl;
   final int? followersCount;
+  final int? followingCount;
+  final int? completedWorksCount;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -83,8 +93,26 @@ class ProfileModel {
       bio: (map['bio'] ?? '').toString(),
       location: (map['location'] ?? '').toString(),
       avatarUrl: _normalizeNullableString(map['avatar_url']),
+      instagramUrl: _normalizeNullableString(
+        map['instagram_url'] ?? map['instagramUrl'],
+      ),
+      tiktokUrl: _normalizeNullableString(
+        map['tiktok_url'] ?? map['tiktokUrl'],
+      ),
+      websiteUrl: _normalizeNullableString(
+        map['website_url'] ?? map['websiteUrl'],
+      ),
       followersCount: _parseInt(
         map['followers_count'] ?? map['followersCount'],
+      ),
+      followingCount: _parseInt(
+        map['following_count'] ?? map['followingCount'],
+      ),
+      completedWorksCount: _parseInt(
+        map['completed_works_count'] ??
+            map['completedWorksCount'] ??
+            map['completed_works'] ??
+            map['completedWorks'],
       ),
       createdAt: _parseDateTime(map['created_at']),
       updatedAt: _parseDateTime(map['updated_at']),
@@ -99,6 +127,9 @@ class ProfileModel {
       'bio': bio.trim().isEmpty ? null : bio.trim(),
       'location': location.trim(),
       'avatar_url': _normalizeNullableString(avatarUrl),
+      'instagram_url': _normalizeNullableString(instagramUrl),
+      'tiktok_url': _normalizeNullableString(tiktokUrl),
+      'website_url': _normalizeNullableString(websiteUrl),
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
     if (_normalizeNullableString(firstName) != null) {
@@ -123,6 +154,9 @@ class ProfileModel {
       'bio': bio.trim().isEmpty ? null : bio.trim(),
       'location': location.trim(),
       'avatar_url': _normalizeNullableString(avatarUrl),
+      'instagram_url': _normalizeNullableString(instagramUrl),
+      'tiktok_url': _normalizeNullableString(tiktokUrl),
+      'website_url': _normalizeNullableString(websiteUrl),
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
     if (_normalizeNullableString(firstName) != null) {
@@ -152,8 +186,18 @@ class ProfileModel {
     String? location,
     String? avatarUrl,
     bool clearAvatar = false,
+    String? instagramUrl,
+    bool clearInstagramUrl = false,
+    String? tiktokUrl,
+    bool clearTiktokUrl = false,
+    String? websiteUrl,
+    bool clearWebsiteUrl = false,
     int? followersCount,
     bool clearFollowersCount = false,
+    int? followingCount,
+    bool clearFollowingCount = false,
+    int? completedWorksCount,
+    bool clearCompletedWorksCount = false,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -167,9 +211,20 @@ class ProfileModel {
       bio: bio ?? this.bio,
       location: location ?? this.location,
       avatarUrl: clearAvatar ? null : (avatarUrl ?? this.avatarUrl),
+      instagramUrl: clearInstagramUrl
+          ? null
+          : (instagramUrl ?? this.instagramUrl),
+      tiktokUrl: clearTiktokUrl ? null : (tiktokUrl ?? this.tiktokUrl),
+      websiteUrl: clearWebsiteUrl ? null : (websiteUrl ?? this.websiteUrl),
       followersCount: clearFollowersCount
           ? null
           : (followersCount ?? this.followersCount),
+      followingCount: clearFollowingCount
+          ? null
+          : (followingCount ?? this.followingCount),
+      completedWorksCount: clearCompletedWorksCount
+          ? null
+          : (completedWorksCount ?? this.completedWorksCount),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -209,6 +264,9 @@ class ProfileUpsertData {
     this.birthDate,
     this.bio,
     this.avatarUrl,
+    this.instagramUrl,
+    this.tiktokUrl,
+    this.websiteUrl,
   });
 
   final ProfileRole role;
@@ -219,4 +277,7 @@ class ProfileUpsertData {
   final DateTime? birthDate;
   final String? bio;
   final String? avatarUrl;
+  final String? instagramUrl;
+  final String? tiktokUrl;
+  final String? websiteUrl;
 }
