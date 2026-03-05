@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -289,7 +290,7 @@ class _ProfileLinkedAccountsSheetState
                     ),
                     Expanded(
                       child: _isLoading
-                          ? const Center(child: CircularProgressIndicator())
+                          ? const Center(child: CupertinoActivityIndicator())
                           : ListView(
                               physics: const BouncingScrollPhysics(),
                               children: [
@@ -533,7 +534,7 @@ class _AddAccountSheetState extends State<_AddAccountSheet> {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
-                        Switch(
+                        CupertinoSwitch(
                           value: _isCreateMode,
                           onChanged: (value) =>
                               setState(() => _isCreateMode = value),

@@ -22,11 +22,11 @@ class PremiumBrandBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      minimum: const EdgeInsets.fromLTRB(12, 0, 12, 26),
       child: SizedBox(
-        height: 92,
+        height: 78,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -86,7 +86,7 @@ class _CenterProfileNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Transform.translate(
-      offset: const Offset(0, -1),
+      offset: const Offset(0, 0),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -96,9 +96,9 @@ class _CenterProfileNavItem extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
-            width: 76,
-            height: 76,
-            padding: const EdgeInsets.all(3),
+            width: 64,
+            height: 64,
+            padding: const EdgeInsets.all(2.6),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: active
@@ -116,26 +116,26 @@ class _CenterProfileNavItem extends StatelessWidget {
                 color: active
                     ? const Color(0xFFF0DDFF).withValues(alpha: 0.96)
                     : const Color(0xFFBCA7E7).withValues(alpha: 0.32),
-                width: active ? 2.1 : 1.4,
+                width: active ? 1.9 : 1.2,
               ),
               boxShadow: [
                 if (active) ...[
                   BoxShadow(
                     color: const Color(0xFFAD77FF).withValues(alpha: 0.46),
-                    blurRadius: 24,
-                    spreadRadius: 1.2,
+                    blurRadius: 18,
+                    spreadRadius: 0.8,
                     offset: const Offset(0, 0),
                   ),
                   BoxShadow(
                     color: const Color(0xFF6F45C5).withValues(alpha: 0.36),
-                    blurRadius: 12,
+                    blurRadius: 10,
                     spreadRadius: 0.2,
                     offset: const Offset(0, 2),
                   ),
                 ],
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.35),
-                  blurRadius: 9,
+                  blurRadius: 7,
                   offset: const Offset(0, 3),
                 ),
               ],
@@ -145,11 +145,11 @@ class _CenterProfileNavItem extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: const Color(0xAA1C132F),
-                  width: 1.3,
+                  width: 1.1,
                 ),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(2),
+                padding: const EdgeInsets.all(1.8),
                 child: ClipOval(
                   child: _ProfileAvatar(
                     profileUserId: profileUserId,
@@ -180,8 +180,8 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 54,
-      height: 64,
+      width: 46,
+      height: 54,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -190,7 +190,7 @@ class _NavItem extends StatelessWidget {
           child: Center(
             child: Icon(
               icon,
-              size: 37,
+              size: 31,
               color: active
                   ? const Color(0xFFEDE2FF)
                   : const Color(0xFFD3C3F1).withValues(alpha: 0.92),
@@ -265,7 +265,7 @@ class _AvatarFallback extends StatelessWidget {
         child: Text(
           letter,
           style: const TextStyle(
-            fontSize: 24,
+            fontSize: 20,
             fontWeight: FontWeight.w800,
             color: Color(0xFFF4EEFF),
           ),

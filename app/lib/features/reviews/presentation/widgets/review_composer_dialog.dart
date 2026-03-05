@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class ReviewComposerResult {
@@ -16,7 +17,7 @@ Future<ReviewComposerResult?> showReviewComposerDialog({
   final noteController = TextEditingController();
   var selectedRating = 0;
   try {
-    return await showDialog<ReviewComposerResult>(
+    return await showCupertinoDialog<ReviewComposerResult>(
       context: context,
       barrierDismissible: !mandatory,
       builder: (context) {
@@ -24,13 +25,14 @@ Future<ReviewComposerResult?> showReviewComposerDialog({
           canPop: !mandatory,
           child: StatefulBuilder(
             builder: (context, setState) {
-              return AlertDialog(
+              return CupertinoAlertDialog(
                 title: Text(title),
                 content: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      const SizedBox(height: 6),
                       Text(message),
                       const SizedBox(height: 14),
                       Row(
@@ -38,10 +40,12 @@ Future<ReviewComposerResult?> showReviewComposerDialog({
                         children: List<Widget>.generate(5, (index) {
                           final value = index + 1;
                           final isSelected = value <= selectedRating;
-                          return IconButton(
+                          return CupertinoButton(
+                            minimumSize: Size.zero,
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
                             onPressed: () =>
                                 setState(() => selectedRating = value),
-                            icon: Icon(
+                            child: Icon(
                               isSelected
                                   ? Icons.star_rounded
                                   : Icons.star_border_rounded,
@@ -62,14 +66,15 @@ Future<ReviewComposerResult?> showReviewComposerDialog({
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const SizedBox(height: 12),
-                      TextField(
+                      CupertinoTextField(
                         controller: noteController,
                         minLines: 2,
                         maxLines: 4,
                         textInputAction: TextInputAction.done,
-                        decoration: const InputDecoration(
-                          labelText: 'Commento (opzionale)',
-                          border: OutlineInputBorder(),
+                        placeholder: 'Commento (opzionale)',
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 10,
                         ),
                       ),
                     ],
@@ -77,11 +82,12 @@ Future<ReviewComposerResult?> showReviewComposerDialog({
                 ),
                 actions: [
                   if (!mandatory)
-                    TextButton(
+                    CupertinoDialogAction(
                       onPressed: () => Navigator.of(context).pop(),
                       child: const Text('Annulla'),
                     ),
-                  FilledButton(
+                  CupertinoDialogAction(
+                    isDefaultAction: true,
                     onPressed: selectedRating == 0
                         ? null
                         : () {

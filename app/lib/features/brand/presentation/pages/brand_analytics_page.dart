@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/supabase/supabase_client_provider.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
@@ -121,10 +122,21 @@ class _BrandAnalyticsPageState extends ConsumerState<BrandAnalyticsPage> {
                           0,
                           (sum, point) => sum + point.matches,
                         );
+                        final followerPoints = payload.followerPoints.isEmpty
+                            ? _zeroFollowerPoints(30)
+                            : payload.followerPoints;
+                        final followerLast30 = _sliceFollowerLastDays(
+                          followerPoints,
+                          30,
+                        );
+                        final followersThisWeek = _sliceFollowerLastDays(
+                          followerPoints,
+                          7,
+                        ).fold<int>(0, (sum, point) => sum + point.gained);
 
                         return ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
+                          padding: const EdgeInsets.fromLTRB(14, 49, 14, 24),
                           children: [
                             _TotalViewsCard(
                               totalViews: totalViews,
@@ -198,12 +210,18 @@ class _BrandAnalyticsPageState extends ConsumerState<BrandAnalyticsPage> {
                                 setState(() => _selectedRange = range);
                               },
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 18),
                             _MonthlyMatchesDetailsCard(
                               activeCampaignsCount: activeCampaignsCount,
                               budgetSpent: monthlyBudgetSpent,
                               budgetSeries: monthlyBudgetSeries,
                               totalMatches: totalMatches,
+                              followerWeeklyDelta: followersThisWeek,
+                              followerSeries: _normalizeZeroBasedLine(
+                                followerLast30
+                                    .map((point) => point.gained.toDouble())
+                                    .toList(growable: false),
+                              ),
                             ),
                           ],
                         );
@@ -242,6 +260,7 @@ class _BrandAnalyticsPageState extends ConsumerState<BrandAnalyticsPage> {
           'get_brand_analytics_timeseries',
           params: <String, dynamic>{'p_days': 365},
         ),
+        _fetchFollowerPoints(client: client, days: 30),
       ]);
 
       final monthlyRows = results[0] is List
@@ -267,6 +286,7 @@ class _BrandAnalyticsPageState extends ConsumerState<BrandAnalyticsPage> {
           previousMonth: _asInt(monthlyMap['previous_month']) ?? 0,
         ),
         points: points,
+        followerPoints: (results[2] as List<_FollowerPoint>),
       );
     } catch (_) {
       return const _AnalyticsPayload();
@@ -335,6 +355,89 @@ class _BrandAnalyticsPageState extends ConsumerState<BrandAnalyticsPage> {
       now.day,
     ).subtract(Duration(days: days - 1));
     return points.where((point) => !point.day.isBefore(threshold)).toList();
+  }
+
+  List<_FollowerPoint> _sliceFollowerLastDays(
+    List<_FollowerPoint> points,
+    int days,
+  ) {
+    if (points.isEmpty) return const <_FollowerPoint>[];
+    final now = DateTime.now();
+    final threshold = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: days - 1));
+    return points.where((point) => !point.day.isBefore(threshold)).toList();
+  }
+
+  Future<List<_FollowerPoint>> _fetchFollowerPoints({
+    required SupabaseClient client,
+    required int days,
+  }) async {
+    final template = _zeroFollowerPoints(days);
+    final currentUserId = client.auth.currentUser?.id;
+    if (currentUserId == null || currentUserId.isEmpty) {
+      return template;
+    }
+
+    for (final schema in _followSchemasForFollowers) {
+      try {
+        final raw = await client
+            .from(schema.table)
+            .select('${schema.followerColumn},${schema.createdAtColumn}')
+            .eq(schema.followedColumn, currentUserId)
+            .gte(schema.createdAtColumn, template.first.day.toIso8601String());
+        final rows = List<Map<String, dynamic>>.from(raw as List);
+        if (rows.isEmpty) {
+          continue;
+        }
+
+        final countsByDay = <DateTime, int>{
+          for (final point in template) point.day: 0,
+        };
+        final seenFollowerIdsByDay = <DateTime, Set<String>>{};
+
+        for (final row in rows) {
+          final rawTimestamp = (row[schema.createdAtColumn] ?? '')
+              .toString()
+              .trim();
+          final parsedTimestamp = DateTime.tryParse(rawTimestamp)?.toLocal();
+          if (parsedTimestamp == null) continue;
+
+          final day = DateTime(
+            parsedTimestamp.year,
+            parsedTimestamp.month,
+            parsedTimestamp.day,
+          );
+          if (!countsByDay.containsKey(day)) continue;
+
+          final followerId = (row[schema.followerColumn] ?? '').toString();
+          if (followerId.isNotEmpty) {
+            final seen = seenFollowerIdsByDay.putIfAbsent(
+              day,
+              () => <String>{},
+            );
+            if (!seen.add(followerId)) continue;
+          }
+
+          countsByDay[day] = (countsByDay[day] ?? 0) + 1;
+        }
+
+        return countsByDay.entries
+            .map(
+              (entry) => _FollowerPoint(day: entry.key, gained: entry.value),
+            )
+            .toList(growable: false)
+          ..sort((a, b) => a.day.compareTo(b.day));
+      } on PostgrestException {
+        continue;
+      } catch (_) {
+        continue;
+      }
+    }
+
+    return template;
   }
 }
 
@@ -497,12 +600,16 @@ class _MonthlyMatchesDetailsCard extends StatelessWidget {
     required this.budgetSpent,
     required this.budgetSeries,
     required this.totalMatches,
+    required this.followerWeeklyDelta,
+    required this.followerSeries,
   });
 
   final int activeCampaignsCount;
   final double budgetSpent;
   final List<double> budgetSeries;
   final int totalMatches;
+  final int followerWeeklyDelta;
+  final List<double> followerSeries;
 
   @override
   Widget build(BuildContext context) {
@@ -617,6 +724,17 @@ class _MonthlyMatchesDetailsCard extends StatelessWidget {
                             height: 1.0,
                           ),
                     ),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      height: 1,
+                      color: const Color(0x44A794D8),
+                    ),
+                    const SizedBox(height: 14),
+                    _FollowerFloatingSection(
+                      weeklyDelta: followerWeeklyDelta,
+                      series: followerSeries,
+                    ),
                   ],
                 ),
               ),
@@ -654,6 +772,214 @@ class _MetricIconBubble extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _FollowerFloatingSection extends StatelessWidget {
+  const _FollowerFloatingSection({
+    required this.weeklyDelta,
+    required this.series,
+  });
+
+  final int weeklyDelta;
+  final List<double> series;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPositive = weeklyDelta >= 0;
+    final deltaPrefix = isPositive ? '+' : '-';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'FOLLOWER',
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: const Color(0xFFCFC5E2),
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.35,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Row(
+          children: [
+            Icon(
+              isPositive ? Icons.north_rounded : Icons.south_rounded,
+              size: 15,
+              color: isPositive
+                  ? const Color(0xFF6DD8FF)
+                  : const Color(0xFFFF8A8A),
+            ),
+            const SizedBox(width: 2),
+            Text(
+              '$deltaPrefix${_formatInt(weeklyDelta.abs())} questa settimana',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: const Color(0xFFE9DEFF),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 78,
+          child: _FollowerMiniChart(series: series),
+        ),
+      ],
+    );
+  }
+}
+
+class _FollowerMiniChart extends StatelessWidget {
+  const _FollowerMiniChart({required this.series});
+
+  final List<double> series;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _FollowerMiniChartPainter(series: series),
+      child: const SizedBox.expand(),
+    );
+  }
+}
+
+class _FollowerMiniChartPainter extends CustomPainter {
+  const _FollowerMiniChartPainter({required this.series});
+
+  final List<double> series;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final values = series.isEmpty
+        ? const <double>[0, 0, 0, 0, 0, 0, 0]
+        : series;
+    if (values.isEmpty) return;
+
+    final topInset = size.height * 0.08;
+    final bottomInset = size.height * 0.14;
+    final drawableHeight = math.max(1.0, size.height - topInset - bottomInset);
+    final baselineY = topInset + drawableHeight;
+
+    final guidePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = const Color(0x1FA794D8);
+
+    canvas.drawLine(Offset(0, baselineY), Offset(size.width, baselineY), guidePaint);
+
+    final markerPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = const Color(0x22BFA9E6);
+    for (final ratio in <double>[0.52, 0.70, 0.84, 0.94]) {
+      final x = size.width * ratio;
+      _drawDashedLine(
+        canvas: canvas,
+        paint: markerPaint,
+        start: Offset(x, topInset + 2),
+        end: Offset(x, baselineY),
+        dash: 3.5,
+        gap: 3.5,
+      );
+    }
+
+    final points = <Offset>[];
+    final stepX = values.length == 1 ? 0.0 : size.width / (values.length - 1);
+    for (var i = 0; i < values.length; i++) {
+      final value = values[i].clamp(0.0, 1.0);
+      final x = stepX * i;
+      final y = topInset + ((1 - value) * drawableHeight);
+      points.add(Offset(x, y));
+    }
+    if (points.isEmpty) return;
+
+    final linePath = Path()..moveTo(points.first.dx, points.first.dy);
+    for (var i = 1; i < points.length; i++) {
+      final previous = points[i - 1];
+      final current = points[i];
+      final controlX = (previous.dx + current.dx) / 2;
+      linePath.cubicTo(
+        controlX,
+        previous.dy,
+        controlX,
+        current.dy,
+        current.dx,
+        current.dy,
+      );
+    }
+
+    final areaPath = Path.from(linePath)
+      ..lineTo(points.last.dx, baselineY)
+      ..lineTo(points.first.dx, baselineY)
+      ..close();
+
+    final fillPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0x4D955BFF), Color(0x00955BFF)],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    canvas.drawPath(areaPath, fillPaint);
+
+    final glow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.2
+      ..color = const Color(0x70935DFF)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.6);
+    canvas.drawPath(linePath, glow);
+
+    final stroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..color = const Color(0xFFC9B2FF)
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(linePath, stroke);
+
+    if (points.length > 3) {
+      final markerIndexes = <int>{
+        (points.length * 0.70).floor(),
+        (points.length * 0.86).floor(),
+        points.length - 1,
+      };
+      for (final index in markerIndexes) {
+        if (index < 0 || index >= points.length) continue;
+        final point = points[index];
+        canvas.drawCircle(
+          point,
+          2.6,
+          Paint()..color = const Color(0xFFE1CCFF),
+        );
+      }
+    }
+  }
+
+  void _drawDashedLine({
+    required Canvas canvas,
+    required Paint paint,
+    required Offset start,
+    required Offset end,
+    required double dash,
+    required double gap,
+  }) {
+    final distance = (end - start).distance;
+    if (distance <= 0) return;
+
+    final direction = (end - start) / distance;
+    var drawn = 0.0;
+    while (drawn < distance) {
+      final segmentStart = start + (direction * drawn);
+      final segmentEnd = start +
+          (direction * math.min(distance, drawn + dash));
+      canvas.drawLine(segmentStart, segmentEnd, paint);
+      drawn += dash + gap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _FollowerMiniChartPainter oldDelegate) {
+    return oldDelegate.series != series;
   }
 }
 
@@ -979,10 +1305,12 @@ class _AnalyticsPayload {
   const _AnalyticsPayload({
     this.monthlyViews = const _MonthlyViewsStats(),
     this.points = const <_AnalyticsPoint>[],
+    this.followerPoints = const <_FollowerPoint>[],
   });
 
   final _MonthlyViewsStats monthlyViews;
   final List<_AnalyticsPoint> points;
+  final List<_FollowerPoint> followerPoints;
 
   factory _AnalyticsPayload.empty(List<CampaignModel> campaigns) {
     final fallbackPoints = <_AnalyticsPoint>[];
@@ -998,8 +1326,16 @@ class _AnalyticsPayload {
     return _AnalyticsPayload(
       monthlyViews: const _MonthlyViewsStats(),
       points: fallbackPoints,
+      followerPoints: _zeroFollowerPoints(30),
     );
   }
+}
+
+class _FollowerPoint {
+  const _FollowerPoint({required this.day, this.gained = 0});
+
+  final DateTime day;
+  final int gained;
 }
 
 class _AnalyticsPoint {
@@ -1117,6 +1453,64 @@ List<double> _normalizeLine(List<double> values) {
   return values
       .map((value) => ((value - minValue) / spread).clamp(0.0, 1.0))
       .toList(growable: false);
+}
+
+List<double> _normalizeZeroBasedLine(List<double> values) {
+  if (values.isEmpty) {
+    return const <double>[0, 0, 0, 0, 0, 0, 0];
+  }
+  final maxValue = values.reduce((a, b) => a > b ? a : b);
+  if (maxValue <= 0) {
+    return List<double>.filled(values.length, 0.0);
+  }
+  return values
+      .map((value) => (value / maxValue).clamp(0.0, 1.0))
+      .toList(growable: false);
+}
+
+List<_FollowerPoint> _zeroFollowerPoints(int days) {
+  final now = DateTime.now();
+  final start = DateTime(
+    now.year,
+    now.month,
+    now.day,
+  ).subtract(Duration(days: days - 1));
+  return List<_FollowerPoint>.generate(days, (index) {
+    final day = start.add(Duration(days: index));
+    return _FollowerPoint(day: day, gained: 0);
+  });
+}
+
+const List<_FollowSchemaForFollowers> _followSchemasForFollowers =
+    <_FollowSchemaForFollowers>[
+      _FollowSchemaForFollowers(
+        table: 'profile_followers',
+        followerColumn: 'follower_id',
+        followedColumn: 'followed_id',
+      ),
+      _FollowSchemaForFollowers(
+        table: 'user_follows',
+        followerColumn: 'follower_id',
+        followedColumn: 'following_id',
+      ),
+      _FollowSchemaForFollowers(
+        table: 'creator_followers',
+        followerColumn: 'follower_id',
+        followedColumn: 'creator_id',
+      ),
+    ];
+
+class _FollowSchemaForFollowers {
+  const _FollowSchemaForFollowers({
+    required this.table,
+    required this.followerColumn,
+    required this.followedColumn,
+  });
+
+  final String table;
+  final String followerColumn;
+  final String followedColumn;
+  final String createdAtColumn = 'created_at';
 }
 
 int _countActiveCampaigns(List<CampaignModel> campaigns) {

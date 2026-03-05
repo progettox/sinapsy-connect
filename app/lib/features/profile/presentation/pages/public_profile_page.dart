@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -2197,11 +2198,8 @@ class _CreatorMediaViewerPageState extends State<_CreatorMediaViewerPage> {
                           return const SizedBox(
                             width: 34,
                             height: 34,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFFB98CFF),
-                              ),
+                            child: Center(
+                              child: CupertinoActivityIndicator(radius: 11),
                             ),
                           );
                         },
