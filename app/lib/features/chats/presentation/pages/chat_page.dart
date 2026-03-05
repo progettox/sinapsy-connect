@@ -329,8 +329,8 @@ class _MessageBubble extends StatelessWidget {
   }
 
   Widget _buildMineBubble(BuildContext context) {
-    final bubbleGradient = const [Color(0xFF2A1950), Color(0xFF1B1235)];
-    final bubbleBorder = const Color(0xFFB684FF).withValues(alpha: 0.82);
+    final bubbleGradient = const [Color(0xFF7A46FF), Color(0xFF5C2FD6)];
+    final bubbleBorder = const Color(0xFFE3CDFF).withValues(alpha: 0.95);
     final maxWidth = MediaQuery.of(context).size.width * 0.68;
 
     return Padding(
@@ -350,10 +350,10 @@ class _MessageBubble extends StatelessWidget {
               border: Border.all(color: bubbleBorder, width: 1.15),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFB684FF).withValues(alpha: 0.35),
-                  blurRadius: 12,
+                  color: const Color(0xFF9A6CFF).withValues(alpha: 0.4),
+                  blurRadius: 14,
                   spreadRadius: -2,
-                  offset: const Offset(0, 4),
+                  offset: const Offset(0, 5),
                 ),
               ],
             ),
@@ -367,7 +367,7 @@ class _MessageBubble extends StatelessWidget {
                     child: Text(
                       message.text,
                       style: const TextStyle(
-                        color: Color(0xFFEAF0FF),
+                        color: Color(0xFFF8F5FF),
                         fontSize: 30 / 2,
                         height: 1.25,
                       ),
@@ -377,7 +377,7 @@ class _MessageBubble extends StatelessWidget {
                   Text(
                     _metaLabel(),
                     style: const TextStyle(
-                      color: Color(0xFFB8C4DE),
+                      color: Color(0xFFE7DAFF),
                       fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -394,8 +394,8 @@ class _MessageBubble extends StatelessWidget {
   Widget _buildOtherBubble(BuildContext context) {
     final displayName = _displayName();
     final roleLabel = _roleLabel();
-    final bubbleGradient = const [Color(0xFF1A2540), Color(0xFF121D32)];
-    final bubbleBorder = const Color(0xFF5D73A5).withValues(alpha: 0.7);
+    final bubbleGradient = const [Color(0xFF1D2C42), Color(0xFF142033)];
+    final bubbleBorder = const Color(0xFF7EA4D8).withValues(alpha: 0.82);
     final maxWidth = MediaQuery.of(context).size.width * 0.68;
 
     return Padding(
@@ -421,7 +421,7 @@ class _MessageBubble extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: Color(0xFFEDE7FF),
+                          color: Color(0xFFE9F1FF),
                           fontWeight: FontWeight.w700,
                           fontSize: 29 / 2,
                         ),
@@ -445,12 +445,10 @@ class _MessageBubble extends StatelessWidget {
                       border: Border.all(color: bubbleBorder, width: 1.15),
                       boxShadow: [
                         BoxShadow(
-                          color: isMine
-                              ? const Color(0xFFB684FF).withValues(alpha: 0.35)
-                              : const Color(0xFF4D72D8).withValues(alpha: 0.28),
-                          blurRadius: 12,
+                          color: const Color(0xFF5F86BC).withValues(alpha: 0.3),
+                          blurRadius: 14,
                           spreadRadius: -2,
-                          offset: const Offset(0, 4),
+                          offset: const Offset(0, 5),
                         ),
                       ],
                     ),
@@ -464,7 +462,7 @@ class _MessageBubble extends StatelessWidget {
                             child: Text(
                               message.text,
                               style: const TextStyle(
-                                color: Color(0xFFEAF0FF),
+                                color: Color(0xFFE7F1FF),
                                 fontSize: 30 / 2,
                                 height: 1.25,
                               ),
@@ -474,7 +472,7 @@ class _MessageBubble extends StatelessWidget {
                           Text(
                             _metaLabel(),
                             style: const TextStyle(
-                              color: Color(0xFFB8C4DE),
+                              color: Color(0xFFB7C9E3),
                               fontSize: 10.5,
                               fontWeight: FontWeight.w600,
                             ),
