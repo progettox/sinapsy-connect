@@ -10,8 +10,10 @@ import '../../../../core/supabase/supabase_client_provider.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../auth/data/auth_repository.dart';
+import '../../../applications/data/application_repository.dart';
 import '../../../brand/data/brand_creator_feed_repository.dart';
 import '../../../campaigns/data/campaign_model.dart';
+import '../../../campaigns/data/campaign_repository.dart';
 import '../../../reviews/data/review_model.dart';
 import '../../../reviews/data/review_repository.dart';
 import '../../data/profile_model.dart';
@@ -39,6 +41,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
 
   bool _isLoading = true;
   bool _isUpdatingFollow = false;
+  ProfileModel? _viewerProfile;
   String? _errorMessage;
   _PublicProfileData? _data;
   bool _isEdgeSwipeActive = false;
@@ -55,6 +58,47 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<ProfileModel?> _ensureViewerProfile() async {
+    if (_viewerProfile != null) return _viewerProfile;
+    final currentUserId = ref
+        .read(authRepositoryProvider)
+        .currentUser
+        ?.id
+        .trim();
+    if (currentUserId == null || currentUserId.isEmpty) return null;
+    final row = await _fetchProfileRow(currentUserId);
+    if (row == null) return null;
+    final profile = ProfileModel.fromMap(row);
+    if (mounted) {
+      setState(() => _viewerProfile = profile);
+    }
+    return profile;
+  }
+
+  String? _validateCampaignApply({
+    required CampaignModel campaign,
+    required ProfileModel? viewerProfile,
+    required bool isSelfProfile,
+  }) {
+    if (isSelfProfile) {
+      return 'Non puoi candidarti alle tue campagne.';
+    }
+    if (viewerProfile == null) {
+      return 'Completa il tuo profilo creator prima di candidarti.';
+    }
+    if (viewerProfile.role != ProfileRole.creator) {
+      return 'Solo i creator possono inviare richieste.';
+    }
+    final requiredFollowers = campaign.minFollowers;
+    final profileFollowers = viewerProfile.followersCount;
+    if (requiredFollowers != null &&
+        profileFollowers != null &&
+        profileFollowers < requiredFollowers) {
+      return 'Richiesti almeno $requiredFollowers follower.';
+    }
+    return null;
   }
 
   Future<void> _load() async {
@@ -680,86 +724,321 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
             padding: EdgeInsets.only(
               bottom: index == data.activeCampaigns.length - 1 ? 0 : 10,
             ),
-            child: Container(
-              decoration: BoxDecoration(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: const Color(0xFF7A46E2).withValues(alpha: 0.52),
-                ),
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xD61A1230), Color(0xC50E0A1D)],
-                ),
-              ),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.horizontal(
-                      left: Radius.circular(20),
+                onTap: () => _openBrandCampaignDetails(campaign),
+                child: Ink(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFF7A46E2).withValues(alpha: 0.52),
                     ),
-                    child: SizedBox(
-                      width: 108,
-                      height: 108,
-                      child: imageUrl.isEmpty
-                          ? const _MediaFallback(icon: Icons.campaign_outlined)
-                          : Image.network(
-                              imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => const _MediaFallback(
-                                icon: Icons.broken_image_outlined,
-                              ),
-                            ),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xD61A1230), Color(0xC50E0A1D)],
                     ),
                   ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            campaign.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFFF1E8FF),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Budget ${campaign.budgetLabel}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFFD8C9F1),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            campaign.locationRequired?.trim().isNotEmpty == true
-                                ? campaign.locationRequired!.trim()
-                                : 'Localita non specificata',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFFC8B8E6),
-                            ),
-                          ),
-                        ],
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.horizontal(
+                          left: Radius.circular(20),
+                        ),
+                        child: SizedBox(
+                          width: 108,
+                          height: 108,
+                          child: imageUrl.isEmpty
+                              ? const _MediaFallback(
+                                  icon: Icons.campaign_outlined,
+                                )
+                              : Image.network(
+                                  imageUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) =>
+                                      const _MediaFallback(
+                                        icon: Icons.broken_image_outlined,
+                                      ),
+                                ),
+                        ),
                       ),
-                    ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                campaign.title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFF1E8FF),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Budget ${campaign.budgetLabel}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFFD8C9F1),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                campaign.locationRequired?.trim().isNotEmpty ==
+                                        true
+                                    ? campaign.locationRequired!.trim()
+                                    : 'Localita non specificata',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFFC8B8E6),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Tocca per vedere dettagli',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFBFA6F0),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           );
         },
       ),
+    );
+  }
+
+  Future<void> _openBrandCampaignDetails(CampaignModel campaign) async {
+    final data = _data;
+    if (data == null) return;
+    final campaignId = campaign.id.trim();
+    if (campaignId.isNotEmpty) {
+      Future<void>.microtask(
+        () => ref.read(campaignRepositoryProvider).trackCampaignViews(<String>[
+          campaignId,
+        ]),
+      );
+    }
+
+    final viewerProfile = await _ensureViewerProfile();
+    if (!mounted) return;
+
+    final isCreatorViewer =
+        viewerProfile != null &&
+        viewerProfile.role == ProfileRole.creator &&
+        !data.isCurrentUser;
+    final applyValidation = _validateCampaignApply(
+      campaign: campaign,
+      viewerProfile: viewerProfile,
+      isSelfProfile: data.isCurrentUser,
+    );
+
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0E091B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        var isSubmitting = false;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final description = (campaign.description ?? '').trim();
+            final details = <String>[
+              if (campaign.minFollowers != null)
+                'Follower minimi: ${campaign.minFollowers}',
+              if ((campaign.locationRequired ?? '').trim().isNotEmpty)
+                'Localita: ${campaign.locationRequired!.trim()}',
+              'Categoria: ${campaign.category}',
+              'Stato: ${campaign.status}',
+              'Visualizzazioni: ${campaign.viewsCount}',
+            ];
+
+            Future<void> onApply() async {
+              if (applyValidation != null || isSubmitting) return;
+              setModalState(() => isSubmitting = true);
+              try {
+                await ref
+                    .read(applicationRepositoryProvider)
+                    .applyToCampaign(campaign);
+                if (!context.mounted) return;
+                Navigator.of(context).maybePop();
+                if (!mounted) return;
+                _showSnack('Richiesta inviata con successo.');
+              } catch (error) {
+                if (!mounted) return;
+                if (context.mounted) {
+                  setModalState(() => isSubmitting = false);
+                }
+                _showSnack('Richiesta non inviata: $error');
+              }
+            }
+
+            return SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF8E7AAF),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        campaign.title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFF1E8FF),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Budget ${campaign.budgetLabel}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFD8C9F1),
+                        ),
+                      ),
+                      if ((campaign.coverImageUrl ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.network(
+                            campaign.coverImageUrl!.trim(),
+                            width: double.infinity,
+                            height: 190,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => Container(
+                              height: 190,
+                              color: const Color(0xFF1D1333),
+                              alignment: Alignment.center,
+                              child: const Icon(
+                                Icons.broken_image_outlined,
+                                color: Color(0xFFC8B8E6),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (description.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        const Text(
+                          'Descrizione',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFE8D9FF),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          description,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            height: 1.35,
+                            color: Color(0xFFD3C3F2),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Dettagli',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFE8D9FF),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      for (final item in details)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            '- $item',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFFD3C3F2),
+                            ),
+                          ),
+                        ),
+                      if (isCreatorViewer) ...[
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: isSubmitting || applyValidation != null
+                                ? null
+                                : onApply,
+                            child: isSubmitting
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: SinapsyLogoLoader(size: 18),
+                                  )
+                                : const Text('Invia richiesta'),
+                          ),
+                        ),
+                        if (applyValidation != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            applyValidation,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFFE3B4B4),
+                            ),
+                          ),
+                        ],
+                      ],
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(context).maybePop(),
+                          child: const Text('Chiudi'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -866,6 +1145,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
         if (b.createdAt == null) return -1;
         return b.createdAt!.compareTo(a.createdAt!);
       });
+
     return sorted;
   }
 

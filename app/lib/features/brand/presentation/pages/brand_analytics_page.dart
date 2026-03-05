@@ -34,6 +34,10 @@ class _BrandAnalyticsPageState extends ConsumerState<BrandAnalyticsPage> {
     final matchedCampaigns = campaigns
         .where((campaign) => campaign.status.toLowerCase() == 'matched')
         .length;
+    final campaignViews = campaigns.fold<int>(
+      0,
+      (total, campaign) => total + campaign.viewsCount,
+    );
     final spentBudget = campaigns
         .where((campaign) {
           final status = campaign.status.toLowerCase();
@@ -70,12 +74,12 @@ class _BrandAnalyticsPageState extends ConsumerState<BrandAnalyticsPage> {
                             value: '$matchedCampaigns',
                           ),
                           _AnalyticsMetricRow(
+                            label: 'Visualizzazioni campagne',
+                            value: '$campaignViews',
+                          ),
+                          _AnalyticsMetricRow(
                             label: 'Budget speso',
                             value: _formatBudget(spentBudget),
-                          ),
-                          const _AnalyticsMetricRow(
-                            label: 'Conversazioni aperte',
-                            value: '--',
                           ),
                         ],
                       ),

@@ -82,6 +82,7 @@ class CreatorFeedController extends StateNotifier<CreatorFeedState> {
         campaigns: visibleCampaigns,
         clearError: true,
       );
+      _trackVisibleCampaignViews(visibleCampaigns);
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
@@ -140,6 +141,17 @@ class CreatorFeedController extends StateNotifier<CreatorFeedState> {
 
   void clearError() {
     state = state.copyWith(clearError: true);
+  }
+
+  void _trackVisibleCampaignViews(List<CampaignModel> campaigns) {
+    final campaignIds = campaigns
+        .map((campaign) => campaign.id.trim())
+        .where((id) => id.isNotEmpty)
+        .toList(growable: false);
+    if (campaignIds.isEmpty) return;
+    Future<void>.microtask(
+      () => _campaignRepository.trackCampaignViews(campaignIds),
+    );
   }
 
   String? _validateRequirements({

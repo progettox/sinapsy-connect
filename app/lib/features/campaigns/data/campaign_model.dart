@@ -10,6 +10,7 @@ class CampaignModel {
     this.locationRequired,
     this.coverImageUrl,
     this.applicantsCount = 0,
+    this.viewsCount = 0,
     this.brandId,
     this.createdAt,
     this.updatedAt,
@@ -25,6 +26,7 @@ class CampaignModel {
   final String? coverImageUrl;
   final String status;
   final int applicantsCount;
+  final int viewsCount;
   final String? brandId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -60,6 +62,7 @@ class CampaignModel {
       status: _string(map['status']) ?? 'active',
       applicantsCount:
           _int(map['applicants_count'] ?? map['applicantsCount']) ?? 0,
+      viewsCount: _int(map['views_count'] ?? map['viewsCount']) ?? 0,
       brandId: _string(map['brand_id'] ?? map['brandId']),
       createdAt: _dateTime(map['created_at'] ?? map['createdAt']),
       updatedAt: _dateTime(map['updated_at'] ?? map['updatedAt']),
@@ -87,6 +90,7 @@ class CampaignModel {
     bool clearCoverImage = false,
     String? status,
     int? applicantsCount,
+    int? viewsCount,
     String? brandId,
     bool clearBrandId = false,
     DateTime? createdAt,
@@ -109,6 +113,7 @@ class CampaignModel {
           : (coverImageUrl ?? this.coverImageUrl),
       status: status ?? this.status,
       applicantsCount: applicantsCount ?? this.applicantsCount,
+      viewsCount: viewsCount ?? this.viewsCount,
       brandId: clearBrandId ? null : (brandId ?? this.brandId),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

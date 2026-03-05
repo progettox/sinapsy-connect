@@ -1,0 +1,64 @@
+-- Ensure campaign owners do not increment their own campaign views.
+
+create or replace function public.track_campaign_views(p_campaign_ids text[])
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  clean_campaign_id text;
+  inserted_count integer := 0;
+  is_trackable boolean;
+begin
+  if auth.uid() is null then
+    return 0;
+  end if;
+
+  if p_campaign_ids is null or coalesce(array_length(p_campaign_ids, 1), 0) = 0 then
+    return 0;
+  end if;
+
+  if to_regclass('public.campaigns') is null then
+    return 0;
+  end if;
+
+  foreach clean_campaign_id in array p_campaign_ids loop
+    clean_campaign_id := btrim(coalesce(clean_campaign_id, ''));
+    if clean_campaign_id = '' then
+      continue;
+    end if;
+
+    select exists (
+      select 1
+      from public.campaigns c
+      where coalesce(to_jsonb(c)->>'id', to_jsonb(c)->>'campaignId') = clean_campaign_id
+        and lower(coalesce(to_jsonb(c)->>'status', '')) = 'active'
+        and btrim(coalesce(to_jsonb(c)->>'brand_id', to_jsonb(c)->>'brandId', '')) <> auth.uid()::text
+    )
+    into is_trackable;
+
+    if not is_trackable then
+      continue;
+    end if;
+
+    insert into public.campaign_views (campaign_id, viewer_id)
+    values (clean_campaign_id, auth.uid()::text)
+    on conflict (campaign_id, viewer_id) do nothing;
+
+    if not found then
+      continue;
+    end if;
+
+    update public.campaigns c
+    set views_count = coalesce(c.views_count, 0) + 1
+    where coalesce(to_jsonb(c)->>'id', to_jsonb(c)->>'campaignId') = clean_campaign_id;
+
+    inserted_count := inserted_count + 1;
+  end loop;
+
+  return inserted_count;
+end;
+$$;
+
+grant execute on function public.track_campaign_views(text[]) to authenticated;

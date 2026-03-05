@@ -39,6 +39,25 @@ class CampaignRepository {
     }
   }
 
+  Future<void> trackCampaignViews(List<String> campaignIds) async {
+    final cleanIds = campaignIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (cleanIds.isEmpty) return;
+
+    try {
+      await _client.rpc(
+        'track_campaign_views',
+        params: <String, dynamic>{'p_campaign_ids': cleanIds},
+      );
+      _log('campaigns.track_views.success count=${cleanIds.length}');
+    } catch (error) {
+      _log('campaigns.track_views.error error=$error');
+    }
+  }
+
   List<CampaignModel> _mapCampaignList(dynamic rows) {
     final data = rows is List ? rows : const <dynamic>[];
     return data
