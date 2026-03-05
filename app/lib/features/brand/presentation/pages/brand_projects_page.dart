@@ -2,14 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/luxury_neon_backdrop.dart';
+import '../../../applications/presentation/pages/my_applications_page.dart';
 import '../../../campaigns/presentation/pages/brand_home_page.dart';
 
 class BrandProjectsPage extends StatelessWidget {
-  const BrandProjectsPage({super.key});
+  const BrandProjectsPage({super.key, this.creatorMode = false});
+
+  final bool creatorMode;
 
   Future<void> _openActive(BuildContext context) async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => const ActiveCampaignsPage()),
+      MaterialPageRoute<void>(
+        builder: (_) => creatorMode
+            ? const MyApplicationsPage()
+            : const ActiveCampaignsPage(),
+      ),
     );
   }
 

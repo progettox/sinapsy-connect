@@ -674,7 +674,7 @@ class _CampaignRecommendationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mediaUrls = _collectMediaUrls(campaign: campaign, brand: brand);
+    final productImageUrl = _resolveProductImageUrl(campaign);
     final brandName = (brand?.displayName.trim().isNotEmpty ?? false)
         ? brand!.displayName.trim()
         : 'Brand';
@@ -723,7 +723,7 @@ class _CampaignRecommendationCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 5),
-                        _CampaignCategoryChip(label: campaign.category),
+                        _CampaignCategoryChip(label: 'brand'),
                       ],
                     ),
                   ),
@@ -765,48 +765,37 @@ class _CampaignRecommendationCard extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Expanded(
-                child: GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: 6,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 6,
-                    mainAxisSpacing: 6,
-                    childAspectRatio: 1.12,
-                  ),
-                  itemBuilder: (context, index) {
-                    final url = index < mediaUrls.length
-                        ? mediaUrls[index]
-                        : null;
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFF2C1F46), Color(0xFF1B142C)],
-                          ),
-                        ),
-                        child: url == null
-                            ? const Icon(
-                                Icons.image_outlined,
-                                size: 18,
-                                color: Color(0xB3D4C6F6),
-                              )
-                            : Image.network(
-                                url,
-                                fit: BoxFit.cover,
-                                filterQuality: FilterQuality.low,
-                                errorBuilder: (_, _, _) => const Icon(
-                                  Icons.broken_image_outlined,
-                                  size: 18,
-                                  color: Color(0xB3D4C6F6),
-                                ),
-                              ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF2C1F46), Color(0xFF1B142C)],
                       ),
-                    );
-                  },
+                    ),
+                    child: productImageUrl == null
+                        ? const Center(
+                            child: Icon(
+                              Icons.image_outlined,
+                              size: 28,
+                              color: Color(0xB3D4C6F6),
+                            ),
+                          )
+                        : Image.network(
+                            productImageUrl,
+                            fit: BoxFit.cover,
+                            filterQuality: FilterQuality.low,
+                            errorBuilder: (_, _, _) => const Center(
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                size: 28,
+                                color: Color(0xB3D4C6F6),
+                              ),
+                            ),
+                          ),
+                  ),
                 ),
               ),
             ],
@@ -816,25 +805,10 @@ class _CampaignRecommendationCard extends StatelessWidget {
     );
   }
 
-  static List<String> _collectMediaUrls({
-    required CampaignModel campaign,
-    required _BrandLiteProfile? brand,
-  }) {
-    final urls = <String>[
-      if ((campaign.coverImageUrl ?? '').trim().isNotEmpty)
-        campaign.coverImageUrl!.trim(),
-      if ((brand?.avatarUrl ?? '').trim().isNotEmpty) brand!.avatarUrl!.trim(),
-    ];
-
-    final unique = <String>{};
-    final output = <String>[];
-    for (final url in urls) {
-      if (url.isEmpty || unique.contains(url)) continue;
-      unique.add(url);
-      output.add(url);
-      if (output.length == 6) break;
-    }
-    return output;
+  static String? _resolveProductImageUrl(CampaignModel campaign) {
+    final cover = (campaign.coverImageUrl ?? '').trim();
+    if (cover.isNotEmpty) return cover;
+    return null;
   }
 
   static String _formatNumberWithCommas(int value) {

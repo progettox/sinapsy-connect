@@ -18,6 +18,7 @@ import '../../../campaigns/data/campaign_repository.dart';
 import '../../../reviews/data/review_model.dart';
 import '../../../reviews/data/review_repository.dart';
 import '../../data/profile_model.dart';
+import '../widgets/profile_image_viewer_page.dart';
 
 class PublicProfilePage extends ConsumerStatefulWidget {
   const PublicProfilePage({
@@ -39,6 +40,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
   static const double _edgeSwipeActivationWidth = 26;
   static const double _edgeSwipePopDistance = 72;
   static const double _edgeSwipePopVelocity = 820;
+  static const double _profileContentDrop = 130;
 
   bool _isLoading = true;
   bool _isUpdatingFollow = false;
@@ -264,6 +266,22 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
     }
   }
 
+  Future<void> _openProfileImageViewer(_PublicProfileData data) async {
+    final avatarUrl = (data.profile.avatarUrl ?? '').trim();
+    final heroUrl = (data.heroImageUrl ?? '').trim();
+    final imageUrl = avatarUrl.isNotEmpty ? avatarUrl : heroUrl;
+    if (imageUrl.isEmpty) {
+      _showSnack('Nessuna foto profilo disponibile.');
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => ProfileImageViewerPage(imageUrl: imageUrl),
+      ),
+    );
+  }
+
   int _nextFollowerCount({
     required int current,
     required bool wasFollowing,
@@ -384,7 +402,36 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: Stack(
               children: [
-                _HeroBackdrop(imageUrl: data.heroImageUrl),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: _profileContentDrop),
+                  child: GestureDetector(
+                    onTap: () => _openProfileImageViewer(data),
+                    child: _HeroBackdrop(imageUrl: data.heroImageUrl),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: _profileContentDrop + 34,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.22),
+                            Colors.black.withValues(alpha: 0.62),
+                            Colors.black.withValues(alpha: 0.9),
+                            Colors.black,
+                          ],
+                          stops: const [0.0, 0.28, 0.66, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 Positioned(
                   left: 12,
                   right: 12,
@@ -1446,9 +1493,9 @@ class _HeroBackdrop extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasImage = (imageUrl ?? '').trim().isNotEmpty;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(30),
-      child: SizedBox(
-        height: 680,
+      borderRadius: BorderRadius.circular(24),
+      child: AspectRatio(
+        aspectRatio: 0.84,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -1470,11 +1517,12 @@ class _HeroBackdrop extends StatelessWidget {
                   end: Alignment.topCenter,
                   colors: [
                     Colors.black,
-                    Colors.black.withValues(alpha: 0.95),
-                    Colors.black.withValues(alpha: 0.42),
+                    Colors.black.withValues(alpha: 0.98),
+                    Colors.black.withValues(alpha: 0.72),
+                    Colors.black.withValues(alpha: 0.22),
                     Colors.transparent,
                   ],
-                  stops: const [0, 0.35, 0.74, 1],
+                  stops: const [0.0, 0.20, 0.50, 0.78, 1.0],
                 ).createShader(rect),
                 child: ImageFiltered(
                   imageFilter: ImageFilter.blur(sigmaX: 11, sigmaY: 11),
@@ -1492,12 +1540,12 @@ class _HeroBackdrop extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    const Color(0xFF1A1230).withValues(alpha: 0.38),
-                    const Color(0xFF120B22).withValues(alpha: 0.62),
-                    const Color(0xFF080711).withValues(alpha: 0.84),
-                    const Color(0xFF030208),
+                    Colors.black.withValues(alpha: 0.06),
+                    Colors.black.withValues(alpha: 0.3),
+                    const Color(0xFF090611).withValues(alpha: 0.9),
+                    Colors.black,
                   ],
-                  stops: const [0, 0.44, 0.72, 1],
+                  stops: const [0.0, 0.3, 0.54, 1.0],
                 ),
               ),
             ),

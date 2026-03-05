@@ -89,7 +89,9 @@ class _CreatorHomePageState extends ConsumerState<CreatorHomePage> {
         case 2:
           return const RepaintBoundary(child: ProfilePage());
         case 3:
-          return const RepaintBoundary(child: BrandProjectsPage());
+          return const RepaintBoundary(
+            child: BrandProjectsPage(creatorMode: true),
+          );
         case 4:
         default:
           return const RepaintBoundary(child: CreatorAnalyticsPage());

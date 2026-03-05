@@ -26,6 +26,7 @@ import '../../../reviews/data/review_repository.dart';
 import '../../data/profile_model.dart';
 import '../controllers/profile_controller.dart';
 import 'edit_profile_page.dart';
+import '../widgets/profile_image_viewer_page.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -35,6 +36,8 @@ class ProfilePage extends ConsumerStatefulWidget {
 }
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
+  static const double _profileContentDrop = 130;
+
   Uint8List? _pendingAvatarBytes;
   bool _isUploadingAvatar = false;
   bool _isAddingPortfolioMedia = false;
@@ -99,6 +102,23 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     if (!mounted) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const BrandNotificationsPage()),
+    );
+  }
+
+  Future<void> _openProfileImageViewer(ProfileModel profile) async {
+    final imageUrl = (profile.avatarUrl ?? '').trim();
+    if (_pendingAvatarBytes == null && imageUrl.isEmpty) {
+      _showSnack('Nessuna foto profilo disponibile.');
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => ProfileImageViewerPage(
+          imageBytes: _pendingAvatarBytes,
+          imageUrl: imageUrl.isEmpty ? null : imageUrl,
+        ),
+      ),
     );
   }
 
@@ -440,13 +460,47 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           children: [
                             Stack(
                               children: [
-                                GestureDetector(
-                                  onLongPress: isBusy
-                                      ? null
-                                      : () => _changeAvatar(profile),
-                                  child: _ProfileHeroBackdrop(
-                                    profile: profile,
-                                    pendingAvatarBytes: _pendingAvatarBytes,
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    bottom: _profileContentDrop,
+                                  ),
+                                  child: GestureDetector(
+                                    onTap: () =>
+                                        _openProfileImageViewer(profile),
+                                    onLongPress: isBusy
+                                        ? null
+                                        : () => _changeAvatar(profile),
+                                    child: _ProfileHeroBackdrop(
+                                      profile: profile,
+                                      pendingAvatarBytes: _pendingAvatarBytes,
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  child: IgnorePointer(
+                                    child: Container(
+                                      height: _profileContentDrop + 34,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Colors.black.withValues(
+                                              alpha: 0.22,
+                                            ),
+                                            Colors.black.withValues(
+                                              alpha: 0.62,
+                                            ),
+                                            Colors.black.withValues(alpha: 0.9),
+                                            Colors.black,
+                                          ],
+                                          stops: const [0.0, 0.28, 0.66, 1.0],
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                                 Positioned(
@@ -1056,9 +1110,9 @@ class _ProfileHeroBackdrop extends StatelessWidget {
     final imageUrl = (profile.avatarUrl ?? '').trim();
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: SizedBox(
-        height: 492,
+      borderRadius: BorderRadius.circular(24),
+      child: AspectRatio(
+        aspectRatio: 0.84,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -1088,11 +1142,12 @@ class _ProfileHeroBackdrop extends StatelessWidget {
                   end: Alignment.topCenter,
                   colors: [
                     Colors.black,
-                    Colors.black.withValues(alpha: 0.94),
-                    Colors.black.withValues(alpha: 0.38),
+                    Colors.black.withValues(alpha: 0.98),
+                    Colors.black.withValues(alpha: 0.72),
+                    Colors.black.withValues(alpha: 0.22),
                     Colors.transparent,
                   ],
-                  stops: const [0.0, 0.3, 0.68, 0.98],
+                  stops: const [0.0, 0.20, 0.50, 0.78, 1.0],
                 ).createShader(rect),
                 child: ImageFiltered(
                   imageFilter: ImageFilter.blur(sigmaX: 9.0, sigmaY: 9.0),
@@ -1118,11 +1173,11 @@ class _ProfileHeroBackdrop extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.black.withValues(alpha: 0.06),
-                    Colors.black.withValues(alpha: 0.12),
-                    const Color(0xFF0F0A19).withValues(alpha: 0.56),
-                    const Color(0xFF06050C).withValues(alpha: 0.95),
+                    Colors.black.withValues(alpha: 0.3),
+                    const Color(0xFF090611).withValues(alpha: 0.9),
+                    Colors.black,
                   ],
-                  stops: const [0, 0.44, 0.72, 1],
+                  stops: const [0.0, 0.3, 0.54, 1.0],
                 ),
               ),
             ),
