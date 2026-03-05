@@ -557,7 +557,7 @@ class _RightBarSpark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final values = series.isEmpty
-        ? const <double>[0.2, 0.35, 0.28, 0.5, 0.42, 0.68, 0.84]
+        ? const <double>[0, 0, 0, 0, 0, 0, 0]
         : series;
 
     return Row(
@@ -567,7 +567,7 @@ class _RightBarSpark extends StatelessWidget {
           .map(
             (value) => Container(
               width: 9,
-              height: 14 + (56 * value.clamp(0.1, 1.0)),
+              height: 4 + (66 * value.clamp(0.0, 1.0)),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(99),
                 gradient: const LinearGradient(
@@ -612,16 +612,18 @@ class _NeonLineChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final values = series.isEmpty
-        ? const <double>[0.12, 0.28, 0.34, 0.3, 0.55, 0.47, 0.71]
+        ? const <double>[0, 0, 0, 0, 0, 0, 0]
         : series;
     if (values.isEmpty) return;
 
     final points = <Offset>[];
     final stepX = values.length == 1 ? 0.0 : size.width / (values.length - 1);
+    final topInset = size.height * 0.04;
+    final drawableHeight = math.max(1.0, size.height - topInset);
     for (var i = 0; i < values.length; i++) {
       final value = values[i].clamp(0.0, 1.0);
       final x = stepX * i;
-      final y = size.height - (size.height * (0.12 + (value * 0.78)));
+      final y = topInset + ((1 - value) * drawableHeight);
       points.add(Offset(x, y));
     }
 
@@ -786,7 +788,7 @@ double? _toDouble(dynamic raw) {
 
 List<double> _normalizeBars(List<double> values, {required int barCount}) {
   if (values.isEmpty) {
-    return const <double>[0.2, 0.35, 0.28, 0.5, 0.42, 0.68, 0.84];
+    return List<double>.filled(barCount, 0.0);
   }
 
   final buckets = List<double>.filled(barCount, 0);
@@ -804,23 +806,28 @@ List<double> _normalizeBars(List<double> values, {required int barCount}) {
 
   final maxValue = buckets.reduce((a, b) => a > b ? a : b);
   if (maxValue <= 0) {
-    return const <double>[0.2, 0.35, 0.28, 0.5, 0.42, 0.68, 0.84];
+    return List<double>.filled(barCount, 0.0);
   }
   return buckets
-      .map((value) => (value / maxValue).clamp(0.18, 1.0))
+      .map((value) => (value / maxValue).clamp(0.0, 1.0))
       .toList(growable: false);
 }
 
 List<double> _normalizeLine(List<double> values) {
   if (values.isEmpty) {
-    return const <double>[0.12, 0.28, 0.34, 0.3, 0.55, 0.47, 0.71];
+    return const <double>[0, 0, 0, 0, 0, 0, 0];
   }
+  final minValue = values.reduce((a, b) => a < b ? a : b);
   final maxValue = values.reduce((a, b) => a > b ? a : b);
   if (maxValue <= 0) {
-    return const <double>[0.12, 0.28, 0.34, 0.3, 0.55, 0.47, 0.71];
+    return List<double>.filled(values.length, 0.0);
+  }
+  final spread = maxValue - minValue;
+  if (spread <= 0) {
+    return List<double>.filled(values.length, 0.6);
   }
   return values
-      .map((value) => (value / maxValue).clamp(0.05, 1.0))
+      .map((value) => ((value - minValue) / spread).clamp(0.0, 1.0))
       .toList(growable: false);
 }
 
