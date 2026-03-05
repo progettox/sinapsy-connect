@@ -84,7 +84,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       );
       return;
     }
-    await _openEdit(profile);
+    await _addCreatorPortfolioMedia(profile);
   }
 
   Future<void> _openNotifications(ProfileModel profile) async {

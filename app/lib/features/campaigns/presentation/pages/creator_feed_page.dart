@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../data/campaign_model.dart';
@@ -56,70 +57,96 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage> {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Creator Feed'),
-        actions: [
-          IconButton(
-            onPressed: state.isLoading
-                ? null
-                : () => ref
-                      .read(creatorFeedControllerProvider.notifier)
-                      .loadFeed(),
-            icon: const Icon(Icons.refresh),
+      body: Stack(
+        children: [
+          const Positioned.fill(
+            child: RepaintBoundary(child: LuxuryNeonBackdrop()),
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: Builder(
-          builder: (context) {
-            if (state.isLoading && state.campaigns.isEmpty) {
-              return const Center(child: SinapsyLogoLoader());
-            }
+          SafeArea(
+            child: Builder(
+              builder: (context) {
+                if (state.isLoading && state.campaigns.isEmpty) {
+                  return const Center(child: SinapsyLogoLoader());
+                }
 
-            if (state.campaigns.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Nessun annuncio attivo al momento.',
-                        textAlign: TextAlign.center,
+                if (state.campaigns.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Nessun annuncio attivo al momento.',
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: () => ref
+                                .read(creatorFeedControllerProvider.notifier)
+                                .loadFeed(),
+                            child: const Text('Ricarica'),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: () => ref
-                            .read(creatorFeedControllerProvider.notifier)
-                            .loadFeed(),
-                        child: const Text('Ricarica'),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
+                    ),
+                  );
+                }
 
-            return ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: state.campaigns.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final campaign = state.campaigns[index];
-                return _CampaignCard(
-                  campaign: campaign,
-                  isApplying:
-                      state.isApplying &&
-                      state.applyingCampaignId == campaign.id,
-                  onApply: () => _apply(campaign),
-                  onSkip: () => ref
-                      .read(creatorFeedControllerProvider.notifier)
-                      .skipCampaign(campaign.id),
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 10, 4),
+                      child: Row(
+                        children: [
+                          const Text(
+                            'Home',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFF1E8FF),
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            onPressed: state.isLoading
+                                ? null
+                                : () => ref
+                                      .read(
+                                        creatorFeedControllerProvider.notifier,
+                                      )
+                                      .loadFeed(),
+                            icon: const Icon(Icons.refresh_rounded),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                        itemCount: state.campaigns.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final campaign = state.campaigns[index];
+                          return _CampaignCard(
+                            campaign: campaign,
+                            isApplying:
+                                state.isApplying &&
+                                state.applyingCampaignId == campaign.id,
+                            onApply: () => _apply(campaign),
+                            onSkip: () => ref
+                                .read(creatorFeedControllerProvider.notifier)
+                                .skipCampaign(campaign.id),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 );
               },
-            );
-          },
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
