@@ -63,9 +63,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   void initState() {
     super.initState();
     Future<void>.microtask(() async {
-      ref.read(profileControllerProvider.notifier).watchMyProfile();
-      await ref.read(profileControllerProvider.notifier).loadMyProfile();
-      await ref.read(brandNotificationsBadgeControllerProvider.notifier).init();
+      if (!mounted) return;
+      final profileController = ref.read(profileControllerProvider.notifier);
+      final badgeController = ref.read(
+        brandNotificationsBadgeControllerProvider.notifier,
+      );
+      profileController.watchMyProfile();
+      await profileController.loadMyProfile();
+      if (!mounted) return;
+      await badgeController.init();
     });
   }
 
