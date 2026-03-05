@@ -917,6 +917,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     String profileId,
   ) async {
     const snakeSelectVariants = <String>[
+      'id, title, description, category, cash_offer, product_benefit, deadline, min_followers, location_required, cover_image_url, status, applicants_count, views_count, brand_id, created_at, updated_at',
       'id, title, description, category, cash_offer, product_benefit, deadline, min_followers, location_required, cover_image_url, status, applicants_count, brand_id, created_at, updated_at',
       'id, title, description, category, cash_offer, deadline, min_followers, location_required, cover_image_url, status, applicants_count, brand_id, created_at',
       'id, title, description, category, cash_offer, cover_image_url, status, applicants_count, brand_id, created_at',
@@ -924,6 +925,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       'id, title, cover_image_url, status, brand_id, created_at',
     ];
     const camelSelectVariants = <String>[
+      'id, title, description, category, cashOffer, productBenefit, deadline, minFollowers, locationRequiredCity, coverImageUrl, status, applicantsCount, viewsCount, brandId, createdAt, updatedAt',
       'id, title, description, category, cashOffer, productBenefit, deadline, minFollowers, locationRequiredCity, coverImageUrl, status, applicantsCount, brandId, createdAt, updatedAt',
       'id, title, description, category, cashOffer, deadline, minFollowers, locationRequiredCity, coverImageUrl, status, applicantsCount, brandId, createdAt',
       'id, title, description, category, cashOffer, coverImageUrl, status, applicantsCount, brandId, createdAt',
@@ -1968,6 +1970,7 @@ class _CampaignPortfolioDetail {
     this.locationRequired,
     this.coverImageUrl,
     this.applicantsCount,
+    this.viewsCount = 0,
     this.brandId,
     this.createdAt,
     this.updatedAt,
@@ -1985,6 +1988,7 @@ class _CampaignPortfolioDetail {
   final String? locationRequired;
   final String? coverImageUrl;
   final int? applicantsCount;
+  final int viewsCount;
   final String? brandId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -2009,6 +2013,7 @@ class _CampaignPortfolioDetail {
       coverImageUrl: _string(map['cover_image_url'] ?? map['coverImageUrl']),
       status: _string(map['status']) ?? 'active',
       applicantsCount: _int(map['applicants_count'] ?? map['applicantsCount']),
+      viewsCount: _int(map['views_count'] ?? map['viewsCount']) ?? 0,
       brandId: _string(map['brand_id'] ?? map['brandId']),
       createdAt: _dateTime(map['created_at'] ?? map['createdAt']),
       updatedAt: _dateTime(map['updated_at'] ?? map['updatedAt']),
@@ -2152,6 +2157,11 @@ class _CampaignDetailsPage extends StatelessWidget {
                                       text:
                                           'Candidature ${campaign.applicantsCount}',
                                     ),
+                                  _CampaignDetailPill(
+                                    icon: Icons.visibility_outlined,
+                                    text:
+                                        'Visualizzazioni ${campaign.viewsCount}',
+                                  ),
                                   if (campaign.minFollowers != null)
                                     _CampaignDetailPill(
                                       icon: Icons.trending_up_rounded,
