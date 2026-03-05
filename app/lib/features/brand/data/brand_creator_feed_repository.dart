@@ -655,9 +655,8 @@ class BrandCreatorFeedRepository {
   }
 
   int? _bestAvailableCount({int? profileCount, int? runtimeCount}) {
-    if (profileCount == null) return runtimeCount;
-    if (runtimeCount == null) return profileCount;
-    return runtimeCount > profileCount ? runtimeCount : profileCount;
+    if (runtimeCount != null) return runtimeCount;
+    return profileCount;
   }
 
   String _extractCategoryFromBio(

@@ -66,15 +66,11 @@ class CreatorFeedController extends StateNotifier<CreatorFeedState> {
       final campaigns = await _campaignRepository.getActiveCampaigns();
       final activeApplications = await _applicationRepository
           .getMyPendingOrAcceptedCampaignStatuses();
-      final locallyWithdrawnCampaignIds = _applicationRepository
-          .getLocallyWithdrawnCampaignIds();
       final visibleCampaigns = campaigns.where((campaign) {
         final status = activeApplications[campaign.id];
         if (status == null) return true;
         if (status == 'accepted') return false;
-        if (status == 'pending') {
-          return locallyWithdrawnCampaignIds.contains(campaign.id);
-        }
+        if (status == 'pending') return true;
         return true;
       }).toList();
       state = state.copyWith(
@@ -119,13 +115,10 @@ class CreatorFeedController extends StateNotifier<CreatorFeedState> {
 
     try {
       await _applicationRepository.applyToCampaign(campaign);
-      final nextCampaigns = state.campaigns
-          .where((item) => item.id != campaign.id)
-          .toList();
       state = state.copyWith(
         isApplying: false,
         clearApplyingCampaign: true,
-        campaigns: nextCampaigns,
+        campaigns: state.campaigns,
         clearError: true,
       );
       return true;

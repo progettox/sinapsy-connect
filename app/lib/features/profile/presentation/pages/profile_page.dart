@@ -18,6 +18,7 @@ import '../../../../core/widgets/luxury_neon_backdrop.dart';
 import '../../../../core/widgets/sinapsy_confirm_dialog.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
 import '../../../auth/data/auth_repository.dart';
+import '../../../brand/data/brand_creator_feed_repository.dart';
 import '../../../brand/presentation/controllers/brand_notifications_badge_controller.dart';
 import '../../../brand/presentation/pages/brand_notifications_page.dart';
 import '../../../campaigns/presentation/pages/create_campaign_page.dart';
@@ -26,6 +27,7 @@ import '../../../reviews/data/review_repository.dart';
 import '../../data/profile_model.dart';
 import '../controllers/profile_controller.dart';
 import 'edit_profile_page.dart';
+import '../widgets/follow_accounts_sheet.dart';
 import '../widgets/profile_image_viewer_page.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
@@ -52,6 +54,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     averageRating: 0,
     totalReviews: 0,
   );
+  String? _loadedFollowCountersProfileId;
+  bool _isLoadingFollowCounters = false;
+  int? _liveFollowersCount;
+  int? _liveFollowingCount;
 
   @override
   void initState() {
@@ -103,6 +109,64 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const BrandNotificationsPage()),
     );
+  }
+
+  Future<void> _openFollowAccounts({
+    required ProfileModel profile,
+    required FollowAccountsMode mode,
+  }) async {
+    final profileId = profile.id.trim();
+    if (profileId.isEmpty) return;
+    await showFollowAccountsSheet(
+      context: context,
+      client: ref.read(supabaseClientProvider),
+      profileId: profileId,
+      mode: mode,
+      ownerLabel: _displayName(profile),
+    );
+  }
+
+  Future<void> _loadLiveFollowCountersForProfile(
+    String profileId, {
+    bool force = false,
+  }) async {
+    final cleanProfileId = profileId.trim();
+    if (cleanProfileId.isEmpty) return;
+
+    if (!force &&
+        _loadedFollowCountersProfileId == cleanProfileId &&
+        !_isLoadingFollowCounters) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _loadedFollowCountersProfileId = cleanProfileId;
+        _isLoadingFollowCounters = true;
+      });
+    }
+
+    try {
+      final counters = await ref
+          .read(brandCreatorFeedRepositoryProvider)
+          .getFollowCounters(creatorId: cleanProfileId);
+      if (!mounted) return;
+      final activeProfileId = ref
+          .read(profileControllerProvider)
+          .profile
+          ?.id
+          .trim();
+      if (activeProfileId == null || activeProfileId != cleanProfileId) return;
+
+      setState(() {
+        _liveFollowersCount = counters.followersCount;
+        _liveFollowingCount = counters.followingCount;
+        _isLoadingFollowCounters = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingFollowCounters = false);
+    }
   }
 
   Future<void> _openProfileImageViewer(ProfileModel profile) async {
@@ -428,8 +492,27 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       final websiteUrl = _normalizeExternalUrl(
                         profile.websiteUrl ?? socialLinks.website ?? '',
                       );
-                      final followersCount = profile.followersCount ?? 0;
-                      final followingCount = profile.followingCount ?? 0;
+                      if (_loadedFollowCountersProfileId != profile.id &&
+                          !_isLoadingFollowCounters) {
+                        Future<void>.microtask(() {
+                          if (!mounted) return;
+                          final latestProfile = ref
+                              .read(profileControllerProvider)
+                              .profile;
+                          if (latestProfile == null) return;
+                          unawaited(
+                            _loadLiveFollowCountersForProfile(
+                              latestProfile.id,
+                              force: true,
+                            ),
+                          );
+                        });
+                      }
+
+                      final followersCount =
+                          _liveFollowersCount ?? profile.followersCount ?? 0;
+                      final followingCount =
+                          _liveFollowingCount ?? profile.followingCount ?? 0;
                       final worksCount = profile.completedWorksCount ?? 0;
                       final ratingLabel = _isLoadingReviewSummary
                           ? '...'
@@ -482,22 +565,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                   bottom: 0,
                                   child: IgnorePointer(
                                     child: Container(
-                                      height: _profileContentDrop + 34,
+                                      height: _profileContentDrop + 48,
                                       decoration: BoxDecoration(
                                         gradient: LinearGradient(
                                           begin: Alignment.topCenter,
                                           end: Alignment.bottomCenter,
                                           colors: [
+                                            Colors.transparent,
                                             Colors.black.withValues(
-                                              alpha: 0.22,
-                                            ),
-                                            Colors.black.withValues(
-                                              alpha: 0.62,
+                                              alpha: 0.58,
                                             ),
                                             Colors.black.withValues(alpha: 0.9),
                                             Colors.black,
                                           ],
-                                          stops: const [0.0, 0.28, 0.66, 1.0],
+                                          stops: const [0.0, 0.24, 0.6, 1.0],
                                         ),
                                       ),
                                     ),
@@ -577,6 +658,18 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                               followingValue: _formatCompact(
                                                 followingCount,
                                               ),
+                                              onFollowersTap: () =>
+                                                  _openFollowAccounts(
+                                                    profile: profile,
+                                                    mode: FollowAccountsMode
+                                                        .followers,
+                                                  ),
+                                              onFollowingTap: () =>
+                                                  _openFollowAccounts(
+                                                    profile: profile,
+                                                    mode: FollowAccountsMode
+                                                        .following,
+                                                  ),
                                               onMainAction: isBusy
                                                   ? null
                                                   : () => _openEdit(profile),
@@ -1307,6 +1400,8 @@ class _ProfileInfoCard extends StatelessWidget {
     required this.works,
     required this.followersValue,
     required this.followingValue,
+    this.onFollowersTap,
+    this.onFollowingTap,
     this.onMainAction,
   });
 
@@ -1316,6 +1411,8 @@ class _ProfileInfoCard extends StatelessWidget {
   final String works;
   final String followersValue;
   final String followingValue;
+  final VoidCallback? onFollowersTap;
+  final VoidCallback? onFollowingTap;
   final VoidCallback? onMainAction;
 
   @override
@@ -1339,10 +1436,18 @@ class _ProfileInfoCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _TopStat(label: 'N° FOLLOWER', value: followersValue),
+                child: _TopStat(
+                  label: 'N° FOLLOWER',
+                  value: followersValue,
+                  onTap: onFollowersTap,
+                ),
               ),
               Expanded(
-                child: _TopStat(label: 'N° SEGUITI', value: followingValue),
+                child: _TopStat(
+                  label: 'N° SEGUITI',
+                  value: followingValue,
+                  onTap: onFollowingTap,
+                ),
               ),
             ],
           ),
@@ -1434,35 +1539,46 @@ class _ProfileInfoCard extends StatelessWidget {
 }
 
 class _TopStat extends StatelessWidget {
-  const _TopStat({required this.label, required this.value});
+  const _TopStat({required this.label, required this.value, this.onTap});
 
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFFD8C9F0),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFFD8C9F0),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFF1EAFF),
+                  height: 0.95,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 34,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFFF1EAFF),
-            height: 0.95,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

@@ -18,6 +18,7 @@ import '../../../campaigns/data/campaign_repository.dart';
 import '../../../reviews/data/review_model.dart';
 import '../../../reviews/data/review_repository.dart';
 import '../../data/profile_model.dart';
+import '../widgets/follow_accounts_sheet.dart';
 import '../widgets/profile_image_viewer_page.dart';
 
 class PublicProfilePage extends ConsumerStatefulWidget {
@@ -282,6 +283,21 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
     );
   }
 
+  Future<void> _openFollowAccounts({
+    required _PublicProfileData data,
+    required FollowAccountsMode mode,
+  }) async {
+    final profileId = data.profile.id.trim();
+    if (profileId.isEmpty) return;
+    await showFollowAccountsSheet(
+      context: context,
+      client: ref.read(supabaseClientProvider),
+      profileId: profileId,
+      mode: mode,
+      ownerLabel: data.displayName,
+    );
+  }
+
   int _nextFollowerCount({
     required int current,
     required bool wasFollowing,
@@ -415,18 +431,18 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                   bottom: 0,
                   child: IgnorePointer(
                     child: Container(
-                      height: _profileContentDrop + 34,
+                      height: _profileContentDrop + 48,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.black.withValues(alpha: 0.22),
-                            Colors.black.withValues(alpha: 0.62),
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.58),
                             Colors.black.withValues(alpha: 0.9),
                             Colors.black,
                           ],
-                          stops: const [0.0, 0.28, 0.66, 1.0],
+                          stops: const [0.0, 0.24, 0.6, 1.0],
                         ),
                       ),
                     ),
@@ -512,6 +528,10 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                                           value: _formatCompact(
                                             data.followersCount,
                                           ),
+                                          onTap: () => _openFollowAccounts(
+                                            data: data,
+                                            mode: FollowAccountsMode.followers,
+                                          ),
                                         ),
                                       ),
                                       Expanded(
@@ -519,6 +539,10 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                                           label: 'N\u00B0 SEGUITI',
                                           value: _formatCompact(
                                             data.followingCount,
+                                          ),
+                                          onTap: () => _openFollowAccounts(
+                                            data: data,
+                                            mode: FollowAccountsMode.following,
                                           ),
                                         ),
                                       ),
@@ -1873,35 +1897,46 @@ class _RoleChip extends StatelessWidget {
 }
 
 class _TopStat extends StatelessWidget {
-  const _TopStat({required this.label, required this.value});
+  const _TopStat({required this.label, required this.value, this.onTap});
 
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFFD8C9F0),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFFD8C9F0),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFF1EAFF),
+                  height: 0.95,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 34,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFFF1EAFF),
-            height: 0.95,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

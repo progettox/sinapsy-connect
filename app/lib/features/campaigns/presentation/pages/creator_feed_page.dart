@@ -95,8 +95,14 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage> {
       final map = <String, _BrandLiteProfile>{};
       for (final row in rows) {
         final profile = _BrandLiteProfile.fromMap(row);
-        if (profile.id.isEmpty) continue;
-        map[profile.id] = profile;
+        final keys = <String>{
+          profile.id.trim(),
+          (row['id'] ?? '').toString().trim(),
+          (row['user_id'] ?? row['userId'] ?? '').toString().trim(),
+        }.where((key) => key.isNotEmpty);
+        for (final key in keys) {
+          map[key] = profile;
+        }
       }
 
       setState(() {
@@ -116,29 +122,52 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage> {
     required SupabaseClient client,
     required List<String> brandIds,
   }) async {
-    const selectVariants = <String>[
+    const idSelectVariants = <String>[
       'id, username, first_name, last_name, avatar_url',
       'id, username, avatar_url',
       'id, username, firstName, lastName, avatarUrl',
       'id, username, avatarUrl',
     ];
+    const userIdSelectVariants = <String>[
+      'id, user_id, username, first_name, last_name, avatar_url',
+      'id, user_id, username, avatar_url',
+      'id, user_id, username, firstName, lastName, avatarUrl',
+      'id, user_id, username, avatarUrl',
+    ];
 
-    PostgrestException? lastColumnError;
-    for (final fields in selectVariants) {
-      try {
-        final raw = await client
-            .from('profiles')
-            .select(fields)
-            .inFilter('id', brandIds);
-        return List<Map<String, dynamic>>.from(raw as List);
-      } on PostgrestException catch (error) {
-        if (!_isColumnError(error)) rethrow;
-        lastColumnError = error;
+    Future<List<Map<String, dynamic>>> loadRows({
+      required String column,
+      required List<String> selectVariants,
+    }) async {
+      PostgrestException? lastColumnError;
+      for (final fields in selectVariants) {
+        try {
+          final raw = await client
+              .from('profiles')
+              .select(fields)
+              .inFilter(column, brandIds);
+          return List<Map<String, dynamic>>.from(raw as List);
+        } on PostgrestException catch (error) {
+          if (_isMissingTable(error)) return const <Map<String, dynamic>>[];
+          if (!_isColumnError(error)) rethrow;
+          lastColumnError = error;
+        }
       }
+      if (lastColumnError != null) throw lastColumnError;
+      return const <Map<String, dynamic>>[];
     }
 
-    if (lastColumnError != null) throw lastColumnError;
-    return const <Map<String, dynamic>>[];
+    final rowsById = await loadRows(
+      column: 'id',
+      selectVariants: idSelectVariants,
+    );
+    if (rowsById.isNotEmpty) return rowsById;
+
+    final rowsByUserId = await loadRows(
+      column: 'user_id',
+      selectVariants: userIdSelectVariants,
+    );
+    return rowsByUserId;
   }
 
   bool _isColumnError(PostgrestException error) {
@@ -146,6 +175,13 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage> {
     return error.code == '42703' ||
         error.code == 'PGRST204' ||
         (message.contains('column') && message.contains('does not exist'));
+  }
+
+  bool _isMissingTable(PostgrestException error) {
+    final message = error.message.toLowerCase();
+    return error.code == '42P01' ||
+        error.code == 'PGRST205' ||
+        (message.contains('relation') && message.contains('does not exist'));
   }
 
   bool _didCampaignListChange(
@@ -169,8 +205,7 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage> {
     final brandId = activeCampaign.brandId?.trim() ?? '';
     final brandAvatar = _brandsById[brandId]?.avatarUrl?.trim();
     if (brandAvatar != null && brandAvatar.isNotEmpty) return brandAvatar;
-    final campaignCover = (activeCampaign.coverImageUrl ?? '').trim();
-    return campaignCover.isEmpty ? null : campaignCover;
+    return null;
   }
 
   @override
@@ -1138,7 +1173,7 @@ class _BrandLiteProfile {
     final avatar = _nullableString(map['avatar_url'] ?? map['avatarUrl']);
 
     return _BrandLiteProfile(
-      id: (map['id'] ?? '').toString().trim(),
+      id: (map['id'] ?? map['user_id'] ?? '').toString().trim(),
       username: username,
       displayName: fullName.isNotEmpty
           ? fullName
