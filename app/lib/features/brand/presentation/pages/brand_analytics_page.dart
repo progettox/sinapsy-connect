@@ -105,6 +105,22 @@ class _BrandAnalyticsPageState extends ConsumerState<BrandAnalyticsPage> {
                           0,
                           (sum, point) => sum + point.views,
                         );
+                        final activeCampaignsCount = _countActiveCampaigns(
+                          campaigns,
+                        );
+                        final monthlyBudgetSpent = last30.fold<double>(
+                          0,
+                          (sum, point) => sum + point.budgetSpent,
+                        );
+                        final monthlyBudgetSeries = _normalizeLine(
+                          last30
+                              .map((point) => point.budgetSpent)
+                              .toList(growable: false),
+                        );
+                        final totalMatches = points.fold<int>(
+                          0,
+                          (sum, point) => sum + point.matches,
+                        );
 
                         return ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
@@ -181,6 +197,13 @@ class _BrandAnalyticsPageState extends ConsumerState<BrandAnalyticsPage> {
                                 if (_selectedRange == range) return;
                                 setState(() => _selectedRange = range);
                               },
+                            ),
+                            const SizedBox(height: 10),
+                            _MonthlyMatchesDetailsCard(
+                              activeCampaignsCount: activeCampaignsCount,
+                              budgetSpent: monthlyBudgetSpent,
+                              budgetSeries: monthlyBudgetSeries,
+                              totalMatches: totalMatches,
                             ),
                           ],
                         );
@@ -465,6 +488,271 @@ class _TrendMetricCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _MonthlyMatchesDetailsCard extends StatelessWidget {
+  const _MonthlyMatchesDetailsCard({
+    required this.activeCampaignsCount,
+    required this.budgetSpent,
+    required this.budgetSeries,
+    required this.totalMatches,
+  });
+
+  final int activeCampaignsCount;
+  final double budgetSpent;
+  final List<double> budgetSeries;
+  final int totalMatches;
+
+  @override
+  Widget build(BuildContext context) {
+    const sectionSpacing = 16.0;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 2, 4, 2),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const _MetricIconBubble(icon: Icons.campaign_rounded),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CAMPAGNE ATTIVE',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: const Color(0xFFCFC5E2),
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatInt(activeCampaignsCount),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: const Color(0xFFF5EEFF),
+                            fontWeight: FontWeight.w800,
+                            height: 1.0,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: sectionSpacing),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const _MetricIconBubble(icon: Icons.account_balance_wallet_rounded),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'BUDGET SPESO',
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(
+                                  color: const Color(0xFFCFC5E2),
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.3,
+                                ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _formatEuroAmount(budgetSpent),
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  color: const Color(0xFFF5EEFF),
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.0,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 108,
+                      height: 56,
+                      child: _BudgetAreaSpark(series: budgetSeries),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: sectionSpacing),
+          Row(
+            children: [
+              const _MetricIconBubble(icon: Icons.forum_rounded),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'MATCH TOTALI',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: const Color(0xFFCFC5E2),
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatInt(totalMatches),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: const Color(0xFFF5EEFF),
+                            fontWeight: FontWeight.w800,
+                            height: 1.0,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricIconBubble extends StatelessWidget {
+  const _MetricIconBubble({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 34,
+      height: 34,
+      child: Icon(
+        icon,
+        size: 17.5,
+        color: const Color(0xFFEADFFF),
+        shadows: [
+          Shadow(
+            color: const Color(0xFFA764FF).withValues(alpha: 0.95),
+            blurRadius: 10,
+          ),
+          Shadow(
+            color: const Color(0xFF6B36D6).withValues(alpha: 0.8),
+            blurRadius: 22,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BudgetAreaSpark extends StatelessWidget {
+  const _BudgetAreaSpark({required this.series});
+
+  final List<double> series;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0x221F1538), Color(0x11100A22)],
+          ),
+        ),
+        child: CustomPaint(
+          painter: _BudgetAreaSparkPainter(series: series),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+  }
+}
+
+class _BudgetAreaSparkPainter extends CustomPainter {
+  const _BudgetAreaSparkPainter({required this.series});
+
+  final List<double> series;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final values = series.isEmpty
+        ? const <double>[0, 0, 0, 0, 0, 0, 0]
+        : series;
+    if (values.isEmpty) return;
+
+    final points = <Offset>[];
+    final stepX = values.length == 1 ? 0.0 : size.width / (values.length - 1);
+    final topInset = size.height * 0.08;
+    final drawableHeight = math.max(1.0, size.height - topInset);
+    for (var i = 0; i < values.length; i++) {
+      final value = values[i].clamp(0.0, 1.0);
+      final x = stepX * i;
+      final y = topInset + ((1 - value) * drawableHeight);
+      points.add(Offset(x, y));
+    }
+    if (points.isEmpty) return;
+
+    final path = Path()..moveTo(points.first.dx, points.first.dy);
+    for (var i = 1; i < points.length; i++) {
+      final previous = points[i - 1];
+      final current = points[i];
+      final controlX = (previous.dx + current.dx) / 2;
+      path.cubicTo(
+        controlX,
+        previous.dy,
+        controlX,
+        current.dy,
+        current.dx,
+        current.dy,
+      );
+    }
+
+    final area = Path.from(path)
+      ..lineTo(points.last.dx, size.height)
+      ..lineTo(points.first.dx, size.height)
+      ..close();
+
+    final fill = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xCCB99DFF), Color(0x238665D0)],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    canvas.drawPath(area, fill);
+
+    final glow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.2
+      ..color = const Color(0x779E80F0)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.2);
+    canvas.drawPath(path, glow);
+
+    final stroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..color = const Color(0xFFD7C8FF)
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(path, stroke);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BudgetAreaSparkPainter oldDelegate) {
+    return oldDelegate.series != series;
   }
 }
 
@@ -831,6 +1119,12 @@ List<double> _normalizeLine(List<double> values) {
       .toList(growable: false);
 }
 
+int _countActiveCampaigns(List<CampaignModel> campaigns) {
+  return campaigns
+      .where((campaign) => campaign.status.trim().toLowerCase() == 'active')
+      .length;
+}
+
 String _formatCompactViews(int value) {
   if (value >= 1000000) {
     final millions = value / 1000000;
@@ -854,6 +1148,11 @@ String _formatCurrencyCompact(double value) {
   return 'EUR ${_formatInt(rounded)}';
 }
 
+String _formatEuroAmount(double value) {
+  final rounded = value.round();
+  return '\u20AC${_formatInt(rounded)}';
+}
+
 String _formatInt(int value) {
   final sign = value < 0 ? '-' : '';
   final digits = value.abs().toString();
@@ -864,3 +1163,5 @@ String _formatInt(int value) {
   }
   return '$sign$buffer';
 }
+
+

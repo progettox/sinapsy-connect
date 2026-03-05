@@ -22,42 +22,44 @@ class PremiumBrandBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),
       child: SizedBox(
-        height: 72,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _NavItem(
-              icon: Icons.home_outlined,
-              active: currentIndex == 0,
-              onTap: () => onTap(0),
-            ),
-            _NavItem(
-              icon: Icons.search_rounded,
-              active: currentIndex == 1,
-              onTap: () => onTap(1),
-            ),
-            _CenterProfileNavItem(
-              active: currentIndex == 2,
-              profileUserId: profileUserId,
-              avatarUrl: profileAvatarUrl,
-              profileInitial: profileInitial,
-              onTap: () => onTap(2),
-              onLongPress: onProfileLongPress,
-            ),
-            _NavItem(
-              icon: Icons.send_rounded,
-              active: currentIndex == 3,
-              onTap: () => onTap(3),
-              rotateRadians: -0.45,
-            ),
-            _NavItem(
-              icon: Icons.bar_chart_rounded,
-              active: currentIndex == 4,
-              onTap: () => onTap(4),
-            ),
-          ],
+        height: 92,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _NavItem(
+                icon: Icons.home_outlined,
+                active: currentIndex == 0,
+                onTap: () => onTap(0),
+              ),
+              _NavItem(
+                icon: Icons.search_rounded,
+                active: currentIndex == 1,
+                onTap: () => onTap(1),
+              ),
+              _CenterProfileNavItem(
+                active: currentIndex == 2,
+                profileUserId: profileUserId,
+                avatarUrl: profileAvatarUrl,
+                profileInitial: profileInitial,
+                onTap: () => onTap(2),
+                onLongPress: onProfileLongPress,
+              ),
+              _NavItem(
+                icon: Icons.chat_bubble_outline_rounded,
+                active: currentIndex == 3,
+                onTap: () => onTap(3),
+              ),
+              _NavItem(
+                icon: Icons.bar_chart_rounded,
+                active: currentIndex == 4,
+                onTap: () => onTap(4),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -84,7 +86,7 @@ class _CenterProfileNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Transform.translate(
-      offset: const Offset(0, -3),
+      offset: const Offset(0, -1),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -94,37 +96,67 @@ class _CenterProfileNavItem extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
-            width: 60,
-            height: 60,
+            width: 76,
+            height: 76,
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: active
-                    ? const [Color(0xFFA96BFF), Color(0xFF6F3ADF)]
-                    : const [Color(0xFF7A58C8), Color(0xFF473284)],
+              gradient: active
+                  ? const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFD5B5FF), Color(0xFF9164EA), Color(0xFF6640BB)],
+                    )
+                  : const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF766693), Color(0xFF3C3158), Color(0xFF292138)],
+                    ),
+              border: Border.all(
+                color: active
+                    ? const Color(0xFFF0DDFF).withValues(alpha: 0.96)
+                    : const Color(0xFFBCA7E7).withValues(alpha: 0.32),
+                width: active ? 2.1 : 1.4,
               ),
               boxShadow: [
-                if (active)
+                if (active) ...[
                   BoxShadow(
-                    color: const Color(0xFF8A50FF).withValues(alpha: 0.35),
-                    blurRadius: 12,
-                    offset: const Offset(0, 5),
+                    color: const Color(0xFFAD77FF).withValues(alpha: 0.46),
+                    blurRadius: 24,
+                    spreadRadius: 1.2,
+                    offset: const Offset(0, 0),
                   ),
+                  BoxShadow(
+                    color: const Color(0xFF6F45C5).withValues(alpha: 0.36),
+                    blurRadius: 12,
+                    spreadRadius: 0.2,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.34),
-                  blurRadius: 8,
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 9,
                   offset: const Offset(0, 3),
                 ),
               ],
             ),
-            child: ClipOval(
-              child: _ProfileAvatar(
-                profileUserId: profileUserId,
-                avatarUrl: avatarUrl,
-                profileInitial: profileInitial,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xAA1C132F),
+                  width: 1.3,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: ClipOval(
+                  child: _ProfileAvatar(
+                    profileUserId: profileUserId,
+                    avatarUrl: avatarUrl,
+                    profileInitial: profileInitial,
+                  ),
+                ),
               ),
             ),
           ),
@@ -139,50 +171,38 @@ class _NavItem extends StatelessWidget {
     required this.icon,
     required this.active,
     required this.onTap,
-    this.rotateRadians = 0,
   });
 
   final IconData icon;
   final bool active;
   final VoidCallback onTap;
-  final double rotateRadians;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 56,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Transform.rotate(
-                angle: rotateRadians,
-                child: Icon(
-                  icon,
-                  size: 34,
-                  color: active
-                      ? const Color(0xFFF4EEFF)
-                      : Colors.white.withValues(alpha: 0.78),
-                ),
-              ),
-              const SizedBox(height: 5),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
-                width: 22,
-                height: 3,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(999),
-                  color: active
-                      ? const Color(0xFF9A5BFF)
-                      : const Color(0xFF7A7693).withValues(alpha: 0.45),
-                ),
-              ),
-            ],
+      width: 54,
+      height: 64,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Center(
+            child: Icon(
+              icon,
+              size: 37,
+              color: active
+                  ? const Color(0xFFEDE2FF)
+                  : const Color(0xFFD3C3F1).withValues(alpha: 0.92),
+              shadows: active
+                  ? [
+                      Shadow(
+                        color: const Color(0xFF8A5BE0).withValues(alpha: 0.32),
+                        blurRadius: 8,
+                      ),
+                    ]
+                  : null,
+            ),
           ),
         ),
       ),
