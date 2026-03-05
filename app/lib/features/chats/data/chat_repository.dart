@@ -14,6 +14,74 @@ class ChatRepository {
 
   final SupabaseClient _client;
 
+  Future<List<BrandChatNotificationItem>> listBrandChatNotifications({
+    required String brandId,
+    int limit = 20,
+  }) async {
+    final cleanBrandId = brandId.trim();
+    if (cleanBrandId.isEmpty) return const <BrandChatNotificationItem>[];
+
+    final rows = await _queryBrandChatRows(
+      brandId: cleanBrandId,
+      limit: limit,
+    );
+    if (rows.isEmpty) return const <BrandChatNotificationItem>[];
+
+    final campaignIds = <String>{};
+    final creatorIds = <String>{};
+    for (final row in rows) {
+      final campaignId = _string(row['campaign_id'] ?? row['campaignId']);
+      if (campaignId != null) {
+        campaignIds.add(campaignId);
+      }
+      final creatorId = _string(row['creator_id'] ?? row['creatorId']);
+      if (creatorId != null) {
+        creatorIds.add(creatorId);
+      }
+    }
+
+    final campaignTitles = await _loadCampaignTitles(campaignIds);
+    final creatorUsernames = await _loadCreatorUsernames(creatorIds);
+    final creatorAvatarUrls = await _loadCreatorAvatarUrls(creatorIds);
+
+    final items = <BrandChatNotificationItem>[];
+    for (final row in rows) {
+      final chatId = _string(row['id'] ?? row['chat_id'] ?? row['chatId']);
+      if (chatId == null) continue;
+      final campaignId = _string(row['campaign_id'] ?? row['campaignId']);
+      final creatorId = _string(row['creator_id'] ?? row['creatorId']);
+      final updatedAt = _dateTime(
+        row['updated_at'] ??
+            row['updatedAt'] ??
+            row['created_at'] ??
+            row['createdAt'],
+      );
+      final lastMessage = _string(row['last_message'] ?? row['lastMessage']);
+
+      items.add(
+        BrandChatNotificationItem(
+          chatId: chatId,
+          campaignId: campaignId,
+          campaignTitle: campaignId == null ? null : campaignTitles[campaignId],
+          creatorId: creatorId,
+          creatorUsername: creatorId == null ? null : creatorUsernames[creatorId],
+          creatorAvatarUrl: creatorId == null
+              ? null
+              : creatorAvatarUrls[creatorId],
+          lastMessage: lastMessage,
+          updatedAt: updatedAt,
+        ),
+      );
+    }
+
+    items.sort((a, b) {
+      final aTime = a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bTime = b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bTime.compareTo(aTime);
+    });
+    return items;
+  }
+
   Stream<List<MessageModel>> getMessagesStream({required String chatId}) {
     _log('messages.stream.start chatId=$chatId');
     return _client
@@ -80,6 +148,75 @@ class ChatRepository {
       nowIso: now,
     );
     _log('messages.send.success chatId=$chatId');
+  }
+
+  Future<void> markMessagesAsRead({
+    required String chatId,
+    required String readerId,
+  }) async {
+    final cleanChatId = chatId.trim();
+    final cleanReaderId = readerId.trim();
+    if (cleanChatId.isEmpty || cleanReaderId.isEmpty) return;
+
+    try {
+      await _client.rpc(
+        'mark_chat_messages_read',
+        params: {'p_chat_id': cleanChatId},
+      );
+      return;
+    } on PostgrestException catch (error) {
+      final canFallback =
+          _isMissingRpc(error) ||
+          _isColumnError(error) ||
+          _isPermissionDenied(error);
+      if (!canFallback) rethrow;
+      _log(
+        'messages.read.rpc_fallback chatId=$cleanChatId code=${error.code} msg=${error.message}',
+      );
+    }
+
+    final now = DateTime.now().toUtc().toIso8601String();
+    final attempts = <_MarkReadAttempt>[
+      const _MarkReadAttempt(
+        chatColumn: 'chat_id',
+        senderColumn: 'sender_id',
+        readColumn: 'read_at',
+      ),
+      const _MarkReadAttempt(
+        chatColumn: 'chat_id',
+        senderColumn: 'senderId',
+        readColumn: 'read_at',
+      ),
+      const _MarkReadAttempt(
+        chatColumn: 'chatId',
+        senderColumn: 'senderId',
+        readColumn: 'readAt',
+      ),
+      const _MarkReadAttempt(
+        chatColumn: 'chatId',
+        senderColumn: 'sender_id',
+        readColumn: 'readAt',
+      ),
+    ];
+
+    PostgrestException? lastColumnError;
+    for (final attempt in attempts) {
+      try {
+        await _client
+            .from('messages')
+            .update({attempt.readColumn: now})
+            .eq(attempt.chatColumn, cleanChatId)
+            .neq(attempt.senderColumn, cleanReaderId)
+            .filter(attempt.readColumn, 'is', 'null');
+        return;
+      } on PostgrestException catch (error) {
+        if (!_isColumnError(error) && !_isPermissionDenied(error)) rethrow;
+        if (_isPermissionDenied(error)) return;
+        lastColumnError = error;
+      }
+    }
+
+    if (lastColumnError != null) throw lastColumnError;
   }
 
   Future<String> createChatForMatch({
@@ -374,6 +511,222 @@ class ChatRepository {
     }
   }
 
+  Future<List<Map<String, dynamic>>> _queryBrandChatRows({
+    required String brandId,
+    required int limit,
+  }) async {
+    try {
+      final rows = await _client
+          .from('chats')
+          .select('*')
+          .eq('brand_id', brandId)
+          .order('updated_at', ascending: false)
+          .limit(limit);
+      return _rowsToMaps(rows);
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    try {
+      final rows = await _client
+          .from('chats')
+          .select('*')
+          .eq('brand_id', brandId)
+          .order('created_at', ascending: false)
+          .limit(limit);
+      return _rowsToMaps(rows);
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    try {
+      final rows = await _client
+          .from('chats')
+          .select('*')
+          .eq('brandId', brandId)
+          .order('updatedAt', ascending: false)
+          .limit(limit);
+      return _rowsToMaps(rows);
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    try {
+      final rows = await _client
+          .from('chats')
+          .select('*')
+          .eq('brandId', brandId)
+          .order('createdAt', ascending: false)
+          .limit(limit);
+      return _rowsToMaps(rows);
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+      return const <Map<String, dynamic>>[];
+    }
+  }
+
+  Future<Map<String, String>> _loadCampaignTitles(Set<String> campaignIds) async {
+    if (campaignIds.isEmpty) return const <String, String>{};
+
+    try {
+      final rows = await _client
+          .from('campaigns')
+          .select('id,title')
+          .inFilter('id', campaignIds.toList());
+      return _rowsToMaps(rows).fold<Map<String, String>>(<String, String>{}, (
+        acc,
+        row,
+      ) {
+        final id = _string(row['id']);
+        final title = _string(row['title']);
+        if (id != null && title != null) {
+          acc[id] = title;
+        }
+        return acc;
+      });
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    try {
+      final rows = await _client
+          .from('campaigns')
+          .select('id,name')
+          .inFilter('id', campaignIds.toList());
+      return _rowsToMaps(rows).fold<Map<String, String>>(<String, String>{}, (
+        acc,
+        row,
+      ) {
+        final id = _string(row['id']);
+        final title = _string(row['name']);
+        if (id != null && title != null) {
+          acc[id] = title;
+        }
+        return acc;
+      });
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    final rows = await _client
+        .from('campaigns')
+        .select('id,headline')
+        .inFilter('id', campaignIds.toList());
+    return _rowsToMaps(rows).fold<Map<String, String>>(<String, String>{}, (
+      acc,
+      row,
+    ) {
+      final id = _string(row['id']);
+      final title = _string(row['headline']);
+      if (id != null && title != null) {
+        acc[id] = title;
+      }
+      return acc;
+    });
+  }
+
+  Future<Map<String, String>> _loadCreatorUsernames(Set<String> creatorIds) async {
+    if (creatorIds.isEmpty) return const <String, String>{};
+
+    try {
+      final rows = await _client
+          .from('profiles')
+          .select('id,username')
+          .inFilter('id', creatorIds.toList());
+      return _rowsToMaps(rows).fold<Map<String, String>>(<String, String>{}, (
+        acc,
+        row,
+      ) {
+        final id = _string(row['id']);
+        final username = _string(row['username']);
+        if (id != null && username != null) {
+          acc[id] = username;
+        }
+        return acc;
+      });
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+    }
+
+    try {
+      final rows = await _client
+          .from('profiles')
+          .select('user_id,username')
+          .inFilter('user_id', creatorIds.toList());
+      return _rowsToMaps(rows).fold<Map<String, String>>(<String, String>{}, (
+        acc,
+        row,
+      ) {
+        final id = _string(row['user_id']);
+        final username = _string(row['username']);
+        if (id != null && username != null) {
+          acc[id] = username;
+        }
+        return acc;
+      });
+    } on PostgrestException catch (error) {
+      if (!_isColumnError(error)) rethrow;
+      return const <String, String>{};
+    }
+  }
+
+  Future<Map<String, String>> _loadCreatorAvatarUrls(Set<String> creatorIds) async {
+    if (creatorIds.isEmpty) return const <String, String>{};
+
+    final avatarColumns = <String>['avatar_url', 'avatarUrl'];
+    final idColumns = <String>['id', 'user_id'];
+
+    for (final idColumn in idColumns) {
+      for (final avatarColumn in avatarColumns) {
+        try {
+          final rows = await _client
+              .from('profiles')
+              .select('$idColumn,$avatarColumn')
+              .inFilter(idColumn, creatorIds.toList());
+          return _rowsToMaps(rows).fold<Map<String, String>>(<String, String>{}, (
+            acc,
+            row,
+          ) {
+            final id = _string(row[idColumn]);
+            final avatar = _string(row[avatarColumn]);
+            if (id != null && avatar != null) {
+              acc[id] = avatar;
+            }
+            return acc;
+          });
+        } on PostgrestException catch (error) {
+          if (!_isColumnError(error)) rethrow;
+        }
+      }
+    }
+
+    return const <String, String>{};
+  }
+
+  List<Map<String, dynamic>> _rowsToMaps(dynamic rows) {
+    final raw = rows is List ? rows : const <dynamic>[];
+    return raw.whereType<Object>().map(_toMap).toList();
+  }
+
+  Map<String, dynamic> _toMap(Object row) {
+    if (row is Map<String, dynamic>) return row;
+    if (row is Map) {
+      return row.map((key, value) => MapEntry('$key', value));
+    }
+    return <String, dynamic>{};
+  }
+
+  String? _string(dynamic value) {
+    final text = (value ?? '').toString().trim();
+    if (text.isEmpty) return null;
+    return text;
+  }
+
+  DateTime? _dateTime(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString());
+  }
+
   String? _readId(dynamic row) {
     if (row == null) return null;
     if (row is Map<String, dynamic>) {
@@ -417,6 +770,21 @@ class ChatRepository {
             error.message.toLowerCase().contains('does not exist');
   }
 
+  bool _isMissingRpc(PostgrestException error) {
+    return error.code == '42883' ||
+        error.message.toLowerCase().contains('function') ||
+        error.message.toLowerCase().contains('rpc');
+  }
+
+  bool _isPermissionDenied(PostgrestException error) {
+    final message = error.message.toLowerCase();
+    return error.code == '42501' ||
+        _messageContainsSqlState(error, '42501') ||
+        message.contains('row-level security') ||
+        message.contains('forbidden') ||
+        message.contains('permission denied');
+  }
+
   bool _messageContainsSqlState(PostgrestException error, String sqlState) {
     final message = error.message;
     return message.contains('"code":"$sqlState"') ||
@@ -427,4 +795,38 @@ class ChatRepository {
     if (!kDebugMode) return;
     debugPrint('[ChatRepository] $message');
   }
+}
+
+class BrandChatNotificationItem {
+  const BrandChatNotificationItem({
+    required this.chatId,
+    this.campaignId,
+    this.campaignTitle,
+    this.creatorId,
+    this.creatorUsername,
+    this.creatorAvatarUrl,
+    this.lastMessage,
+    this.updatedAt,
+  });
+
+  final String chatId;
+  final String? campaignId;
+  final String? campaignTitle;
+  final String? creatorId;
+  final String? creatorUsername;
+  final String? creatorAvatarUrl;
+  final String? lastMessage;
+  final DateTime? updatedAt;
+}
+
+class _MarkReadAttempt {
+  const _MarkReadAttempt({
+    required this.chatColumn,
+    required this.senderColumn,
+    required this.readColumn,
+  });
+
+  final String chatColumn;
+  final String senderColumn;
+  final String readColumn;
 }

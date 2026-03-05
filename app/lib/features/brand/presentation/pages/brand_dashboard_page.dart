@@ -54,9 +54,13 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
   }
 
   Future<void> _openNotifications() async {
-    await ref
-        .read(brandNotificationsBadgeControllerProvider.notifier)
-        .markAllSeen();
+    try {
+      await ref
+          .read(brandNotificationsBadgeControllerProvider.notifier)
+          .markAllSeen();
+    } catch (_) {
+      // Non bloccare l'apertura del centro notifiche in caso di errore badge.
+    }
     if (!mounted) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const BrandNotificationsPage()),

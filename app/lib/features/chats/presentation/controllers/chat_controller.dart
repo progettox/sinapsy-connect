@@ -57,6 +57,7 @@ class ChatController extends StateNotifier<ChatState> {
   final String _chatId;
   final ChatRepository _chatRepository;
   final AuthRepository _authRepository;
+  bool _isMarkingAsRead = false;
 
   Future<bool> send(String text) async {
     final senderId = _authRepository.currentUser?.id ?? state.currentUserId;
@@ -97,5 +98,29 @@ class ChatController extends StateNotifier<ChatState> {
 
   void clearError() {
     state = state.copyWith(clearError: true);
+  }
+
+  Future<void> markIncomingAsRead(List<MessageModel> messages) async {
+    if (_isMarkingAsRead || messages.isEmpty) return;
+
+    final readerId = _authRepository.currentUser?.id ?? state.currentUserId;
+    if (readerId == null || readerId.trim().isEmpty) return;
+
+    final hasUnreadIncoming = messages.any(
+      (message) => message.senderId != readerId && message.readAt == null,
+    );
+    if (!hasUnreadIncoming) return;
+
+    _isMarkingAsRead = true;
+    try {
+      await _chatRepository.markMessagesAsRead(
+        chatId: _chatId,
+        readerId: readerId,
+      );
+    } catch (_) {
+      // Lettura "best effort": non bloccare la chat se fallisce il visualizzato.
+    } finally {
+      _isMarkingAsRead = false;
+    }
   }
 }

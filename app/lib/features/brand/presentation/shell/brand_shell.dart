@@ -6,9 +6,9 @@ import '../../../profile/data/profile_model.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../pages/brand_analytics_page.dart';
+import '../pages/brand_chat_inbox_page.dart';
 import '../pages/brand_dashboard_page.dart';
 import '../pages/brand_discover_creators_page.dart';
-import '../pages/brand_projects_page.dart';
 import '../widgets/premium_brand_bottom_nav.dart';
 import '../widgets/profile_linked_accounts_sheet.dart';
 
@@ -89,7 +89,7 @@ class _BrandShellState extends ConsumerState<BrandShell> {
         case 2:
           return const RepaintBoundary(child: ProfilePage());
         case 3:
-          return const RepaintBoundary(child: BrandProjectsPage());
+          return const RepaintBoundary(child: BrandChatInboxPage());
         case 4:
         default:
           return const RepaintBoundary(child: BrandAnalyticsPage());
