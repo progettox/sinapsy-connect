@@ -406,19 +406,11 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
         campaignId: item.campaignId,
         acceptedApplicationId: item.id,
       );
-      String? chatId;
-      try {
-        chatId = await _chatRepository.createChatForMatch(
-          campaignId: item.campaignId,
-          brandId: brandId,
-          creatorId: item.creatorId,
-        );
-      } on PostgrestException catch (error) {
-        if (!_isPermissionDenied(error)) rethrow;
-        _log(
-          'application.accept.chat_permission_denied campaignId=${item.campaignId} applicationId=${item.id} code=${error.code}',
-        );
-      }
+      final chatId = await _resolveOrCreateChatForMatch(
+        campaignId: item.campaignId,
+        brandId: brandId,
+        creatorId: item.creatorId,
+      );
 
       _applySingleMatchLocally(
         campaignId: item.campaignId,
@@ -1675,6 +1667,57 @@ class ApplicationsController extends StateNotifier<ApplicationsState> {
       }
     }
     return next;
+  }
+
+  Future<String?> _resolveOrCreateChatForMatch({
+    required String campaignId,
+    required String brandId,
+    required String creatorId,
+  }) async {
+    final existing = await _chatRepository.getChatIdForMatch(
+      campaignId: campaignId,
+      brandId: brandId,
+      creatorId: creatorId,
+    );
+    final existingId = existing?.trim();
+    if (existingId != null && existingId.isNotEmpty) {
+      return existingId;
+    }
+
+    try {
+      final created = await _chatRepository.createChatForMatch(
+        campaignId: campaignId,
+        brandId: brandId,
+        creatorId: creatorId,
+      );
+      final createdId = created.trim();
+      if (createdId.isNotEmpty) return createdId;
+    } on PostgrestException catch (error) {
+      if (!_isPermissionDenied(error)) rethrow;
+      _log(
+        'application.chat.resolve.permission_denied campaignId=$campaignId code=${error.code}',
+      );
+    }
+
+    for (var attempt = 0; attempt < 3; attempt++) {
+      final resolved = await _chatRepository.getChatIdForMatch(
+        campaignId: campaignId,
+        brandId: brandId,
+        creatorId: creatorId,
+      );
+      final resolvedId = resolved?.trim();
+      if (resolvedId != null && resolvedId.isNotEmpty) {
+        return resolvedId;
+      }
+      if (attempt < 2) {
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+    }
+
+    _log(
+      'application.chat.resolve.missing campaignId=$campaignId brandId=$brandId creatorId=$creatorId',
+    );
+    return null;
   }
 
   Future<String?> _resolveBrandIdForCampaign(String campaignId) async {
