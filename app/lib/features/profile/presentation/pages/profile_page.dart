@@ -39,7 +39,7 @@ class ProfilePage extends ConsumerStatefulWidget {
 
 class _ProfilePageState extends ConsumerState<ProfilePage>
     with AutomaticKeepAliveClientMixin<ProfilePage> {
-  static const double _profileContentDrop = 130;
+  static const double _profileContentDrop = 160;
   static final Map<String, _FollowCountersSnapshot>
   _followCountersCacheByProfileId = <String, _FollowCountersSnapshot>{};
 
@@ -628,12 +628,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                                           colors: [
                                             Colors.transparent,
                                             Colors.black.withValues(
-                                              alpha: 0.58,
+                                              alpha: 0.26,
                                             ),
-                                            Colors.black.withValues(alpha: 0.9),
+                                            Colors.black.withValues(
+                                              alpha: 0.76,
+                                            ),
                                             Colors.black,
                                           ],
-                                          stops: const [0.0, 0.24, 0.6, 1.0],
+                                          stops: const [0.0, 0.52, 0.8, 1.0],
                                         ),
                                       ),
                                     ),
@@ -1260,7 +1262,7 @@ class _ProfileHeroBackdrop extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: AspectRatio(
-        aspectRatio: 0.84,
+        aspectRatio: 0.96,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -1290,15 +1292,16 @@ class _ProfileHeroBackdrop extends StatelessWidget {
                   end: Alignment.topCenter,
                   colors: [
                     Colors.black,
-                    Colors.black.withValues(alpha: 0.98),
+                    Colors.black.withValues(alpha: 0.92),
                     Colors.black.withValues(alpha: 0.72),
-                    Colors.black.withValues(alpha: 0.22),
+                    Colors.black.withValues(alpha: 0.42),
+                    Colors.black.withValues(alpha: 0.16),
                     Colors.transparent,
                   ],
-                  stops: const [0.0, 0.20, 0.50, 0.78, 1.0],
+                  stops: const [0.0, 0.18, 0.4, 0.62, 0.82, 1.0],
                 ).createShader(rect),
                 child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(sigmaX: 9.0, sigmaY: 9.0),
+                  imageFilter: ImageFilter.blur(sigmaX: 11.0, sigmaY: 11.0),
                   child: pendingAvatarBytes != null
                       ? Image.memory(
                           pendingAvatarBytes!,
@@ -1320,12 +1323,12 @@ class _ProfileHeroBackdrop extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.06),
-                    Colors.black.withValues(alpha: 0.3),
-                    const Color(0xFF090611).withValues(alpha: 0.9),
+                    Colors.black.withValues(alpha: 0.0),
+                    Colors.black.withValues(alpha: 0.14),
+                    Colors.black.withValues(alpha: 0.5),
                     Colors.black,
                   ],
-                  stops: const [0.0, 0.3, 0.54, 1.0],
+                  stops: const [0.0, 0.5, 0.78, 1.0],
                 ),
               ),
             ),
@@ -1979,12 +1982,12 @@ class _PortfolioGrid extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: const Color(0xFF7040CF).withValues(alpha: 0.3),
+          color: const Color(0xFF2A2A32).withValues(alpha: 0.72),
         ),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xB1150E29), Color(0xAA0F0A1E)],
+          colors: [Color(0xE0101016), Color(0xC80A0A0F)],
         ),
       ),
       child: isLoading
@@ -2042,7 +2045,7 @@ class _PortfolioGrid extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [Color(0xFF2B1D45), Color(0xFF19132A)],
+                        colors: [Color(0xFF16161D), Color(0xFF0E0E14)],
                       ),
                     ),
                     child: url.isNotEmpty
@@ -2100,10 +2103,10 @@ class _PortfolioAddTile extends StatelessWidget {
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF2B1D45), Color(0xFF19132A)],
+                colors: [Color(0xFF16161D), Color(0xFF0E0E14)],
               ),
               border: Border.all(
-                color: const Color(0xFF8F62F2).withValues(alpha: 0.5),
+                color: const Color(0xFF30303A).withValues(alpha: 0.82),
               ),
             ),
             child: Center(
