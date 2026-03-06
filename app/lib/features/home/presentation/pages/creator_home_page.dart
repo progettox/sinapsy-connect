@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../auth/data/auth_repository.dart';
-import '../../../brand/presentation/pages/brand_projects_page.dart';
 import '../../../brand/presentation/widgets/premium_brand_bottom_nav.dart';
 import '../../../brand/presentation/widgets/profile_linked_accounts_sheet.dart';
 import '../../../campaigns/presentation/pages/creator_feed_page.dart';
@@ -11,6 +10,7 @@ import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import 'creator_analytics_page.dart';
 import 'brand_search_page.dart';
+import 'creator_chat_inbox_page.dart';
 
 class CreatorHomePage extends ConsumerStatefulWidget {
   const CreatorHomePage({super.key});
@@ -89,9 +89,7 @@ class _CreatorHomePageState extends ConsumerState<CreatorHomePage> {
         case 2:
           return const RepaintBoundary(child: ProfilePage());
         case 3:
-          return const RepaintBoundary(
-            child: BrandProjectsPage(creatorMode: true),
-          );
+          return const RepaintBoundary(child: CreatorChatInboxPage());
         case 4:
         default:
           return const RepaintBoundary(child: CreatorAnalyticsPage());
