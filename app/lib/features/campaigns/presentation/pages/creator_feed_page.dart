@@ -1,14 +1,19 @@
 import 'dart:ui';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/storage/storage_service.dart';
 import '../../../../core/supabase/supabase_client_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sinapsy_logo_loader.dart';
+import '../../../auth/data/auth_repository.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
+import '../../../profile/presentation/pages/public_profile_page.dart';
 import '../../data/campaign_model.dart';
+import 'creator_notifications_page.dart';
 import '../controllers/creator_feed_controller.dart';
 
 class CreatorFeedPage extends ConsumerStatefulWidget {
@@ -24,6 +29,7 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage>
       const <String, _BrandLiteProfile>{};
   int _activeCampaignIndex = 0;
   bool _isLoadingBrands = false;
+  bool _isUploadingPortfolioMedia = false;
   String? _feedErrorMessage;
   String? _lastHeroImageUrl;
 
@@ -51,6 +57,12 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage>
     await ref.read(creatorFeedControllerProvider.notifier).loadFeed();
   }
 
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const CreatorNotificationsPage()),
+    );
+  }
+
   Future<void> _apply(CampaignModel campaign) async {
     final profile = ref.read(profileControllerProvider).profile;
     final ok = await ref
@@ -60,15 +72,115 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage>
     _showSnack('Candidatura inviata con successo.');
   }
 
-  void _skipActiveCampaign(List<CampaignModel> campaigns) {
-    if (campaigns.isEmpty) return;
-    final safeIndex = _activeCampaignIndex >= campaigns.length
-        ? campaigns.length - 1
-        : _activeCampaignIndex;
-    final campaignId = campaigns[safeIndex].id.trim();
-    if (campaignId.isEmpty) return;
-    ref.read(creatorFeedControllerProvider.notifier).skipCampaign(campaignId);
-    _showSnack('Annuncio saltato.');
+  Future<void> _openBrandProfile(
+    CampaignModel campaign,
+    _BrandLiteProfile? brand,
+  ) async {
+    final brandId = (campaign.brandId ?? '').trim();
+    if (brandId.isEmpty) {
+      _showSnack('Profilo brand non disponibile.');
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PublicProfilePage(
+          profileId: brandId,
+          initialRole: 'brand',
+          initialUsername: brand?.username,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _publishPortfolioPhoto() async {
+    if (_isUploadingPortfolioMedia) return;
+
+    final currentProfile = ref.read(profileControllerProvider).profile;
+    final role = currentProfile?.role;
+    if (role != null && role.name != 'creator') {
+      _showSnack('Azione disponibile solo per profilo Creator.');
+      return;
+    }
+
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (picked == null || picked.files.isEmpty) return;
+
+    final file = picked.files.first;
+    final bytes = file.bytes;
+    if (bytes == null) {
+      _showSnack('Impossibile leggere il file selezionato.');
+      return;
+    }
+
+    final fromProfile = (currentProfile?.id ?? '').trim();
+    final fromAuth = (ref.read(authRepositoryProvider).currentUser?.id ?? '')
+        .trim();
+    final creatorId = fromProfile.isNotEmpty ? fromProfile : fromAuth;
+    if (creatorId.isEmpty) {
+      _showSnack('Sessione non valida: impossibile caricare la foto.');
+      return;
+    }
+
+    setState(() => _isUploadingPortfolioMedia = true);
+
+    try {
+      final imageUrl = await ref
+          .read(storageServiceProvider)
+          .uploadCreatorPortfolioImage(
+            creatorId: creatorId,
+            bytes: bytes,
+            originalFileName: file.name,
+          );
+
+      await _insertCreatorPortfolioRow(
+        creatorId: creatorId,
+        imageUrl: imageUrl,
+      );
+      if (!mounted) return;
+
+      await ref.read(profileControllerProvider.notifier).loadMyProfile();
+      _showSnack('Foto aggiunta al portfolio.');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Errore caricamento foto portfolio: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingPortfolioMedia = false);
+      }
+    }
+  }
+
+  Future<void> _insertCreatorPortfolioRow({
+    required String creatorId,
+    required String imageUrl,
+  }) async {
+    final client = ref.read(supabaseClientProvider);
+    final sortOrder = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+
+    try {
+      await client.from('creator_media').insert({
+        'creator_id': creatorId,
+        'image_url': imageUrl,
+        'sort_order': sortOrder,
+        'is_featured': false,
+      });
+    } on PostgrestException catch (error) {
+      if (_isMissingTable(error)) {
+        throw StateError('Tabella creator_media non disponibile.');
+      }
+      if (!_isColumnError(error)) rethrow;
+
+      await client.from('creator_media').insert({
+        'creatorId': creatorId,
+        'imageUrl': imageUrl,
+        'sortOrder': sortOrder,
+        'isFeatured': false,
+      });
+    }
   }
 
   Future<void> _loadBrandProfilesForCampaigns(
@@ -236,8 +348,6 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage>
     super.build(context);
     final state = ref.watch(creatorFeedControllerProvider);
     final heroImageUrl = _resolveHeroImageUrl(state.campaigns);
-    final canRefresh = !state.isLoading;
-    final hasCampaigns = state.campaigns.isNotEmpty;
 
     ref.listen<CreatorFeedState>(creatorFeedControllerProvider, (
       previous,
@@ -305,20 +415,18 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage>
                                   children: [
                                     const Spacer(),
                                     _NotificationActionButton(
-                                      tooltip: 'Aggiorna annunci',
-                                      onPressed: canRefresh
-                                          ? _refreshFeed
-                                          : null,
+                                      tooltip: 'Centro notifiche',
+                                      onPressed: _openNotifications,
                                       showBadge: false,
                                     ),
                                     const SizedBox(width: 10),
                                     _CreateCampaignActionButton(
-                                      tooltip: 'Salta annuncio',
-                                      onPressed: hasCampaigns
-                                          ? () => _skipActiveCampaign(
-                                              state.campaigns,
-                                            )
-                                          : null,
+                                      tooltip: _isUploadingPortfolioMedia
+                                          ? 'Caricamento foto...'
+                                          : 'Aggiungi foto portfolio',
+                                      onPressed: _isUploadingPortfolioMedia
+                                          ? null
+                                          : _publishPortfolioPhoto,
                                     ),
                                   ],
                                 ),
@@ -356,6 +464,7 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage>
                                             state.applyingCampaignId,
                                         onRetry: _refreshFeed,
                                         onApply: _apply,
+                                        onOpenBrandProfile: _openBrandProfile,
                                         onPageChanged: (index) {
                                           if (_activeCampaignIndex == index) {
                                             return;
@@ -501,6 +610,7 @@ class _RecommendedCampaignsSection extends StatefulWidget {
     required this.applyingCampaignId,
     required this.onRetry,
     required this.onApply,
+    required this.onOpenBrandProfile,
     required this.onPageChanged,
   });
 
@@ -513,6 +623,8 @@ class _RecommendedCampaignsSection extends StatefulWidget {
   final String? applyingCampaignId;
   final Future<void> Function() onRetry;
   final Future<void> Function(CampaignModel campaign) onApply;
+  final Future<void> Function(CampaignModel campaign, _BrandLiteProfile? brand)
+  onOpenBrandProfile;
   final ValueChanged<int> onPageChanged;
 
   @override
@@ -646,6 +758,9 @@ class _RecommendedCampaignsSectionState
                       onApply: () {
                         widget.onApply(campaign);
                       },
+                      onOpenBrandProfile: () {
+                        widget.onOpenBrandProfile(campaign, brand);
+                      },
                     );
                   },
                 ),
@@ -726,6 +841,7 @@ class _CampaignRecommendationCard extends StatelessWidget {
     required this.isLoadingBrand,
     required this.isApplying,
     required this.onApply,
+    required this.onOpenBrandProfile,
   });
 
   final CampaignModel campaign;
@@ -733,6 +849,7 @@ class _CampaignRecommendationCard extends StatelessWidget {
   final bool isLoadingBrand;
   final bool isApplying;
   final VoidCallback onApply;
+  final VoidCallback onOpenBrandProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -757,36 +874,55 @@ class _CampaignRecommendationCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  _BrandAvatar(brand: brand, isLoading: isLoadingBrand),
-                  const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          campaign.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFEDE4FF),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: onOpenBrandProfile,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            children: [
+                              _BrandAvatar(
+                                brand: brand,
+                                isLoading: isLoadingBrand,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      campaign.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFFEDE4FF),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      brandName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFFCEC1EE),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    _CampaignCategoryChip(label: 'brand'),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          brandName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFFCEC1EE),
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        _CampaignCategoryChip(label: 'brand'),
-                      ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),

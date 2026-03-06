@@ -93,6 +93,8 @@ class BrandCreatorFeedRepository {
       ];
 
   List<_FollowStorageSchema>? _cachedFollowSchemas;
+  String? _cachedResolvedProfileIdForAuthUser;
+  String? _cachedResolvedProfileId;
 
   String? get currentUserId => _client.auth.currentUser?.id;
 
@@ -234,10 +236,14 @@ class BrandCreatorFeedRepository {
     required String creatorId,
     required bool isFollowing,
   }) async {
-    final followerId = currentUserId;
-    if (followerId == null || followerId.isEmpty) {
+    final currentIdentity = await _resolveCurrentProfileIdentity();
+    if (currentIdentity == null) {
       throw StateError('Sessione non valida: impossibile seguire creator.');
     }
+    final followerId = currentIdentity.profileId;
+    final followerLookupIds = currentIdentity.followRecordIds.toList(
+      growable: false,
+    );
 
     final schemas = await _resolveFollowSchemas();
     if (schemas.isEmpty) {
@@ -245,7 +251,7 @@ class BrandCreatorFeedRepository {
     }
 
     final wasFollowing = await _isFollowingCreator(
-      followerId: followerId,
+      followerIds: followerLookupIds,
       creatorId: creatorId,
       schemas: schemas,
     );
@@ -282,7 +288,7 @@ class BrandCreatorFeedRepository {
           await _client
               .from(schema.table)
               .delete()
-              .eq(schema.followerColumn, followerId)
+              .inFilter(schema.followerColumn, followerLookupIds)
               .eq(schema.followedColumn, creatorId);
         } on PostgrestException catch (error) {
           if (_isMissingTable(error) ||
@@ -296,7 +302,7 @@ class BrandCreatorFeedRepository {
     }
 
     final isFollowingNow = await _isFollowingCreator(
-      followerId: followerId,
+      followerIds: followerLookupIds,
       creatorId: creatorId,
       schemas: schemas,
     );
@@ -312,7 +318,7 @@ class BrandCreatorFeedRepository {
     if (delta != 0) {
       await _adjustProfileFollowCounts(
         followedProfileId: creatorId,
-        followerProfileId: followerId,
+        followerProfileId: currentIdentity.profileId,
         delta: delta,
       );
     }
@@ -391,19 +397,22 @@ class BrandCreatorFeedRepository {
     final schemas = await _resolveFollowSchemas();
     if (schemas.isEmpty) return const _FollowSnapshot();
 
-    final currentFollowerId = currentUserId;
+    final currentIdentity = await _resolveCurrentProfileIdentity();
+    final currentFollowerIds = currentIdentity == null
+        ? const <String>[]
+        : currentIdentity.followRecordIds.toList(growable: false);
     final followedCreatorIds = <String>{};
     final followerSetsByCreatorId = <String, Set<String>>{};
     final followingSetsByCreatorId = <String, Set<String>>{};
     final creatorIdSet = creatorIds.toSet();
 
     for (final schema in schemas) {
-      if (currentFollowerId != null && currentFollowerId.isNotEmpty) {
+      if (currentFollowerIds.isNotEmpty) {
         try {
           final followedRaw = await _client
               .from(schema.table)
               .select(schema.followedColumn)
-              .eq(schema.followerColumn, currentFollowerId)
+              .inFilter(schema.followerColumn, currentFollowerIds)
               .inFilter(schema.followedColumn, creatorIds);
           final followedRows = List<Map<String, dynamic>>.from(
             followedRaw as List,
@@ -529,16 +538,17 @@ class BrandCreatorFeedRepository {
   }
 
   Future<bool> _isFollowingCreator({
-    required String followerId,
+    required List<String> followerIds,
     required String creatorId,
     required List<_FollowStorageSchema> schemas,
   }) async {
+    if (followerIds.isEmpty) return false;
     for (final schema in schemas) {
       try {
         final raw = await _client
             .from(schema.table)
             .select(schema.followedColumn)
-            .eq(schema.followerColumn, followerId)
+            .inFilter(schema.followerColumn, followerIds)
             .eq(schema.followedColumn, creatorId)
             .limit(1);
         final rows = List<Map<String, dynamic>>.from(raw as List);
@@ -637,6 +647,65 @@ class BrandCreatorFeedRepository {
     if (raw == null) return null;
     final row = Map<String, dynamic>.from(raw as Map);
     return _parseInt(row[column]);
+  }
+
+  Future<_CurrentProfileIdentity?> _resolveCurrentProfileIdentity() async {
+    final authUserId = currentUserId?.trim() ?? '';
+    if (authUserId.isEmpty) return null;
+
+    final profileId = await _resolveProfileIdForAuthUser(authUserId);
+    final followRecordIds = <String>{authUserId};
+    if (profileId != null && profileId.isNotEmpty) {
+      followRecordIds.add(profileId);
+    }
+
+    return _CurrentProfileIdentity(
+      authUserId: authUserId,
+      profileId: profileId ?? authUserId,
+      followRecordIds: followRecordIds,
+    );
+  }
+
+  Future<String?> _resolveProfileIdForAuthUser(String authUserId) async {
+    if (_cachedResolvedProfileIdForAuthUser == authUserId) {
+      final cached = (_cachedResolvedProfileId ?? '').trim();
+      if (cached.isNotEmpty) return cached;
+    }
+
+    String? resolvedId;
+    resolvedId = await _loadProfileIdByColumn(column: 'id', value: authUserId);
+    resolvedId ??= await _loadProfileIdByColumn(
+      column: 'user_id',
+      value: authUserId,
+    );
+
+    _cachedResolvedProfileIdForAuthUser = authUserId;
+    _cachedResolvedProfileId = resolvedId;
+    return resolvedId;
+  }
+
+  Future<String?> _loadProfileIdByColumn({
+    required String column,
+    required String value,
+  }) async {
+    try {
+      final raw = await _client
+          .from('profiles')
+          .select('id')
+          .eq(column, value)
+          .maybeSingle();
+      if (raw == null) return null;
+      final row = Map<String, dynamic>.from(raw as Map);
+      final profileId = (row['id'] ?? '').toString().trim();
+      return profileId.isEmpty ? null : profileId;
+    } on PostgrestException catch (error) {
+      if (_isMissingTable(error) ||
+          _isColumnError(error) ||
+          _isPermissionDenied(error)) {
+        return null;
+      }
+      rethrow;
+    }
   }
 
   int? _bestAvailableCount({int? profileCount, int? runtimeCount}) {
@@ -754,6 +823,18 @@ class _FollowStorageSchema {
   final String table;
   final String followerColumn;
   final String followedColumn;
+}
+
+class _CurrentProfileIdentity {
+  const _CurrentProfileIdentity({
+    required this.authUserId,
+    required this.profileId,
+    required this.followRecordIds,
+  });
+
+  final String authUserId;
+  final String profileId;
+  final Set<String> followRecordIds;
 }
 
 class _FollowSnapshot {

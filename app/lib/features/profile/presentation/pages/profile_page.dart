@@ -37,8 +37,11 @@ class ProfilePage extends ConsumerStatefulWidget {
   ConsumerState<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends ConsumerState<ProfilePage> {
+class _ProfilePageState extends ConsumerState<ProfilePage>
+    with AutomaticKeepAliveClientMixin<ProfilePage> {
   static const double _profileContentDrop = 130;
+  static final Map<String, _FollowCountersSnapshot>
+  _followCountersCacheByProfileId = <String, _FollowCountersSnapshot>{};
 
   Uint8List? _pendingAvatarBytes;
   bool _isUploadingAvatar = false;
@@ -58,6 +61,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   bool _isLoadingFollowCounters = false;
   int? _liveFollowersCount;
   int? _liveFollowingCount;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -169,6 +175,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         _liveFollowingCount = counters.followingCount;
         _isLoadingFollowCounters = false;
       });
+      _followCountersCacheByProfileId[cleanProfileId] = _FollowCountersSnapshot(
+        followersCount: counters.followersCount,
+        followingCount: counters.followingCount,
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _isLoadingFollowCounters = false);
@@ -385,6 +395,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final state = ref.watch(profileControllerProvider);
     final badgeState = ref.watch(brandNotificationsBadgeControllerProvider);
     final theme = Theme.of(context);
@@ -404,6 +415,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       }
 
       final nextProfile = next.profile;
+      final previousProfile = previous?.profile;
       final previousProfileId = previous?.profile?.id;
       if (nextProfile == null) {
         if (_loadedPortfolioProfileId != null ||
@@ -429,7 +441,35 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         }
         return;
       }
+
+      if (previousProfile != null && previousProfile.id == nextProfile.id) {
+        final nextFollowers = nextProfile.followersCount;
+        final nextFollowing = nextProfile.followingCount;
+        final shouldSyncLiveCounters =
+            (nextFollowers != null && nextFollowers != _liveFollowersCount) ||
+            (nextFollowing != null && nextFollowing != _liveFollowingCount);
+        if (shouldSyncLiveCounters) {
+          setState(() {
+            if (nextFollowers != null) _liveFollowersCount = nextFollowers;
+            if (nextFollowing != null) _liveFollowingCount = nextFollowing;
+          });
+          _followCountersCacheByProfileId[nextProfile.id
+              .trim()] = _FollowCountersSnapshot(
+            followersCount: nextFollowers ?? _liveFollowersCount ?? 0,
+            followingCount: nextFollowing ?? _liveFollowingCount ?? 0,
+          );
+        }
+      }
+
       if (previousProfileId != nextProfile.id) {
+        final cleanNextProfileId = nextProfile.id.trim();
+        final cached = _followCountersCacheByProfileId[cleanNextProfileId];
+        setState(() {
+          _loadedFollowCountersProfileId = null;
+          _isLoadingFollowCounters = false;
+          _liveFollowersCount = cached?.followersCount;
+          _liveFollowingCount = cached?.followingCount;
+        });
         unawaited(_loadPortfolioForProfile(nextProfile, force: true));
         unawaited(_loadReviewSummaryForProfile(nextProfile.id, force: true));
       }
@@ -498,6 +538,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       final websiteUrl = _normalizeExternalUrl(
                         profile.websiteUrl ?? socialLinks.website ?? '',
                       );
+                      final cleanProfileId = profile.id.trim();
+                      final cachedFollowCounters =
+                          _followCountersCacheByProfileId[cleanProfileId];
                       if (_loadedFollowCountersProfileId != profile.id &&
                           !_isLoadingFollowCounters) {
                         Future<void>.microtask(() {
@@ -516,9 +559,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       }
 
                       final followersCount =
-                          _liveFollowersCount ?? profile.followersCount ?? 0;
+                          _liveFollowersCount ??
+                          cachedFollowCounters?.followersCount ??
+                          profile.followersCount ??
+                          0;
                       final followingCount =
-                          _liveFollowingCount ?? profile.followingCount ?? 0;
+                          _liveFollowingCount ??
+                          cachedFollowCounters?.followingCount ??
+                          profile.followingCount ??
+                          0;
                       final worksCount = profile.completedWorksCount ?? 0;
                       final ratingLabel = _isLoadingReviewSummary
                           ? '...'
@@ -2618,4 +2667,14 @@ class _ProfileHeroFallback extends StatelessWidget {
       ),
     );
   }
+}
+
+class _FollowCountersSnapshot {
+  const _FollowCountersSnapshot({
+    required this.followersCount,
+    required this.followingCount,
+  });
+
+  final int followersCount;
+  final int followingCount;
 }
