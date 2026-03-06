@@ -41,7 +41,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
   static const double _edgeSwipeActivationWidth = 26;
   static const double _edgeSwipePopDistance = 72;
   static const double _edgeSwipePopVelocity = 820;
-  static const double _profileContentDrop = 130;
+  static const double _profileContentDrop = 272;
 
   bool _isLoading = true;
   bool _isUpdatingFollow = false;
@@ -438,49 +438,27 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            Colors.black.withValues(alpha: 0.58),
-                            Colors.black.withValues(alpha: 0.9),
+                            Colors.black.withValues(alpha: 0.26),
+                            Colors.black.withValues(alpha: 0.76),
                             Colors.black,
                           ],
-                          stops: const [0.0, 0.24, 0.6, 1.0],
+                          stops: const [0.0, 0.52, 0.8, 1.0],
                         ),
                       ),
                     ),
                   ),
                 ),
                 Positioned(
-                  left: 12,
-                  right: 12,
                   top: 12,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _ActionCircleButton(
-                        icon: Icons.arrow_back_ios_new_rounded,
-                        onTap: () => Navigator.of(context).maybePop(),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              data.displayName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 30,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFFF3EEFF),
-                                height: 1,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            _RoleChip(label: data.roleLabel),
-                          ],
-                        ),
-                      ),
-                    ],
+                  left: 12,
+                  child: _RoleChip(label: data.roleLabel),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: _ActionCircleButton(
+                    icon: Icons.arrow_back_ios_new_rounded,
+                    onTap: () => Navigator.of(context).maybePop(),
                   ),
                 ),
                 Positioned(
@@ -490,6 +468,19 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      const SizedBox(height: 6),
+                      Text(
+                        data.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 34,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFFF2EBFF),
+                          height: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -524,7 +515,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                                     children: [
                                       Expanded(
                                         child: _TopStat(
-                                          label: 'N\u00B0 FOLLOWER',
+                                          label: 'Follower',
                                           value: _formatCompact(
                                             data.followersCount,
                                           ),
@@ -536,7 +527,7 @@ class _PublicProfilePageState extends ConsumerState<PublicProfilePage> {
                                       ),
                                       Expanded(
                                         child: _TopStat(
-                                          label: 'N\u00B0 SEGUITI',
+                                          label: 'Seguiti',
                                           value: _formatCompact(
                                             data.followingCount,
                                           ),
@@ -1517,9 +1508,13 @@ class _HeroBackdrop extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasImage = (imageUrl ?? '').trim().isNotEmpty;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.hardEdge,
+      borderRadius: const BorderRadius.only(
+        topLeft: Radius.circular(24),
+        topRight: Radius.circular(24),
+      ),
       child: AspectRatio(
-        aspectRatio: 0.84,
+        aspectRatio: 1.34,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -1541,12 +1536,13 @@ class _HeroBackdrop extends StatelessWidget {
                   end: Alignment.topCenter,
                   colors: [
                     Colors.black,
-                    Colors.black.withValues(alpha: 0.98),
+                    Colors.black.withValues(alpha: 0.92),
                     Colors.black.withValues(alpha: 0.72),
-                    Colors.black.withValues(alpha: 0.22),
+                    Colors.black.withValues(alpha: 0.42),
+                    Colors.black.withValues(alpha: 0.16),
                     Colors.transparent,
                   ],
-                  stops: const [0.0, 0.20, 0.50, 0.78, 1.0],
+                  stops: const [0.0, 0.18, 0.4, 0.62, 0.82, 1.0],
                 ).createShader(rect),
                 child: ImageFiltered(
                   imageFilter: ImageFilter.blur(sigmaX: 11, sigmaY: 11),
@@ -1564,13 +1560,24 @@ class _HeroBackdrop extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.06),
-                    Colors.black.withValues(alpha: 0.3),
-                    const Color(0xFF090611).withValues(alpha: 0.9),
+                    Colors.black.withValues(alpha: 0.36),
+                    Colors.black.withValues(alpha: 0.12),
+                    Colors.black.withValues(alpha: 0.0),
+                    Colors.black.withValues(alpha: 0.2),
+                    Colors.black.withValues(alpha: 0.56),
                     Colors.black,
                   ],
-                  stops: const [0.0, 0.3, 0.54, 1.0],
+                  stops: const [0.0, 0.09, 0.22, 0.52, 0.78, 1.0],
                 ),
+              ),
+            ),
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SizedBox(
+                height: 2,
+                child: ColoredBox(color: Colors.black),
               ),
             ),
           ],
@@ -1588,26 +1595,39 @@ class _ActionCircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkResponse(
-        onTap: onTap,
-        radius: 20,
-        splashColor: const Color(0x26FFFFFF),
-        highlightColor: const Color(0x14FFFFFF),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
+    final isEnabled = onTap != null;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xD61B1230), Color(0xC0120C25)],
+          ),
+          border: Border.all(
+            color: const Color(0xFFF3ECFF).withValues(alpha: 0.58),
+            width: 0.9,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.34),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Center(
           child: Icon(
             icon,
             size: 20,
-            color: const Color(0xFFF3EEFF),
-            shadows: const [
-              Shadow(
-                color: Color(0x6622183A),
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ],
+            color: const Color(
+              0xFFF8F3FF,
+            ).withValues(alpha: isEnabled ? 1 : 0.45),
           ),
         ),
       ),
@@ -1868,28 +1888,41 @@ class _RoleChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0x5A8D4AFF), Color(0x3A4E2B8A)],
-          ),
-          border: Border.all(
-            color: const Color(0xFFBE91FF).withValues(alpha: 0.52),
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xD61B1230), Color(0xC0120C25)],
         ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFFE8DDFF),
+        border: Border.all(
+          color: const Color(0xFFF3ECFF).withValues(alpha: 0.78),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.42),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
+        ],
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFFF8F3FF),
+          height: 1,
+          shadows: [
+            Shadow(
+              color: Color(0xA6000000),
+              blurRadius: 4,
+              offset: Offset(0, 1),
+            ),
+          ],
         ),
       ),
     );
@@ -1918,9 +1951,11 @@ class _TopStat extends StatelessWidget {
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFFD8C9F0),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.24,
+                  color: Color(0xFFE1D5F8),
+                  height: 1.05,
                 ),
               ),
               const SizedBox(height: 4),

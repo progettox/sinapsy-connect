@@ -39,7 +39,7 @@ class ProfilePage extends ConsumerStatefulWidget {
 
 class _ProfilePageState extends ConsumerState<ProfilePage>
     with AutomaticKeepAliveClientMixin<ProfilePage> {
-  static const double _profileContentDrop = 160;
+  static const double _profileContentDrop = 272;
   static final Map<String, _FollowCountersSnapshot>
   _followCountersCacheByProfileId = <String, _FollowCountersSnapshot>{};
 
@@ -643,6 +643,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                                 ),
                                 Positioned(
                                   top: 12,
+                                  left: 12,
+                                  child: _RoleTagChip(label: specialization),
+                                ),
+                                Positioned(
+                                  top: 12,
                                   right: 12,
                                   child: Row(
                                     children: [
@@ -679,25 +684,18 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
                                     children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              displayName,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 34,
-                                                fontWeight: FontWeight.w800,
-                                                color: Color(0xFFF2EBFF),
-                                                height: 1,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        displayName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 34,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFFF2EBFF),
+                                          height: 1,
+                                        ),
                                       ),
-                                      const SizedBox(height: 8),
-                                      _RoleTagChip(label: specialization),
                                       const SizedBox(height: 10),
                                       Row(
                                         crossAxisAlignment:
@@ -1260,9 +1258,13 @@ class _ProfileHeroBackdrop extends StatelessWidget {
     final imageUrl = (profile.avatarUrl ?? '').trim();
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.hardEdge,
+      borderRadius: const BorderRadius.only(
+        topLeft: Radius.circular(24),
+        topRight: Radius.circular(24),
+      ),
       child: AspectRatio(
-        aspectRatio: 0.96,
+        aspectRatio: 1.34,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -1323,13 +1325,24 @@ class _ProfileHeroBackdrop extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
+                    Colors.black.withValues(alpha: 0.36),
+                    Colors.black.withValues(alpha: 0.12),
                     Colors.black.withValues(alpha: 0.0),
-                    Colors.black.withValues(alpha: 0.14),
-                    Colors.black.withValues(alpha: 0.5),
+                    Colors.black.withValues(alpha: 0.2),
+                    Colors.black.withValues(alpha: 0.56),
                     Colors.black,
                   ],
-                  stops: const [0.0, 0.5, 0.78, 1.0],
+                  stops: const [0.0, 0.09, 0.22, 0.52, 0.78, 1.0],
                 ),
+              ),
+            ),
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SizedBox(
+                height: 2,
+                child: ColoredBox(color: Colors.black),
               ),
             ),
           ],
@@ -1359,44 +1372,52 @@ class _TopActionIconButton extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        width: 44,
-        height: 44,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: primary
               ? const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFFB16DFF), Color(0xFF7C49EF)],
+                  colors: [Color(0xE02A184C), Color(0xD019102F)],
                 )
               : const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF201D2F), Color(0xFF121221)],
+                  colors: [Color(0xD61B1230), Color(0xC0120C25)],
                 ),
           border: Border.all(
             color: primary
-                ? const Color(0xFFE7D8FF).withValues(alpha: 0.24)
-                : const Color(0xFF6F648A).withValues(alpha: 0.3),
+                ? const Color(0xFFF3ECFF).withValues(alpha: 0.82)
+                : const Color(0xFFF3ECFF).withValues(alpha: 0.58),
+            width: primary ? 1.0 : 0.9,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: primary ? 0.42 : 0.34),
+              blurRadius: primary ? 10 : 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
             Icon(
               icon,
-              size: primary ? 27 : 23,
+              size: primary ? 22 : 20,
               color: const Color(
-                0xFFF3EEFF,
+                0xFFF8F3FF,
               ).withValues(alpha: isEnabled ? 1 : 0.45),
             ),
             if (showBadge)
               Positioned(
-                top: 8,
-                right: 8,
+                top: 7,
+                right: 7,
                 child: Container(
-                  width: 7,
-                  height: 7,
+                  width: 6,
+                  height: 6,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: const Color(0xFFFF4E6E),
@@ -1421,29 +1442,41 @@ class _RoleTagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0x5A8D4AFF), Color(0x3A4E2B8A)],
-          ),
-          border: Border.all(
-            color: const Color(0xFFBE91FF).withValues(alpha: 0.5),
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xD61B1230), Color(0xC0120C25)],
         ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFFE7DCFF),
-            height: 1,
+        border: Border.all(
+          color: const Color(0xFFF3ECFF).withValues(alpha: 0.78),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.42),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
+        ],
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFFF8F3FF),
+          height: 1,
+          shadows: [
+            Shadow(
+              color: Color(0xA6000000),
+              blurRadius: 4,
+              offset: Offset(0, 1),
+            ),
+          ],
         ),
       ),
     );
@@ -1495,14 +1528,14 @@ class _ProfileInfoCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _TopStat(
-                  label: 'N° FOLLOWER',
+                  label: 'Follower',
                   value: followersValue,
                   onTap: onFollowersTap,
                 ),
               ),
               Expanded(
                 child: _TopStat(
-                  label: 'N° SEGUITI',
+                  label: 'Seguiti',
                   value: followingValue,
                   onTap: onFollowingTap,
                 ),
@@ -1618,9 +1651,11 @@ class _TopStat extends StatelessWidget {
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFFD8C9F0),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.24,
+                  color: Color(0xFFE1D5F8),
+                  height: 1.05,
                 ),
               ),
               const SizedBox(height: 4),
