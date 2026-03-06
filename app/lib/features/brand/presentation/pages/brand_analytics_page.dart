@@ -94,7 +94,7 @@ class _BrandAnalyticsPageState extends ConsumerState<BrandAnalyticsPage> {
                           _selectedRange.days,
                         );
 
-                        final monthlyMatches = last30.fold<int>(
+                        final selectedMatches = selected.fold<int>(
                           0,
                           (sum, point) => sum + point.matches,
                         );
@@ -160,10 +160,10 @@ class _BrandAnalyticsPageState extends ConsumerState<BrandAnalyticsPage> {
                                 children: [
                                   _TrendMetricCard(
                                     title: 'MATCH MENSILI',
-                                    value: _formatInt(monthlyMatches),
-                                    subtitle: 'Diretti Interactioni',
+                                    value: _formatInt(selectedMatches),
+                                    subtitle: 'Ultimi ${_selectedRange.label}',
                                     series: _normalizeLine(
-                                      last30
+                                      selected
                                           .map(
                                             (point) => point.matches.toDouble(),
                                           )
@@ -425,9 +425,7 @@ class _BrandAnalyticsPageState extends ConsumerState<BrandAnalyticsPage> {
         }
 
         return countsByDay.entries
-            .map(
-              (entry) => _FollowerPoint(day: entry.key, gained: entry.value),
-            )
+            .map((entry) => _FollowerPoint(day: entry.key, gained: entry.value))
             .toList(growable: false)
           ..sort((a, b) => a.day.compareTo(b.day));
       } on PostgrestException {
@@ -653,7 +651,9 @@ class _MonthlyMatchesDetailsCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const _MetricIconBubble(icon: Icons.account_balance_wallet_rounded),
+              const _MetricIconBubble(
+                icon: Icons.account_balance_wallet_rounded,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Row(
@@ -867,7 +867,11 @@ class _FollowerMiniChartPainter extends CustomPainter {
       ..strokeWidth = 1
       ..color = const Color(0x1FA794D8);
 
-    canvas.drawLine(Offset(0, baselineY), Offset(size.width, baselineY), guidePaint);
+    canvas.drawLine(
+      Offset(0, baselineY),
+      Offset(size.width, baselineY),
+      guidePaint,
+    );
 
     final markerPaint = Paint()
       ..style = PaintingStyle.stroke
@@ -946,11 +950,7 @@ class _FollowerMiniChartPainter extends CustomPainter {
       for (final index in markerIndexes) {
         if (index < 0 || index >= points.length) continue;
         final point = points[index];
-        canvas.drawCircle(
-          point,
-          2.6,
-          Paint()..color = const Color(0xFFE1CCFF),
-        );
+        canvas.drawCircle(point, 2.6, Paint()..color = const Color(0xFFE1CCFF));
       }
     }
   }
@@ -970,8 +970,7 @@ class _FollowerMiniChartPainter extends CustomPainter {
     var drawn = 0.0;
     while (drawn < distance) {
       final segmentStart = start + (direction * drawn);
-      final segmentEnd = start +
-          (direction * math.min(distance, drawn + dash));
+      final segmentEnd = start + (direction * math.min(distance, drawn + dash));
       canvas.drawLine(segmentStart, segmentEnd, paint);
       drawn += dash + gap;
     }
@@ -1547,5 +1546,3 @@ String _formatInt(int value) {
   }
   return '$sign$buffer';
 }
-
-

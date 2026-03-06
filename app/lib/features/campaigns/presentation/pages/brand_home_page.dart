@@ -48,6 +48,12 @@ extension _MatchingTimelineX on _MatchingTimeline {
   }
 }
 
+DateTime? _campaignMatchTimestamp(CampaignModel campaign) {
+  final status = campaign.status.trim().toLowerCase();
+  if (status != 'matched' && status != 'completed') return null;
+  return (campaign.updatedAt ?? campaign.createdAt)?.toLocal();
+}
+
 class BrandHomePage extends ConsumerStatefulWidget {
   const BrandHomePage({super.key});
 
@@ -300,11 +306,9 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
     DateTime end,
   ) {
     return campaigns.where((campaign) {
-      final createdAt = campaign.createdAt;
-      if (createdAt == null) return false;
-      final status = campaign.status.toLowerCase();
-      if (status != 'matched' && status != 'completed') return false;
-      return !createdAt.isBefore(start) && createdAt.isBefore(end);
+      final matchAt = _campaignMatchTimestamp(campaign);
+      if (matchAt == null) return false;
+      return !matchAt.isBefore(start) && matchAt.isBefore(end);
     }).length;
   }
 
@@ -315,11 +319,9 @@ class _BrandHomePageState extends ConsumerState<BrandHomePage> {
   ) {
     return campaigns
         .where((campaign) {
-          final createdAt = campaign.createdAt;
-          if (createdAt == null) return false;
-          final status = campaign.status.toLowerCase();
-          if (status != 'matched' && status != 'completed') return false;
-          return !createdAt.isBefore(start) && createdAt.isBefore(end);
+          final matchAt = _campaignMatchTimestamp(campaign);
+          if (matchAt == null) return false;
+          return !matchAt.isBefore(start) && matchAt.isBefore(end);
         })
         .fold<double>(0, (sum, campaign) => sum + campaign.budget.toDouble());
   }
@@ -818,11 +820,9 @@ class _BrandAnalyticsTrendSectionState
     DateTime end,
   ) {
     return campaigns.where((campaign) {
-      final createdAt = campaign.createdAt;
-      if (createdAt == null) return false;
-      final status = campaign.status.toLowerCase();
-      if (status != 'matched' && status != 'completed') return false;
-      return !createdAt.isBefore(start) && createdAt.isBefore(end);
+      final matchAt = _campaignMatchTimestamp(campaign);
+      if (matchAt == null) return false;
+      return !matchAt.isBefore(start) && matchAt.isBefore(end);
     }).length;
   }
 
