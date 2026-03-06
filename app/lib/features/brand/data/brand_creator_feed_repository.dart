@@ -90,21 +90,6 @@ class BrandCreatorFeedRepository {
           followerColumn: 'follower_id',
           followedColumn: 'followed_id',
         ),
-        _FollowStorageSchema(
-          table: 'user_follows',
-          followerColumn: 'follower_id',
-          followedColumn: 'following_id',
-        ),
-        _FollowStorageSchema(
-          table: 'creator_followers',
-          followerColumn: 'follower_id',
-          followedColumn: 'creator_id',
-        ),
-        _FollowStorageSchema(
-          table: 'brand_saved_creators',
-          followerColumn: 'brand_id',
-          followedColumn: 'creator_id',
-        ),
       ];
 
   List<_FollowStorageSchema>? _cachedFollowSchemas;

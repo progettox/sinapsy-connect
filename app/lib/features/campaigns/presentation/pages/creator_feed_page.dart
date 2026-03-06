@@ -18,12 +18,17 @@ class CreatorFeedPage extends ConsumerStatefulWidget {
   ConsumerState<CreatorFeedPage> createState() => _CreatorFeedPageState();
 }
 
-class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage> {
+class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage>
+    with AutomaticKeepAliveClientMixin<CreatorFeedPage> {
   Map<String, _BrandLiteProfile> _brandsById =
       const <String, _BrandLiteProfile>{};
   int _activeCampaignIndex = 0;
   bool _isLoadingBrands = false;
   String? _feedErrorMessage;
+  String? _lastHeroImageUrl;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -197,19 +202,38 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage> {
   }
 
   String? _resolveHeroImageUrl(List<CampaignModel> campaigns) {
-    if (campaigns.isEmpty) return null;
+    String? avatarForCampaign(CampaignModel campaign) {
+      final brandId = campaign.brandId?.trim() ?? '';
+      if (brandId.isEmpty) return null;
+      final avatar = _brandsById[brandId]?.avatarUrl?.trim();
+      if (avatar == null || avatar.isEmpty) return null;
+      return avatar;
+    }
+
+    if (campaigns.isEmpty) return _lastHeroImageUrl;
     final safeIndex = _activeCampaignIndex >= campaigns.length
         ? campaigns.length - 1
         : _activeCampaignIndex;
-    final activeCampaign = campaigns[safeIndex];
-    final brandId = activeCampaign.brandId?.trim() ?? '';
-    final brandAvatar = _brandsById[brandId]?.avatarUrl?.trim();
-    if (brandAvatar != null && brandAvatar.isNotEmpty) return brandAvatar;
-    return null;
+    final activeAvatar = avatarForCampaign(campaigns[safeIndex]);
+    if (activeAvatar != null) {
+      _lastHeroImageUrl = activeAvatar;
+      return activeAvatar;
+    }
+
+    for (final campaign in campaigns) {
+      final avatar = avatarForCampaign(campaign);
+      if (avatar != null) {
+        _lastHeroImageUrl = avatar;
+        return avatar;
+      }
+    }
+
+    return _lastHeroImageUrl;
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final state = ref.watch(creatorFeedControllerProvider);
     final heroImageUrl = _resolveHeroImageUrl(state.campaigns);
     final canRefresh = !state.isLoading;
@@ -232,7 +256,10 @@ class _CreatorFeedPageState extends ConsumerState<CreatorFeedPage> {
       }
 
       final oldCampaigns = previous?.campaigns ?? const <CampaignModel>[];
-      if (_didCampaignListChange(oldCampaigns, next.campaigns)) {
+      final shouldLoadBrandProfiles =
+          _didCampaignListChange(oldCampaigns, next.campaigns) ||
+          (_brandsById.isEmpty && next.campaigns.isNotEmpty && !next.isLoading);
+      if (shouldLoadBrandProfiles && !_isLoadingBrands) {
         _loadBrandProfilesForCampaigns(next.campaigns);
       }
     });

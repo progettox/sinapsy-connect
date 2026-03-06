@@ -1495,16 +1495,6 @@ const List<_FollowSchemaForFollowers> _followSchemasForFollowers =
         followerColumn: 'follower_id',
         followedColumn: 'followed_id',
       ),
-      _FollowSchemaForFollowers(
-        table: 'user_follows',
-        followerColumn: 'follower_id',
-        followedColumn: 'following_id',
-      ),
-      _FollowSchemaForFollowers(
-        table: 'creator_followers',
-        followerColumn: 'follower_id',
-        followedColumn: 'creator_id',
-      ),
     ];
 
 class _FollowSchemaForFollowers {

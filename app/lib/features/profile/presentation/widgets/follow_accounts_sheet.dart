@@ -423,19 +423,4 @@ const List<_FollowStorageSchema> _followStorageCandidates =
         followerColumn: 'follower_id',
         followedColumn: 'followed_id',
       ),
-      _FollowStorageSchema(
-        table: 'profile_followers',
-        followerColumn: 'followerId',
-        followedColumn: 'followedId',
-      ),
-      _FollowStorageSchema(
-        table: 'profileFollowers',
-        followerColumn: 'follower_id',
-        followedColumn: 'followed_id',
-      ),
-      _FollowStorageSchema(
-        table: 'profileFollowers',
-        followerColumn: 'followerId',
-        followedColumn: 'followedId',
-      ),
     ];

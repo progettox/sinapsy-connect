@@ -19,12 +19,17 @@ class BrandDashboardPage extends ConsumerStatefulWidget {
   ConsumerState<BrandDashboardPage> createState() => _BrandDashboardPageState();
 }
 
-class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
+class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage>
+    with AutomaticKeepAliveClientMixin<BrandDashboardPage> {
   List<CreatorFeedCard> _recommendedCreators = const <CreatorFeedCard>[];
   final Set<String> _savingCreatorIds = <String>{};
   int _activeCreatorIndex = 0;
   bool _isLoadingCreators = true;
   String? _creatorsError;
+  String? _lastHeroImageUrl;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -201,6 +206,7 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final state = ref.watch(brandCampaignsControllerProvider);
     final canCreateCampaign = !state.isLoading && !state.isRemoving;
     final badgeState = ref.watch(brandNotificationsBadgeControllerProvider);
@@ -334,13 +340,33 @@ class _BrandDashboardPageState extends ConsumerState<BrandDashboardPage> {
   }
 
   String? _resolveHeroImageUrl() {
-    if (_recommendedCreators.isEmpty) return null;
+    String? imageFromCreator(CreatorFeedCard creator) {
+      final avatar = (creator.avatarUrl ?? '').trim();
+      if (avatar.isNotEmpty) return avatar;
+      final hero = (creator.heroImageUrl ?? '').trim();
+      if (hero.isNotEmpty) return hero;
+      return null;
+    }
+
+    if (_recommendedCreators.isEmpty) return _lastHeroImageUrl;
     final safeIndex = _activeCreatorIndex >= _recommendedCreators.length
         ? _recommendedCreators.length - 1
         : _activeCreatorIndex;
-    final creator = _recommendedCreators[safeIndex];
-    final avatar = (creator.avatarUrl ?? '').trim();
-    return avatar.isEmpty ? null : avatar;
+    final activeImage = imageFromCreator(_recommendedCreators[safeIndex]);
+    if (activeImage != null) {
+      _lastHeroImageUrl = activeImage;
+      return activeImage;
+    }
+
+    for (final creator in _recommendedCreators) {
+      final image = imageFromCreator(creator);
+      if (image != null) {
+        _lastHeroImageUrl = image;
+        return image;
+      }
+    }
+
+    return _lastHeroImageUrl;
   }
 }
 
